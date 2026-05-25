@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<title>AICoachCard — V3 Week dots</title>
+<style>
+  :root {
+    --bg: #0E0E0F; --surface: #17171A;
+    --primary: #D4B07A; --primary-deep: #B08A4E;
+    --text: #F4F1EA; --text-secondary: #C9C7C0; --text-tertiary: #8A8780;
+    --text-inverse: #0A0A0A;
+    --border: rgba(255, 255, 255, 0.10);
+    --success: #9AC28C;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif; padding: 40px; width: 375px; }
+  .label { color: var(--text-tertiary); font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 12px; }
+
+  /* V3 — V1 + week dot-strip at the bottom (7 dots: Mon-Sun).
+     Visualises this week's training rhythm under the CTA. */
+  .card {
+    position: relative;
+    border-radius: 28px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 85% 0%, rgba(212, 176, 122, 0.2) 0%, transparent 45%),
+      linear-gradient(135deg, #1E1810 0%, #2A1F12 60%, #382612 100%);
+    padding: 22px 22px 16px;
+  }
+  .eyebrow {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+  }
+  .icon-square {
+    width: 28px; height: 28px; border-radius: 8px;
+    background: var(--primary); color: var(--text-inverse);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  .eyebrow-text {
+    color: var(--primary); font-size: 12px; font-weight: 600;
+    letter-spacing: 1.2px; text-transform: uppercase;
+  }
+  .hero {
+    color: var(--text); font-size: 22px; font-weight: 600;
+    line-height: 26px; max-width: 280px; margin: 0;
+  }
+  .actions {
+    display: flex; gap: 8px; margin-top: 18px;
+  }
+  .cta {
+    flex: 1; height: 44px; border-radius: 16px;
+    background: var(--primary); color: var(--text-inverse);
+    border: none; font-size: 13px; font-weight: 600;
+    cursor: pointer;
+  }
+  .refresh {
+    width: 44px; height: 44px; border-radius: 16px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border); color: var(--text);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; cursor: pointer;
+  }
+  .week-strip {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 16px; padding-top: 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+  .day {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+  }
+  .day-letter {
+    font-size: 9px; font-weight: 600; color: var(--text-tertiary);
+    letter-spacing: 0.5px;
+  }
+  .day-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: rgba(255, 255, 255, 0.10);
+  }
+  .day-dot.done { background: var(--primary); }
+  .day-dot.today { background: transparent; border: 2px solid var(--primary); width: 12px; height: 12px; }
+</style>
+</head>
+<body>
+  <div class="label">V3 — Week dots (training rhythm visualised)</div>
+  <div class="card">
+    <div class="eyebrow">
+      <div class="icon-square">⚡</div>
+      <span class="eyebrow-text">Тренер рекомендует</span>
+    </div>
+    <h3 class="hero">Сегодня — грудь и трицепс. Жим штанги на 2.5 кг больше</h3>
+    <div class="actions">
+      <button class="cta">Начать тренировку</button>
+      <button class="refresh">↻</button>
+    </div>
+    <div class="week-strip">
+      <div class="day"><span class="day-letter">ПН</span><span class="day-dot done"></span></div>
+      <div class="day"><span class="day-letter">ВТ</span><span class="day-dot"></span></div>
+      <div class="day"><span class="day-letter">СР</span><span class="day-dot done"></span></div>
+      <div class="day"><span class="day-letter">ЧТ</span><span class="day-dot done"></span></div>
+      <div class="day"><span class="day-letter">ПТ</span><span class="day-dot today"></span></div>
+      <div class="day"><span class="day-letter">СБ</span><span class="day-dot"></span></div>
+      <div class="day"><span class="day-letter">ВС</span><span class="day-dot"></span></div>
+    </div>
+  </div>
+</body>
+</html>
