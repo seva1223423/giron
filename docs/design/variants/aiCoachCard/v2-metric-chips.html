@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<title>AICoachCard — V2 Metric chips</title>
+<style>
+  :root {
+    --bg: #0E0E0F; --surface: #17171A;
+    --primary: #D4B07A; --primary-deep: #B08A4E;
+    --text: #F4F1EA; --text-secondary: #C9C7C0; --text-tertiary: #8A8780;
+    --text-inverse: #0A0A0A;
+    --border: rgba(255, 255, 255, 0.10);
+    --success: #9AC28C;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif; padding: 40px; width: 375px; }
+  .label { color: var(--text-tertiary); font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 12px; }
+
+  /* V2 — V1 + 2 metric chips above the hero text: streak + days since
+     last workout. Gives context WHY this recommendation. */
+  .card {
+    position: relative;
+    border-radius: 28px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 85% 0%, rgba(212, 176, 122, 0.2) 0%, transparent 45%),
+      linear-gradient(135deg, #1E1810 0%, #2A1F12 60%, #382612 100%);
+    padding: 22px;
+  }
+  .eyebrow {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+  }
+  .icon-square {
+    width: 28px; height: 28px; border-radius: 8px;
+    background: var(--primary); color: var(--text-inverse);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  .eyebrow-text {
+    color: var(--primary); font-size: 12px; font-weight: 600;
+    letter-spacing: 1.2px; text-transform: uppercase;
+  }
+  .chips {
+    display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap;
+  }
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 10px;
+    border-radius: 100px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    color: var(--text-secondary);
+    font-size: 11px; font-weight: 600;
+  }
+  .chip.streak { color: var(--primary); border-color: rgba(212, 176, 122, 0.3); background: rgba(212, 176, 122, 0.10); }
+  .chip-icon { font-size: 12px; }
+  .hero {
+    color: var(--text); font-size: 22px; font-weight: 600;
+    line-height: 26px; max-width: 280px; margin: 0;
+  }
+  .actions {
+    display: flex; gap: 8px; margin-top: 18px;
+  }
+  .cta {
+    flex: 1; height: 44px; border-radius: 16px;
+    background: var(--primary); color: var(--text-inverse);
+    border: none; font-size: 13px; font-weight: 600;
+    cursor: pointer;
+  }
+  .refresh {
+    width: 44px; height: 44px; border-radius: 16px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border); color: var(--text);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; cursor: pointer;
+  }
+</style>
+</head>
+<body>
+  <div class="label">V2 — Metric chips (context: streak + last workout)</div>
+  <div class="card">
+    <div class="eyebrow">
+      <div class="icon-square">⚡</div>
+      <span class="eyebrow-text">Тренер рекомендует</span>
+    </div>
+    <div class="chips">
+      <span class="chip streak"><span class="chip-icon">🔥</span> 5 дней подряд</span>
+      <span class="chip"><span class="chip-icon">⏱</span> 2 дня без зала</span>
+    </div>
+    <h3 class="hero">Сегодня — грудь и трицепс. Жим штанги на 2.5 кг больше</h3>
+    <div class="actions">
+      <button class="cta">Начать тренировку</button>
+      <button class="refresh">↻</button>
+    </div>
+  </div>
+</body>
+</html>
