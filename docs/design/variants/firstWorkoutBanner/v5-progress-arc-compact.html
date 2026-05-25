@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<title>FirstWorkoutBanner — V5 Progress arc compact</title>
+<style>
+  :root {
+    --bg: #0E0E0F;
+    --surface: #17171A;
+    --surface-elev: #1E1E22;
+    --primary: #D4B07A;
+    --primary-deep: #B08A4E;
+    --text: #F4F1EA;
+    --text-secondary: #C9C7C0;
+    --text-tertiary: #8A8780;
+    --text-inverse: #0A0A0A;
+    --success: #9AC28C;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg);
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+    padding: 40px; width: 375px;
+  }
+  .label { color: var(--text-tertiary); font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 12px; }
+
+  /* V5 — V4 improved: shorter copy, real step labels in tooltip,
+     done-steps shown as solid dots above the title for context */
+  .banner {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 16px;
+    border-radius: 16px;
+    background: var(--surface);
+    border: 1px solid rgba(212, 176, 122, 0.22);
+    position: relative;
+  }
+  .ring { flex-shrink: 0; width: 52px; height: 52px; position: relative; }
+  .ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .ring-track { fill: none; stroke: rgba(212, 176, 122, 0.14); stroke-width: 5; }
+  .ring-progress {
+    fill: none; stroke: var(--primary); stroke-width: 5; stroke-linecap: round;
+    stroke-dasharray: 145.3;        /* 2π × r where r=23.1 */
+    stroke-dashoffset: 108.97;       /* 25% complete */
+  }
+  .ring-label {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; color: var(--primary);
+  }
+  .body { flex: 1; min-width: 0; }
+  .dots {
+    display: flex; gap: 4px; margin-bottom: 5px;
+  }
+  .dot {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: rgba(212, 176, 122, 0.2);
+  }
+  .dot.done { background: var(--success); }
+  .dot.active { background: var(--primary); box-shadow: 0 0 0 2px rgba(212, 176, 122, 0.25); }
+  .title {
+    font-size: 14px; font-weight: 700; color: var(--text);
+    margin: 0 0 3px 0; line-height: 18px;
+  }
+  .text {
+    font-size: 12px; line-height: 16px; color: var(--text-secondary); margin: 0;
+  }
+  .cta {
+    flex-shrink: 0; padding: 10px 14px; border-radius: 10px;
+    background: var(--primary); border: 1px solid var(--primary);
+    color: var(--text-inverse); font-size: 12px; font-weight: 700;
+    cursor: pointer; white-space: nowrap;
+  }
+  .close {
+    position: absolute; top: 8px; right: 10px; padding: 4px;
+    color: var(--text-tertiary); background: transparent; border: none;
+    cursor: pointer; font-size: 14px; line-height: 1;
+    transform: rotate(45deg);
+  }
+</style>
+</head>
+<body>
+  <div class="label">V5 — Progress arc compact (improved V4)</div>
+  <div class="banner">
+    <button class="close">+</button>
+    <div class="ring">
+      <svg viewBox="0 0 52 52">
+        <circle class="ring-track" cx="26" cy="26" r="23" />
+        <circle class="ring-progress" cx="26" cy="26" r="23" />
+      </svg>
+      <div class="ring-label">1/4</div>
+    </div>
+    <div class="body">
+      <div class="dots">
+        <span class="dot done" title="Регистрация"></span>
+        <span class="dot active" title="Первая тренировка"></span>
+        <span class="dot" title="Первая еда"></span>
+        <span class="dot" title="Цель установлена"></span>
+      </div>
+      <h3 class="title">Первая тренировка</h3>
+      <p class="text">15 минут — и профиль оживёт</p>
+    </div>
+    <button class="cta">Начать</button>
+  </div>
+</body>
+</html>
