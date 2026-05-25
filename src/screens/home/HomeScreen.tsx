@@ -620,21 +620,27 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         <QuickActionsGrid
           actions={[
             {
+              // Food scan → terracotta (calorie domain)
               icon: 'scan',
               label: 'Сканировать еду',
               subtitle: 'ИИ определит КБЖУ',
+              accent: 'calories',
               onPress: () => navigation.navigate('NutritionTab', { screen: 'FoodScanner' }),
             },
             {
+              // Body weight → gold primary (own brand colour)
               icon: 'chart',
               label: 'Добавить вес',
               subtitle: 'Утреннее взвешивание',
+              accent: 'primary',
               onPress: () => navigation.navigate('WorkoutsTab', { screen: 'Progress' }),
             },
             {
+              // Progress charts → sage (growth/improvement semantic)
               icon: 'spark',
               label: 'Прогресс',
               subtitle: 'Графики и статистика',
+              accent: 'carbs',
               onPress: () => navigation.navigate('WorkoutsTab', { screen: 'Progress' }),
             },
           ]}

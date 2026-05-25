@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<title>QuickActionsGrid — V2 Arrow indicators</title>
+<style>
+  :root {
+    --bg: #0E0E0F; --surface: #17171A;
+    --primary: #D4B07A;
+    --text: #F4F1EA; --text-secondary: #C9C7C0; --text-tertiary: #8A8780;
+    --border: rgba(255, 255, 255, 0.10);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif; padding: 40px; width: 375px; }
+  .label { color: var(--text-tertiary); font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 12px; }
+
+  /* V2 — small chevron in top-right of each card. Affordance for tap. */
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .card {
+    position: relative;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 18px; padding: 14px;
+    cursor: pointer;
+  }
+  .chev {
+    position: absolute; top: 12px; right: 12px;
+    color: var(--text-tertiary); font-size: 14px; line-height: 1;
+  }
+  .icon-tile {
+    width: 32px; height: 32px; border-radius: 10px;
+    background: rgba(212, 176, 122, 0.10);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 10px;
+    font-size: 16px; color: var(--primary);
+  }
+  .label-text { color: var(--text); font-size: 13px; font-weight: 600; }
+  .sub { color: var(--text-secondary); font-size: 11px; margin-top: 2px; }
+</style>
+</head>
+<body>
+  <div class="label">V2 — Arrow affordance (clearer "tap me" cue)</div>
+  <div class="grid">
+    <div class="card">
+      <div class="chev">›</div>
+      <div class="icon-tile">⌬</div>
+      <div class="label-text">Сканировать еду</div>
+      <div class="sub">ИИ определит КБЖУ</div>
+    </div>
+    <div class="card">
+      <div class="chev">›</div>
+      <div class="icon-tile">⚖</div>
+      <div class="label-text">Добавить вес</div>
+      <div class="sub">Утреннее взвешивание</div>
+    </div>
+    <div class="card">
+      <div class="chev">›</div>
+      <div class="icon-tile">⚡</div>
+      <div class="label-text">Прогресс</div>
+      <div class="sub">Графики и статистика</div>
+    </div>
+    <div class="card">
+      <div class="chev">›</div>
+      <div class="icon-tile">💬</div>
+      <div class="label-text">Спросить AI</div>
+      <div class="sub">Любой вопрос</div>
+    </div>
+  </div>
+</body>
+</html>
