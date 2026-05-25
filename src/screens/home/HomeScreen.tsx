@@ -367,7 +367,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       showsVerticalScrollIndicator={false}
     >
       <FadeIn delay={0} from="top">
-        <HomeHeader navigation={navigation} />
+        <HomeHeader navigation={navigation} streakDays={streak} />
       </FadeIn>
 
       {/* ── Announcements ─────────────────── */}
