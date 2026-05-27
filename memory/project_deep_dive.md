@@ -12,9 +12,9 @@
 ```
 1. UI Layer         — 437 компонентов, экранов, хуков (React Native)
 2. Navigation       — 3-уровневая иерархия (Auth → Onboarding → MainTabs)
-3. State Management — 14+ Zustand-сторов с persistence (AsyncStorage)
+3. State Management — 16 Zustand-сторов с persistence (AsyncStorage)
 4. API Abstraction  — axios-сервис с JWT auto-refresh + интерцепторы
-5. Backend         — Express с 11 роутами, Prisma ORM, 38 моделей БД
+5. Backend         — Express с 11 роутами, Prisma ORM, 40 моделей БД
 6. AI System       — 25 knowledge модулей (6547 строк), 33 AI tools
 7. Services        — 13 специализированных сервисов (push, email, LLM, etc)
 ```
@@ -69,7 +69,7 @@ App
 
 **Ключевая черта:** Material Top Tabs с `tabBarPosition="bottom"` дают Native pager-view swipe (react-native-pager-view) вместо стандартного bottom-tab navigator.
 
-### 14 Zustand-сторов (все с persist)
+### 16 Zustand-сторов (все с persist)
 
 | Store | Размер | Назначение | Key fields |
 |-------|--------|-----------|-----------|
@@ -272,7 +272,7 @@ russianSportsSchool        — советская школа (Платонов, 
 
 **Источники:** Peer-reviewed research (NSCA, ACSM, ISSN), авторы (Schoenfeld, Israetel, McDonald, Helms, Viada, etc.)
 
-### Prisma Schema (38 моделей, 5 enum)
+### Prisma Schema (40 моделей, 5 enum)
 
 **Основные модели:**
 
@@ -477,12 +477,12 @@ russianSportsSchool        — советская школа (Платонов, 
 
 ## VII. Тестирование
 
-### Клиент (81 jest-suитов, ~2030 тестов)
+### Клиент (113 jest-сюитов, ~2030 тестов)
 - Unit tests per screen/component
 - Zustand store mocking
 - Navigation testing
 
-### Сервер (54 test файла, ~1769 тестов)
+### Сервер (100 jest-сюитов, ~2500+ тестов)
 - Round 1-18: retentionService, adminDigestService, cronHealth, aiMetrics, memCache
 - Round 19-47: backfill existing routes (admin, user, auth.social, workout)
 - Round 48-92: добавлены aiMemoryService, recipes, routines, subscription_gating, webhook, validation, leaderboard, llmRouter, promptInjectionDetector, inputSanitizer, contextEngine.memoryBlock, otp, foodVision, errorReporter, trainer_invite, user.link, bugs_regression
