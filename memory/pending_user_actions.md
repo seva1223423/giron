@@ -22,6 +22,10 @@ prod-environment access — agent can't do them autonomously.
 - [ ] `cd server && npx prisma db push`
       — apply the new `@@index([workoutExerciseId, completed])` composite
       index on WorkoutSet. Added in commit 9c05b377, not yet in Neon.
+      ALSO applies Routine.source/presetKey/iconName + RoutineSource enum
+      + @@unique([userId,presetKey]) + @@index([userId,source]) from
+      commit 5857ecf2 (2026-05-23). Routes don't read the new Routine
+      fields yet, so still non-urgent — but a single push clears both.
 
 - [ ] Render env: append `?pgbouncer=true&connection_limit=1&pool_timeout=20`
       to `DATABASE_URL`. Without it, the Neon free-tier pool can exhaust
