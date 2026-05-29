@@ -138,6 +138,15 @@ export function createThrottledStorage(
   return wrapper;
 }
 
+/** Flush every active throttled wrapper's pending writes immediately.
+ *  Called on logout (audit 2026-05-29 H7): clearUserData() queues an empty
+ *  store snapshot through the 2s throttle, so without an explicit flush a kill
+ *  right after logout leaves the previous account's data on disk to rehydrate
+ *  under the next account. Flushing writes the cleared snapshot now. */
+export async function flushAllThrottledStorage(): Promise<void> {
+  await Promise.all([...activeWrappers].map((w) => w.flushPending()));
+}
+
 /** Test-only: drop all wrappers + reset listener flag. The AppState
  *  listener itself can't be removed reliably without storing the
  *  subscription; in tests we just orphan it (jest jsdom AppState is a
