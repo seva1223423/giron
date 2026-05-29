@@ -124,6 +124,17 @@ const syncSchema = z.object({
   samples: z.array(sampleRecord).max(2000).optional().default([]),
 });
 
+// Audit 2026-05-29 (H6): rows synced without a device externalId previously
+// stored externalId=null. Postgres treats NULL as distinct under a UNIQUE
+// constraint, so the (userId, externalId) / (userId, kind, startAt, externalId)
+// dedupe never fired for them — a retried sync (offline replay, double-tap)
+// silently inserted duplicate cardio sessions and samples. Derive a
+// deterministic 'local:'-namespaced key from the row's identifying content so
+// skipDuplicates dedupes re-submissions of the same entry. (Sleep is already
+// covered by its separate @@unique(userId, date), so it keeps null.)
+const localKey = (parts: Array<string | number | null | undefined>): string =>
+  'local:' + parts.map((p) => (p ?? '')).join('|');
+
 router.post('/health/sync', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId!;
@@ -154,7 +165,7 @@ router.post('/health/sync', authenticate, async (req: AuthRequest, res: Response
           vo2Max: c.vo2Max ?? null,
           notes: c.notes ?? null,
           deviceSource: c.deviceSource,
-          externalId: c.externalId ?? null,
+          externalId: c.externalId ?? localKey([c.date, c.type, c.durationMinutes, c.distanceKm, c.caloriesBurned]),
         })),
         skipDuplicates: true,
       });
@@ -200,7 +211,7 @@ router.post('/health/sync', authenticate, async (req: AuthRequest, res: Response
           startAt: new Date(sample.startAt),
           endAt: sample.endAt ? new Date(sample.endAt) : null,
           source: sample.source,
-          externalId: sample.externalId ?? null,
+          externalId: sample.externalId ?? localKey([sample.kind, sample.startAt, sample.value]),
         })),
         skipDuplicates: true,
       });
