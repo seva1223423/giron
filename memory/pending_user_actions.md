@@ -26,6 +26,11 @@ prod-environment access — agent can't do them autonomously.
       + @@unique([userId,presetKey]) + @@index([userId,source]) from
       commit 5857ecf2 (2026-05-23). Routes don't read the new Routine
       fields yet, so still non-urgent — but a single push clears both.
+      ALSO (audit 2026-05-29, H8) applies `User.weeklySummarySentDate String?`
+      — the weekly-summary cron now gates each send on it via an atomic claim
+      to stop double-sends across restarts. Until pushed, the Sunday cron throws
+      (caught + logged → 0 emails) — harmless at 0 users, but push before launch
+      so weekly summaries actually send.
 
 - [ ] Render env: append `?pgbouncer=true&connection_limit=1&pool_timeout=20`
       to `DATABASE_URL`. Without it, the Neon free-tier pool can exhaust
