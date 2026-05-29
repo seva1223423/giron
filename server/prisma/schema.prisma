@@ -71,6 +71,10 @@ model User {
   reactivation7dSentAt  DateTime?
   reactivation14dSentAt DateTime?
   reactivation30dSentAt DateTime?
+  /// Audit 2026-05-29 (H8): 'YYYY-MM-DD' of the Sunday a weekly-summary email
+  /// was last sent. Backs an atomic claim-then-send (updateMany CAS) so a 2nd
+  /// cron tick — even after a restart inside the send hour — can't double-send.
+  weeklySummarySentDate String?
 
   /// Onboarding funnel telemetry. Map of step number (0..4) → ISO
   /// timestamp, upserted by POST /user/onboarding/step as the user
