@@ -362,6 +362,12 @@ app.use('/api/user/2fa', totpRateLimiter);
 app.use('/api/user/account', totpRateLimiter);
 app.use('/api/user/change-email', totpRateLimiter);
 app.use('/api/user/change-phone', totpRateLimiter);
+// Audit 2026-05-29 (HIGH): /change-password and /linked-accounts also accept a
+// password/TOTP step-up guess but were missing the strict limiter — only the
+// generic userRateLimiter (200/min) applied, enough to brute-force a password
+// with a stolen access token. Mount the strict limiter before the generic mount.
+app.use('/api/user/change-password', totpRateLimiter);
+app.use('/api/user/linked-accounts', totpRateLimiter);
 app.use('/api/user', userRateLimiter, userRouter);
 app.use('/api/workouts', userRateLimiter, workoutRouter);
 app.use('/api/nutrition', userRateLimiter, nutritionRouter);
@@ -636,7 +642,10 @@ setInterval(async () => {
 
 let isShuttingDown = false;
 
-const server = app.listen(PORT, () => {
+// Audit 2026-05-29 (CRITICAL): guard listen behind NODE_ENV so importing this
+// module in tests (supertest) does NOT bind a real TCP port and leak the handle
+// ("worker failed to exit gracefully" / EADDRINUSE on parallel suites).
+const server = process.env.NODE_ENV !== 'test' ? app.listen(PORT, () => {
   logger.info(`Giron API server running on port ${PORT}`);
   startNewsRefreshScheduler();
 
@@ -670,10 +679,11 @@ const server = app.listen(PORT, () => {
       reportError(err as Error, { tags: { origin: 'admin-bootstrap' } });
     });
   }
-});
+}) : null;
 
 function gracefulShutdown(signal: string) {
   if (isShuttingDown) return; // idempotent — avoid double-handling SIGTERM+SIGINT
+  if (!server) return; // test env (NODE_ENV=test): no server started, nothing to drain
   isShuttingDown = true;
   logger.info(`[Shutdown] Received ${signal}, draining connections...`);
 
