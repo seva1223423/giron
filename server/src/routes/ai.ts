@@ -5750,7 +5750,11 @@ export async function executeTool(
     const restingHrMedian = restingHrs.length === 0 ? null
       : Math.round(restingHrs.sort((a, b) => a - b)[Math.floor(restingHrs.length / 2)] * 10) / 10;
     const latestSpo2 = sampleRows.find((s) => s.kind === 'spo2')?.value ?? null;
-    const latestVo2 = (cardioRows.map((c) => c.vo2Max).filter((v): v is number => typeof v === 'number').sort().pop()) ?? null;
+    // Audit 2026-05-29 (HIGH): comparator-less .sort() sorted VO2max lexically
+    // ([42,9,55] → 9); cardioRows has no orderBy → pick the most-recent by date.
+    const latestVo2 = cardioRows
+      .filter((c) => typeof c.vo2Max === 'number')
+      .sort((a, b) => b.date.localeCompare(a.date))[0]?.vo2Max ?? null;
     const todayCardio = cardioRows.filter((c) => c.date === todayDate);
     const todayActiveMin = todayCardio.reduce((sum, c) => sum + c.durationMinutes, 0);
 
@@ -8313,8 +8317,11 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
 
     logger.debug(`[AI] Intent: ${intent}, mood: ${mood}, gaps: ${profileGaps.length}, tools: ${intentConfig.toolsEnabled}`);
 
-    // Build conversation messages (history + current message) with smart trimming
-    const rawMessages: DeepSeekMessage[] = history
+    // Build conversation messages (history + current message) with smart trimming.
+    // Audit 2026-05-29 (HIGH): copy before reverse — history arrives newest-first
+    // and is reused below (conversation-flow / emotional-response / recent-context
+    // builders); an in-place .reverse() flipped it to oldest-first for them.
+    const rawMessages: DeepSeekMessage[] = [...history]
       .reverse()
       .map((m) => ({
         role: m.role as 'user' | 'assistant',

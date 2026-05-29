@@ -264,11 +264,12 @@ router.get('/health/summary', authenticate, async (req: AuthRequest, res: Respon
     const restingHrSamples = sampleRows.filter((s) => s.kind === 'restingHr').map((s) => s.value);
     const restingHrMedian = median(restingHrSamples);
 
+    // Audit 2026-05-29 (HIGH): was `.map().filter().sort().pop()` — a comparator-
+    // less .sort() sorts numbers lexicographically ([42,9,55] → 9), so VO2max was
+    // wrong. cardioRows has no orderBy, so pick the most-recent reading by date.
     const latestVo2 = cardioRows
-      .map((c) => c.vo2Max)
-      .filter((v): v is number => typeof v === 'number')
-      .sort()
-      .pop() ?? null;
+      .filter((c) => typeof c.vo2Max === 'number')
+      .sort((a, b) => b.date.localeCompare(a.date))[0]?.vo2Max ?? null;
 
     const latestSpo2 = sampleRows.find((s) => s.kind === 'spo2')?.value ?? null;
     const latestSleep = sleepRows[0] ?? null;
