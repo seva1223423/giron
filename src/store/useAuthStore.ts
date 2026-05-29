@@ -5,6 +5,7 @@ import { User } from '../types';
 import { authService, userService, getApiError } from '../services';
 import { AuthResponse } from '../services/authService';
 import { tokenStorage } from '../utils/secureStorage';
+import { flushAllThrottledStorage } from '../utils/throttledStorage';
 import { useNutritionStore } from './useNutritionStore';
 
 // Backend returns Prisma enum values (MALE/FEMALE, MUSCLE_GAIN, BEGINNER, ADMIN); normalize to frontend types
@@ -305,6 +306,11 @@ export const useAuthStore = create<AuthStore>()(
         await tokenStorage.clearTokens();
         set({ user: null, token: null, refreshToken: null, isAuthenticated: false, isOnboarded: false, error: null, totpPendingToken: null });
         clearStoreUserData();
+        // Audit 2026-05-29 (H7): flush the cleared (empty) store snapshots to
+        // disk now — clearUserData() routes through the 2s throttle, so a kill
+        // right after logout would otherwise leave the prior account's data on
+        // disk to rehydrate under the next login.
+        await flushAllThrottledStorage();
       },
 
       logoutAllDevices: async () => {
@@ -315,6 +321,7 @@ export const useAuthStore = create<AuthStore>()(
         await tokenStorage.clearAll();
         set({ user: null, token: null, refreshToken: null, isAuthenticated: false, isOnboarded: false, error: null, totpPendingToken: null, deviceToken: null });
         clearStoreUserData();
+        await flushAllThrottledStorage(); // Audit 2026-05-29 (H7) — see logout()
       },
 
       completeOnboarding: () => set({ isOnboarded: true, justOnboarded: true }),
