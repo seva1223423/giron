@@ -155,11 +155,23 @@ api.interceptors.response.use(
     }
 
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Audit 2026-05-29 (HIGH): a 401 from an /auth/* endpoint means "bad
+    // credentials" (wrong password / TOTP / phone code), NOT "access token
+    // expired". Running the refresh path on these pops a misleading "Сессия
+    // истекла" modal on a failed login and rejects with a synthetic Error that
+    // has no .response — so LoginScreen can't read the INVALID_CREDENTIALS code
+    // and always falls back to the generic "Ошибка входа". Skip refresh for /auth/*.
+    const isAuthEndpoint = (originalRequest.url || '').includes('/auth/');
+
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         }).then((token) => {
+          // Audit 2026-05-29 (HIGH): mark _retry so that if this replayed
+          // request 401s again it won't re-enter the refresh path (which would
+          // kick off a second refresh and risk a spurious forced logout).
+          originalRequest._retry = true;
           originalRequest.headers.Authorization = `Bearer ${token}`;
           return api(originalRequest);
         });
