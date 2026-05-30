@@ -78,6 +78,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
   const [emailBannerDismissed, setEmailBannerDismissed] = useState(false);
   const [firstWorkoutBannerDismissed, setFirstWorkoutBannerDismissed] = useState(false);
+  const [firstWorkoutSnoozeUntil, setFirstWorkoutSnoozeUntil] = useState(0);
   const [resendingVerification, setResendingVerification] = useState(false);
   const [showEmailVerifModal, setShowEmailVerifModal] = useState(false);
   const [emailVerifCode, setEmailVerifCode] = useState('');
@@ -85,6 +86,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [emailVerifError, setEmailVerifError] = useState('');
   const [resendCountdown, setResendCountdown] = useState(0);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const snoozeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const startResendCountdown = (seconds = 60) => {
     setResendCountdown(seconds);
@@ -98,7 +100,10 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     countdownRef.current = id;
   };
 
-  useEffect(() => () => { if (countdownRef.current) clearInterval(countdownRef.current); }, []);
+  useEffect(() => () => {
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    if (snoozeTimerRef.current) clearTimeout(snoozeTimerRef.current);
+  }, []);
   const { user } = useAuthStore();
   // Per-slice selectors instead of full-store destructure. Default
   // destructure subscribes to every field — including restTimeRemaining
@@ -323,6 +328,16 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     navigation.navigate('WorkoutsTab' as never);
   }, [navigation]);
 
+  /** Defer the first-workout banner for 1h instead of dismissing
+   *  forever. A timer un-snoozes so it reappears after the window
+   *  (session-scoped, consistent with the dismiss flag). */
+  const handleSnoozeFirstWorkout = useCallback(() => {
+    const ONE_HOUR = 60 * 60 * 1000;
+    setFirstWorkoutSnoozeUntil(Date.now() + ONE_HOUR);
+    if (snoozeTimerRef.current) clearTimeout(snoozeTimerRef.current);
+    snoozeTimerRef.current = setTimeout(() => setFirstWorkoutSnoozeUntil(0), ONE_HOUR);
+  }, []);
+
   /** AI coach card headline — choose between active workout recommendation,
    *  rest-day tip, or generic nudge. */
   const aiCoachHeadline = useMemo(() => {
@@ -359,6 +374,10 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     [weekPlan, workoutHistory],
   );
 
+  /** Bell dot signal — true when there are announcements the user
+   *  hasn't dismissed. Replaces the old always-on placeholder dot. */
+  const hasUnreadAnnouncements = announcements.some((a) => !dismissedIds.has(a.id));
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
     <ScrollView
@@ -367,7 +386,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       showsVerticalScrollIndicator={false}
     >
       <FadeIn delay={0} from="top">
-        <HomeHeader navigation={navigation} streakDays={streak} />
+        <HomeHeader navigation={navigation} streakDays={streak} hasUnread={hasUnreadAnnouncements} />
       </FadeIn>
 
       {/* ── Announcements ─────────────────── */}
@@ -434,10 +453,11 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       <FirstWorkoutBanner
         userCreatedAt={user?.createdAt}
         workoutHistory={workoutHistory}
-        dismissed={firstWorkoutBannerDismissed}
+        dismissed={firstWorkoutBannerDismissed || Date.now() < firstWorkoutSnoozeUntil}
         colors={colors}
         onDismiss={handleDismissFirstWorkoutBanner}
         onStart={handleStartFirstWorkout}
+        onSnooze={handleSnoozeFirstWorkout}
       />
 
       {/* Email verification modal */}
@@ -551,12 +571,24 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
              generic nudge if neither is available. */}
       {!activeWorkout && (
         <FadeIn delay={60}>
-          <AICoachCard
-            navigation={navigation}
-            recommendation={aiCoachHeadline}
-            onPressCta={handleStartPlannedWorkout}
-            onPressRefresh={() => { haptic.selection(); fetchWeekPlan(); }}
-          />
+          {restDayRecommendation ? (
+            <AICoachCard
+              navigation={navigation}
+              mode="rest"
+              recommendation={restDayRecommendation.reason}
+              subText={restDayRecommendation.tip}
+              onPressCta={() => { haptic.selection(); navigation.navigate('WorkoutsTab', { screen: 'WorkoutsList' }); }}
+              onPressSecondary={todayPlan ? handleStartPlannedWorkout : undefined}
+              secondaryLabel="Всё равно"
+            />
+          ) : (
+            <AICoachCard
+              navigation={navigation}
+              recommendation={aiCoachHeadline}
+              onPressCta={handleStartPlannedWorkout}
+              onPressRefresh={() => { haptic.selection(); fetchWeekPlan(); }}
+            />
+          )}
         </FadeIn>
       )}
 

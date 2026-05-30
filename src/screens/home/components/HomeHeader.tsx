@@ -41,6 +41,10 @@ interface Props {
    *  renders. Pass from HomeScreen's `streak` useMemo (already
    *  computed via computeStreak(workoutHistory)). */
   streakDays?: number;
+  /** When true, the gold dot on the bell renders. Wired to a real
+   *  "needs attention" signal (undismissed announcements). Default
+   *  false → no dot, replacing the old always-on placeholder. */
+  hasUnread?: boolean;
 }
 
 /**
@@ -59,7 +63,7 @@ function getTimeGreeting(hour: number): string {
   return 'Добрый вечер,';
 }
 
-export const HomeHeader: React.FC<Props> = ({ navigation, streakDays }) => {
+export const HomeHeader: React.FC<Props> = ({ navigation, streakDays, hasUnread }) => {
   const colors = useThemeColors();
   const { user } = useAuthStore();
 
@@ -131,21 +135,24 @@ export const HomeHeader: React.FC<Props> = ({ navigation, streakDays }) => {
           >
             <Icon name="bell" size={18} color={colors.text} />
           </View>
-          {/* Gold dot — ambient unread indicator. Kept from V1; will
-              get wired to real notification state in a future pass. */}
-          <View
-            style={{
-              position: 'absolute',
-              top: -2,
-              right: -2,
-              width: 10,
-              height: 10,
-              borderRadius: 5,
-              backgroundColor: colors.primary,
-              borderWidth: 2,
-              borderColor: colors.background,
-            }}
-          />
+          {/* Gold dot — ambient unread indicator. Now wired to real
+              state: renders only when the caller reports unread items
+              (undismissed announcements). No signal → no dot. */}
+          {hasUnread && (
+            <View
+              style={{
+                position: 'absolute',
+                top: -2,
+                right: -2,
+                width: 10,
+                height: 10,
+                borderRadius: 5,
+                backgroundColor: colors.primary,
+                borderWidth: 2,
+                borderColor: colors.background,
+              }}
+            />
+          )}
         </TouchableOpacity>
       </View>
     </View>
