@@ -35,6 +35,7 @@ import {
   type MeasurementField,
   type MealType,
 } from './parseChatCommand';
+import { flashBus, flashKey } from '../../utils/flashBus';
 
 export interface AIChatCommandHandler {
   tryHandle: (text: string) => boolean;
@@ -109,6 +110,16 @@ export function executeCommand(cmd: ParsedCommand): void {
   }
 }
 
+/**
+ * Flash a set chip gold in CurrentWorkoutPanel (Direction A "чип
+ * вспыхивает золотом" cue). Deferred a tick so a just-added chip has
+ * mounted + subscribed before we emit — flashBus is best-effort with
+ * no buffering, so emitting synchronously would miss a brand-new chip.
+ */
+function flashSet(exIdx: number, setIdx: number): void {
+  setTimeout(() => flashBus.emit(flashKey.set(exIdx, setIdx)), 0);
+}
+
 // ─── Phase A handlers ───────────────────────────────────────────────────────
 
 function handleAddWater(ml: number): void {
@@ -127,6 +138,7 @@ function handleAddSet(weight: number, reps: number): void {
   if (!updated) return;
   const newSetIdx = updated.workout.exercises[exIdx].sets.length - 1;
   state.updateSetData(exIdx, newSetIdx, { weight, reps });
+  flashSet(exIdx, newSetIdx);
   toast.success(`+ подход ${weight}×${reps}`);
 }
 
@@ -140,6 +152,7 @@ function handleCompleteSet(): void {
   if (nextPendingIdx === -1) { toast.info('Все подходы уже выполнены'); return; }
   const set = sets[nextPendingIdx];
   state.completeSet(exIdx, nextPendingIdx, { weight: set.weight, reps: set.reps });
+  flashSet(exIdx, nextPendingIdx);
   toast.success('Подход засчитан');
 }
 
@@ -154,6 +167,7 @@ function handleAdjustWeight(delta: number): void {
     if (!set.completed && set.weight != null) {
       const next = Math.max(0, set.weight + delta);
       useWorkoutStore.getState().updateSetData(exIdx, i, { weight: next });
+      flashSet(exIdx, i);
       changed++;
     }
   });
@@ -188,6 +202,7 @@ function handleRepeatLast(): void {
   if (!updated) return;
   const newSetIdx = updated.workout.exercises[exIdx].sets.length - 1;
   state.updateSetData(exIdx, newSetIdx, { weight: lastDone.weight, reps: lastDone.reps });
+  flashSet(exIdx, newSetIdx);
   toast.success(`Повтор ${lastDone.weight}×${lastDone.reps}`);
 }
 
@@ -233,6 +248,7 @@ function handleSetWeight(weight: number): void {
   const firstPending = sets.findIndex((s) => !s.completed);
   if (firstPending === -1) { toast.info('Нет невыполненных подходов'); return; }
   state.updateSetData(exIdx, firstPending, { weight });
+  flashSet(exIdx, firstPending);
   toast.success(`Вес: ${weight} кг`);
 }
 
@@ -245,6 +261,7 @@ function handleSetReps(reps: number): void {
   const firstPending = sets.findIndex((s) => !s.completed);
   if (firstPending === -1) { toast.info('Нет невыполненных подходов'); return; }
   state.updateSetData(exIdx, firstPending, { reps });
+  flashSet(exIdx, firstPending);
   toast.success(`Повторов: ${reps}`);
 }
 
