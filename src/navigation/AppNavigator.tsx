@@ -65,6 +65,8 @@ import { ChangeEmailScreen } from '../screens/profile/ChangeEmailScreen';
 import { LinkedAccountsScreen } from '../screens/profile/LinkedAccountsScreen';
 import { CardioScreen } from '../screens/cardio/CardioScreen';
 import { AddCardioScreen } from '../screens/cardio/AddCardioScreen';
+import { ExerciseLibraryScreen } from '../screens/workouts/ExerciseLibraryScreen';
+import { CreateProgramScreen } from '../screens/workouts/CreateProgramScreen';
 import HealthScreen from '../screens/health/HealthScreen';
 import SupportScreen from '../screens/support/SupportScreen';
 import CreateTicketScreen from '../screens/support/CreateTicketScreen';
@@ -179,6 +181,8 @@ function WorkoutsStackNavigator() {
       <WorkoutsStack.Screen name="Steps" component={StepsScreen} />
       <WorkoutsStack.Screen name="Cardio" component={CardioScreen} />
       <WorkoutsStack.Screen name="AddCardio" component={AddCardioScreen} options={{ animation: 'slide_from_bottom' }} />
+      <WorkoutsStack.Screen name="ExerciseLibrary" component={ExerciseLibraryScreen} />
+      <WorkoutsStack.Screen name="CreateProgram" component={CreateProgramScreen} options={{ animation: 'slide_from_bottom', presentation: 'modal' }} />
       <WorkoutsStack.Screen name="AIProgramDetail" component={AIProgramDetailScreen} />
       <WorkoutsStack.Screen name="ExerciseSearch" component={ExerciseSearchScreen} options={{ animation: 'slide_from_bottom' }} />
       {/* Прогресс перенесён сюда из таб-бара. Доступен по навигации

@@ -249,6 +249,103 @@ describe('POST /api/workouts/programs', () => {
     expect(createCalls[0][0].data.userId).toBe('u-test');
     expect(createCalls[0][0].data.userId).not.toBe('u-victim');
   });
+
+  // ─── days[] persistence (Followup 1) ────────────────────────────────────
+
+  it('201 with empty days[] — Program created, no Workouts', async () => {
+    const res = await request(app)
+      .post('/api/workouts/programs')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ ...validPayload, days: [] });
+
+    expect(res.status).toBe(201);
+    expect((prisma.workout.create as jest.Mock).mock.calls.length).toBe(0);
+  });
+
+  it('201 with days=[{name,exerciseIds}] — creates Workout + Exercise + 3 Sets', async () => {
+    (prisma.workout.create as jest.Mock).mockResolvedValue({ id: WORKOUT_ID });
+
+    const res = await request(app)
+      .post('/api/workouts/programs')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({
+        ...validPayload,
+        days: [{ name: 'День 1', exerciseIds: ['cuidA'] }],
+      });
+
+    expect(res.status).toBe(201);
+    const workoutCalls = (prisma.workout.create as jest.Mock).mock.calls;
+    expect(workoutCalls.length).toBe(1);
+    const data = workoutCalls[0][0].data;
+    expect(data.name).toBe('День 1');
+    expect(data.userId).toBe('u-test');
+    expect(data.programId).toBe(PROGRAM_ID);
+    // Exercises nested create
+    expect(data.exercises.create).toHaveLength(1);
+    expect(data.exercises.create[0].exerciseId).toBe('cuidA');
+    expect(data.exercises.create[0].order).toBe(0);
+    expect(data.exercises.create[0].restSeconds).toBe(90);
+    // 3 default sets per exercise
+    expect(data.exercises.create[0].sets.create).toHaveLength(3);
+    expect(data.exercises.create[0].sets.create[0]).toMatchObject({
+      setNumber: 1,
+      type: 'normal',
+      reps: 10,
+      weight: 0,
+    });
+  });
+
+  it('201 with invalid exerciseId — Program created, Workout skipped gracefully (P2003)', async () => {
+    const fkError = Object.assign(new Error('FK'), { code: 'P2003' });
+    (prisma.workout.create as jest.Mock).mockRejectedValueOnce(fkError);
+
+    const res = await request(app)
+      .post('/api/workouts/programs')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({
+        ...validPayload,
+        days: [{ name: 'День 1', exerciseIds: ['unknown-id'] }],
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.id).toBe(PROGRAM_ID);
+    expect((prisma.program.create as jest.Mock).mock.calls.length).toBe(1);
+    expect((prisma.workout.create as jest.Mock).mock.calls.length).toBe(1);
+  });
+
+  it('201 with day.name empty — defaults to "День N"', async () => {
+    (prisma.workout.create as jest.Mock).mockResolvedValue({ id: WORKOUT_ID });
+
+    await request(app)
+      .post('/api/workouts/programs')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({
+        ...validPayload,
+        days: [{ exerciseIds: ['cuidA'] }],
+      });
+
+    const workoutCalls = (prisma.workout.create as jest.Mock).mock.calls;
+    expect(workoutCalls[0][0].data.name).toBe('День 1');
+  });
+
+  it('201 skips days with empty exerciseIds', async () => {
+    (prisma.workout.create as jest.Mock).mockResolvedValue({ id: WORKOUT_ID });
+
+    await request(app)
+      .post('/api/workouts/programs')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({
+        ...validPayload,
+        days: [
+          { name: 'День 1', exerciseIds: [] },
+          { name: 'День 2', exerciseIds: ['cuidA'] },
+        ],
+      });
+
+    const workoutCalls = (prisma.workout.create as jest.Mock).mock.calls;
+    expect(workoutCalls.length).toBe(1);
+    expect(workoutCalls[0][0].data.name).toBe('День 2');
+  });
 });
 
 // ─── DELETE /api/workouts/programs/:id ────────────────────────────────────────

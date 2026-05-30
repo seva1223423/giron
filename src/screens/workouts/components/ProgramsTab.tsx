@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Platform } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
-import { useThemeColors, useWorkoutStore, useSubscriptionStore } from '../../../store';
-import { Card, FadeIn, PaywallModal } from '../../../components';
+import { useThemeStore, useWorkoutStore, useSubscriptionStore } from '../../../store';
+import { Card, FadeIn, Icon, PaywallModal } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { builtInPrograms } from '../../../data/programs';
@@ -34,7 +34,7 @@ interface Props {
 
 export const ProgramsTab: React.FC<Props> = ({ navigation }) => {
   const haptic = useHaptic();
-  const colors = useThemeColors();
+  const { colors } = useThemeStore();
   const { programs } = useWorkoutStore();
   const { isPremiumActive } = useSubscriptionStore();
   const [showPaywall, setShowPaywall] = useState(false);
@@ -76,7 +76,50 @@ export const ProgramsTab: React.FC<Props> = ({ navigation }) => {
 
   return (
     <>
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={() => { haptic.selection(); navigation.navigate('CreateProgram'); }}
+        accessibilityRole="button"
+        accessibilityLabel="Создать программу"
+        style={[
+          styles.createCta,
+          {
+            backgroundColor: colors.primary,
+            ...(Platform.OS === 'ios'
+              ? {
+                  shadowColor: colors.primary,
+                  shadowOffset: { width: 0, height: 8 },
+                  shadowOpacity: 0.28,
+                  shadowRadius: 16,
+                }
+              : { elevation: 6 }),
+          },
+        ]}
+      >
+        <View
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: borderRadius.md,
+            backgroundColor: colors.background,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Icon name="plus" size={22} color={colors.primary} strokeWidth={2.2} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[typography.bodySemibold, { color: colors.textInverse }]}>Создать программу</Text>
+          <Text style={[typography.caption, { color: colors.textInverse, opacity: 0.75, marginTop: 2 }]} numberOfLines={1}>
+            Свой план на 4 недели
+          </Text>
+        </View>
+        <Icon name="chev" size={20} color={colors.textInverse} strokeWidth={2.4} />
+      </TouchableOpacity>
+
       <UserProgramsList programs={programs} navigation={navigation} onStartWorkout={startProgramWorkout} />
+
+      <Text style={[typography.metaLabel, { color: colors.textSecondary, marginBottom: spacing.md }]}>ГОТОВЫЕ ПРОГРАММЫ</Text>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: spacing.sm }} contentContainerStyle={{ gap: spacing.sm, paddingBottom: spacing.xs }}>
         {GOAL_FILTERS.map((f) => (
@@ -85,7 +128,7 @@ export const ProgramsTab: React.FC<Props> = ({ navigation }) => {
             onPress={() => { haptic.selection(); setGoalFilter(f.key); }}
             style={[styles.filterChip, { backgroundColor: goalFilter === f.key ? colors.primary : colors.surface, borderColor: goalFilter === f.key ? colors.primary : colors.border }]}
           >
-            <Text style={[typography.captionMedium, { color: goalFilter === f.key ? '#FFF' : colors.text }]}>{f.label}</Text>
+            <Text style={[typography.captionMedium, { color: goalFilter === f.key ? colors.textInverse : colors.text }]}>{f.label}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -96,7 +139,7 @@ export const ProgramsTab: React.FC<Props> = ({ navigation }) => {
             onPress={() => { haptic.selection(); setLevelFilter(f.key); }}
             style={[styles.filterChip, { backgroundColor: levelFilter === f.key ? colors.accent : colors.surface, borderColor: levelFilter === f.key ? colors.accent : colors.border }]}
           >
-            <Text style={[typography.captionMedium, { color: levelFilter === f.key ? '#FFF' : colors.text }]}>{f.label}</Text>
+            <Text style={[typography.captionMedium, { color: levelFilter === f.key ? colors.textInverse : colors.text }]}>{f.label}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -106,11 +149,11 @@ export const ProgramsTab: React.FC<Props> = ({ navigation }) => {
           onPress={() => setShowPaywall(true)}
           style={[styles.proBanner, { backgroundColor: colors.accent + '12', borderColor: colors.accent + '40' }]}
         >
-          <Text style={{ fontSize: 14, fontWeight: '800', color: colors.accent }}>PRO</Text>
+          <Text style={[typography.bodySemibold, { color: colors.accent }]}>PRO</Text>
           <Text style={[typography.small, { color: colors.accent, flex: 1 }]}>
-            3 из {builtInPrograms.length} программ бесплатно — <Text style={{ fontWeight: '700' }}>получи все с Pro</Text>
+            3 из {builtInPrograms.length} программ бесплатно — <Text style={typography.smallMedium}>получи все с Pro</Text>
           </Text>
-          <Text style={[typography.caption, { color: colors.accent }]}>›</Text>
+          <Icon name="chev" size={14} color={colors.accent} />
         </TouchableOpacity>
       )}
 
@@ -133,7 +176,11 @@ export const ProgramsTab: React.FC<Props> = ({ navigation }) => {
               }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: isLocked ? colors.border + '40' : colors.primary + '12', borderWidth: 1.5, borderColor: isLocked ? colors.border : colors.primary + '40', alignItems: 'center', justifyContent: 'center', marginRight: spacing.md }}><Text style={{ fontSize: 16, fontWeight: '700', color: isLocked ? colors.textTertiary : colors.primary }}>{isLocked ? '◈' : program.emoji}</Text></View>
+                <View style={{ width: 40, height: 40, borderRadius: borderRadius.full, backgroundColor: isLocked ? colors.border + '40' : colors.primary + '12', borderWidth: 1.5, borderColor: isLocked ? colors.border : colors.primary + '40', alignItems: 'center', justifyContent: 'center', marginRight: spacing.md }}>
+                  {isLocked
+                    ? <Icon name="lock" size={18} color={colors.textTertiary} />
+                    : <Text style={[typography.bodySemibold, { color: colors.primary }]}>{program.emoji}</Text>}
+                </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[typography.bodySemibold, { color: isLocked ? colors.textSecondary : colors.text }]} numberOfLines={1}>{program.name}</Text>
                   <Text style={[typography.small, { color: colors.textSecondary, marginTop: 2 }]} numberOfLines={1}>
@@ -141,23 +188,23 @@ export const ProgramsTab: React.FC<Props> = ({ navigation }) => {
                   </Text>
                   <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs }}>
                     <View style={[styles.miniTag, { backgroundColor: isLocked ? colors.border : colors.primary + '15', borderWidth: 1, borderColor: isLocked ? colors.border : colors.primary + '35' }]}>
-                      <Text style={[typography.captionMedium, { color: isLocked ? colors.textTertiary : colors.primary, fontSize: 10 }]}>
+                      <Text style={[typography.metaLabel, { color: isLocked ? colors.textTertiary : colors.primary }]}>
                         {LEVEL_LABELS[program.level] || program.level}
                       </Text>
                     </View>
                     <View style={[styles.miniTag, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}>
-                      <Text style={[typography.captionMedium, { color: colors.textSecondary, fontSize: 10 }]}>
+                      <Text style={[typography.metaLabel, { color: colors.textSecondary }]}>
                         {GOAL_LABELS[program.goal] || program.goal}
                       </Text>
                     </View>
                     {isLocked && (
                       <View style={[styles.miniTag, { backgroundColor: colors.accent + '20', borderWidth: 1, borderColor: colors.accent + '40' }]}>
-                        <Text style={[typography.captionMedium, { color: colors.accent, fontSize: 10 }]}>Pro</Text>
+                        <Text style={[typography.metaLabel, { color: colors.accent }]}>Pro</Text>
                       </View>
                     )}
                   </View>
                 </View>
-                <Text style={[typography.body, { color: colors.textTertiary }]}>{isLocked ? '›' : '>'}</Text>
+                <Icon name="chev" size={16} color={colors.textTertiary} />
               </View>
             </Card>
           </FadeIn>
@@ -173,4 +220,13 @@ const styles = StyleSheet.create({
   miniTag: { paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: borderRadius.sm },
   filterChip: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: borderRadius.full, borderWidth: 1 },
   proBanner: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md, borderRadius: borderRadius.lg, borderWidth: 1, marginBottom: spacing.md },
+  createCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.xl,
+    marginBottom: spacing.lg,
+  },
 });

@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { useThemeColors } from '../../../store';
 import { useHaptic } from '../../../hooks/useHaptic';
+import { Icon } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
 
@@ -14,11 +15,6 @@ export interface WeekPlanDay {
   active?: boolean;
   /** True if the workout for this day is already completed. */
   done?: boolean;
-  /** Day classification. `'rest'` swaps the card to a dashed-border
-   *  empty-state visual (audit R-2026-05-22 V3 design pick) — makes it
-   *  obvious which days have nothing scheduled, distinct from "planned
-   *  but not done yet". Defaults to `'workout'`.  */
-  kind?: 'workout' | 'cardio' | 'rest';
 }
 
 interface Props {
@@ -56,7 +52,7 @@ export const WeekPlanStrip: React.FC<Props> = ({ days, onPressAll, onPressDay })
           paddingHorizontal: 4,
         }}
       >
-        <Text style={[typography.h4, { color: colors.text }]}>План недели</Text>
+        <Text style={[typography.h4, { color: colors.text }]}>На этой неделе</Text>
         {onPressAll && (
           <TouchableOpacity
             onPress={() => { haptic.selection(); onPressAll(); }}
@@ -74,35 +70,15 @@ export const WeekPlanStrip: React.FC<Props> = ({ days, onPressAll, onPressDay })
         contentContainerStyle={{ gap: 8 }}
       >
         {days.map((d, i) => {
-          // Audit R-2026-05-22 V3: 3 distinct visual states beyond
-          // the active/done flags:
-          //   active → gold solid + "СЕГОДНЯ" badge (clear "today")
-          //   done   → gold tint + bright primary day-letter + ✓
-          //   rest   → transparent + dashed border (planned NOTHING)
-          //   else   → plain surface (planned-but-pending workout)
-          const isRest = d.kind === 'rest';
-          const cardBg = d.active
-            ? colors.primary
-            : d.done
-              ? colors.primary + '14' // ~8% gold tint
-              : isRest
-                ? 'transparent'
-                : colors.surface;
-          const borderColor = d.active
-            ? colors.primary
-            : d.done
-              ? colors.primary + '4D' // ~30%
-              : isRest
-                ? 'rgba(255,255,255,0.15)'
-                : colors.border;
-          const borderStyle = isRest ? 'dashed' : 'solid';
-          const fg = d.active ? colors.textInverse : isRest ? colors.textTertiary : colors.text;
+          const cardBg = d.active ? colors.primary : colors.surface;
+          const borderColor = d.active ? colors.primary : colors.border;
+          const fg = d.active ? colors.textInverse : colors.text;
           const fgSub = d.active ? colors.textInverse : colors.textSecondary;
           return (
             <TouchableOpacity
               key={i}
               onPress={() => { haptic.selection(); onPressDay?.(i); }}
-              accessibilityLabel={`${d.dayLabel} — ${d.title}${d.done ? ', выполнено' : ''}${d.active ? ', сегодня' : ''}${isRest ? ', день отдыха' : ''}`}
+              accessibilityLabel={`${d.dayLabel} — ${d.title}${d.done ? ', выполнено' : ''}${d.active ? ', сегодня' : ''}`}
               accessibilityRole="button"
               style={{
                 minWidth: 96,
@@ -111,7 +87,18 @@ export const WeekPlanStrip: React.FC<Props> = ({ days, onPressAll, onPressDay })
                 backgroundColor: cardBg,
                 borderWidth: 1,
                 borderColor,
-                borderStyle,
+                // Gold halo on the active day — "today" should be the
+                // single element the eye lands on first (PHILOSOPHY §1
+                // "Hero, не равные карточки").
+                ...(d.active
+                  ? {
+                      shadowColor: colors.primary,
+                      shadowOpacity: 0.35,
+                      shadowRadius: 16,
+                      shadowOffset: { width: 0, height: 0 },
+                      elevation: 8,
+                    }
+                  : null),
               }}
             >
               <View
@@ -121,62 +108,25 @@ export const WeekPlanStrip: React.FC<Props> = ({ days, onPressAll, onPressDay })
                   alignItems: 'center',
                 }}
               >
-                {d.active ? (
-                  // Explicit "СЕГОДНЯ" pill — removes ambiguity that
-                  // V1's plain gold card produced ("which day is gold?").
-                  <View
-                    style={{
-                      backgroundColor: 'rgba(0,0,0,0.18)',
-                      paddingHorizontal: 6,
-                      paddingVertical: 2,
-                      borderRadius: 4,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        color: colors.textInverse,
-                        fontSize: 9,
-                        fontWeight: '700',
-                        letterSpacing: 1.5,
-                        textTransform: 'uppercase',
-                      }}
-                    >
-                      Сегодня
-                    </Text>
-                  </View>
-                ) : (
-                  <Text
-                    style={{
-                      color: d.done ? colors.primary : fgSub,
-                      fontSize: 10,
-                      fontWeight: d.done ? '700' : '500',
-                      letterSpacing: 1.5,
+                <Text
+                  style={[
+                    typography.metaLabel,
+                    {
+                      color: fgSub,
                       textTransform: 'uppercase',
-                      opacity: d.done ? 1 : 0.5,
-                    }}
-                  >
-                    {d.dayLabel}
-                  </Text>
-                )}
-                {d.done && (
-                  <Text
-                    style={[
-                      typography.captionMedium,
-                      { color: d.active ? fg : colors.primary, fontWeight: '700' },
-                    ]}
-                  >
-                    ✓
-                  </Text>
-                )}
+                      opacity: d.active ? 0.7 : 0.5,
+                    },
+                  ]}
+                >
+                  {d.dayLabel}
+                </Text>
+                {d.done && <Icon name="check" size={14} color={fg} />}
               </View>
               <Text
-                style={{
-                  fontSize: 13,
-                  fontWeight: isRest ? '500' : '600',
-                  color: fg,
-                  marginTop: 10,
-                  lineHeight: 16,
-                }}
+                style={[
+                  typography.smallMedium,
+                  { color: fg, marginTop: spacing.sm },
+                ]}
                 numberOfLines={2}
               >
                 {d.title}

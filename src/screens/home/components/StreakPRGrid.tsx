@@ -62,31 +62,28 @@ export const StreakPRGrid: React.FC<Props> = ({
           padding: 16,
         }}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: spacing.sm }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm, gap: spacing.sm }}>
           <Icon name="flame" size={18} color={colors.primary} />
           <Text
-            style={{
-              color: colors.primary,
-              fontSize: 11,
-              fontWeight: '600',
-              letterSpacing: 1,
-              textTransform: 'uppercase',
-            }}
+            style={[
+              typography.metaLabel,
+              {
+                color: colors.primary,
+                textTransform: 'uppercase',
+              },
+            ]}
           >
             Стрик
           </Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
           <Text
-            style={[
-              typography.h1,
-              { color: colors.text, fontSize: 42, lineHeight: 42 },
-            ]}
+            style={[typography.number, { color: colors.text }]}
           >
             {safeStreakDays}
           </Text>
           <Text
-            style={{ color: colors.textSecondary, fontSize: 16, marginLeft: 6 }}
+            style={[typography.body, { color: colors.textSecondary, marginLeft: spacing.xs }]}
           >
             {dayLabel}
           </Text>
@@ -120,30 +117,30 @@ export const StreakPRGrid: React.FC<Props> = ({
           padding: 16,
         }}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: spacing.sm }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm, gap: spacing.sm }}>
           <Icon name="trophy" size={18} color={colors.textSecondary} />
           <Text
-            style={{
-              color: colors.textSecondary,
-              fontSize: 11,
-              fontWeight: '600',
-              letterSpacing: 1,
-              textTransform: 'uppercase',
-            }}
+            style={[
+              typography.metaLabel,
+              {
+                color: colors.textSecondary,
+                textTransform: 'uppercase',
+              },
+            ]}
           >
             Рекорд
           </Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-          <Text style={[typography.h2, { color: colors.text, fontSize: 28 }]}>
+          <Text style={[typography.h2, { color: colors.text }]}>
             {safePrKg}
           </Text>
-          <Text style={{ color: colors.textSecondary, fontSize: 14, marginLeft: 4 }}>
+          <Text style={[typography.small, { color: colors.textSecondary, marginLeft: spacing.xs }]}>
             кг
           </Text>
         </View>
         <Text
-          style={{ color: colors.textSecondary, fontSize: 12, marginTop: 6 }}
+          style={[typography.caption, { color: colors.textSecondary, marginTop: spacing.xs }]}
           numberOfLines={1}
         >
           {prLabel}

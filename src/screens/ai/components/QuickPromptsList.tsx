@@ -1,12 +1,12 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useThemeColors } from '../../../store';
-import { FadeIn } from '../../../components';
+import { useThemeStore } from '../../../store';
+import { FadeIn, Icon, type IconName } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 
 interface Prompt {
-  emoji: string;
+  iconName: IconName;
   text: string;
 }
 
@@ -18,7 +18,7 @@ interface Props {
 }
 
 export const QuickPromptsList: React.FC<Props> = ({ dynamicPrompts, allPrompts, hasServerStarters, onSend }) => {
-  const colors = useThemeColors();
+  const { colors } = useThemeStore();
 
   return (
     <FadeIn delay={200}>
@@ -43,7 +43,9 @@ export const QuickPromptsList: React.FC<Props> = ({ dynamicPrompts, allPrompts, 
                 i < dynamicPrompts.length && { borderColor: colors.primary + '40', backgroundColor: colors.primary + '08' },
               ]}
             >
-              <Text style={{ fontSize: 14, fontWeight: '700', color: colors.primary, marginRight: spacing.xs }}>{prompt.emoji}</Text>
+              <View style={[styles.iconBox, { backgroundColor: colors.primary + '15', borderColor: colors.primary + '30' }]}>
+                <Icon name={prompt.iconName} size={16} color={colors.primary} />
+              </View>
               <Text style={[typography.small, { color: colors.text, flex: 1 }]} numberOfLines={2}>{prompt.text}</Text>
             </TouchableOpacity>
           </React.Fragment>
@@ -56,4 +58,13 @@ export const QuickPromptsList: React.FC<Props> = ({ dynamicPrompts, allPrompts, 
 const styles = StyleSheet.create({
   container: { gap: spacing.sm, marginBottom: spacing.xl },
   prompt: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.lg, borderRadius: borderRadius.lg, borderWidth: 1 },
+  iconBox: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+  },
 });

@@ -20,14 +20,14 @@ const ITEMS: CardItem[] = [
   { icon: 'timer', title: 'Календарь тренировок', subtitle: 'Дни и сессии за месяц', screen: 'WorkoutCalendar' },
   { icon: 'chart', title: 'История тренировок', subtitle: 'Прошлые тренировки и объём', screen: 'WorkoutHistory' },
   { icon: 'trophy', title: 'Личные рекорды', subtitle: 'PR по каждому упражнению', screen: 'PersonalRecords' },
-  { icon: 'grid', title: 'Мои рутины', subtitle: 'Сохранённые шаблоны тренировок', screen: 'Routines' },
 ];
 
 /**
  * История tab — entry points to backwards-looking workout data.
  *
- * Four nav cards in a single column. Replaces the old shortcut-pill row
- * for these destinations (round 287 layout simplification).
+ * Three nav cards in a single column. The "Мои рутины" card was removed
+ * in Phase 3 (it's now unified with savedTemplates under "Мои шаблоны"
+ * on the Начать tab — no duplicate entry point).
  */
 export const HistoryTab: React.FC<Props> = ({ navigation }) => {
   const colors = useThemeColors();

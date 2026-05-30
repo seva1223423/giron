@@ -4,6 +4,7 @@ import { ExerciseVideoModal } from '../../workouts/exercise/ExerciseVideoModal';
 import { ExerciseProgressionModal } from './ExerciseProgressionModal';
 import { useThemeColors, useWorkoutStore } from '../../../store';
 import { useHaptic } from '../../../hooks/useHaptic';
+import { Icon } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { WorkoutExercise } from '../../../types';
@@ -52,8 +53,12 @@ export const ExerciseNavBar: React.FC<Props> = ({ currentExercise, currentExerci
         disabled={currentExerciseIndex === 0}
         style={{ opacity: currentExerciseIndex === 0 ? 0.3 : 1, padding: 4 }}
         hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+        accessibilityRole="button"
+        accessibilityLabel="\u041f\u0440\u0435\u0434\u044b\u0434\u0443\u0449\u0435\u0435 \u0443\u043f\u0440\u0430\u0436\u043d\u0435\u043d\u0438\u0435"
       >
-        <Text style={[typography.h3, { color: colors.primary }]}>{'\u2039'}</Text>
+        <View style={{ transform: [{ rotate: '180deg' }] }}>
+          <Icon name="chev" size={22} color={colors.primary} />
+        </View>
       </TouchableOpacity>
 
       <View style={{ alignItems: 'center', flex: 1 }}>
@@ -64,7 +69,7 @@ export const ExerciseNavBar: React.FC<Props> = ({ currentExercise, currentExerci
             borderRadius: borderRadius.full, backgroundColor: colors.primary + '18',
             borderWidth: 1, borderColor: colors.primary + '35',
           }}>
-            <Text style={{ fontSize: 13, fontWeight: '800', color: colors.primary, letterSpacing: 0.5 }} numberOfLines={1}>
+            <Text style={[typography.captionMedium, { color: colors.primary, letterSpacing: 0.5 }]} numberOfLines={1}>
               {currentExerciseIndex + 1} / {totalExercises}
             </Text>
           </View>
@@ -74,8 +79,8 @@ export const ExerciseNavBar: React.FC<Props> = ({ currentExercise, currentExerci
             </View>
           )}
           {hasSessionPR && (
-            <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: borderRadius.sm, backgroundColor: '#FFD700' + '30', borderWidth: 1, borderColor: '#FFD700' + '80' }}>
-              <Text style={{ fontSize: 9, fontWeight: '800', color: '#D4A800', letterSpacing: 0.5 }}>PR</Text>
+            <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: borderRadius.sm, backgroundColor: colors.primary + '30', borderWidth: 1, borderColor: colors.primary + '80' }}>
+              <Text style={{ fontSize: 9, fontWeight: '800', color: colors.primaryDark, letterSpacing: 0.5 }}>PR</Text>
             </View>
           )}
         </View>
@@ -131,7 +136,7 @@ export const ExerciseNavBar: React.FC<Props> = ({ currentExercise, currentExerci
               borderColor: colors.primary + '35',
             }}
           >
-            <Text style={{ fontSize: 10, color: colors.primary }}>{'\u25B6'}</Text>
+            <Icon name="play" size={10} color={colors.primary} />
             <Text style={{ fontSize: 10, fontWeight: '700', color: colors.primary }}>{'техника'}</Text>
           </TouchableOpacity>
           {hasHistory && (
@@ -156,8 +161,10 @@ export const ExerciseNavBar: React.FC<Props> = ({ currentExercise, currentExerci
         disabled={currentExerciseIndex === totalExercises - 1}
         style={{ opacity: currentExerciseIndex === totalExercises - 1 ? 0.3 : 1, padding: 4 }}
         hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+        accessibilityRole="button"
+        accessibilityLabel="\u0421\u043B\u0435\u0434\u0443\u044E\u0449\u0435\u0435 \u0443\u043F\u0440\u0430\u0436\u043D\u0435\u043D\u0438\u0435"
       >
-        <Text style={[typography.h3, { color: colors.primary }]}>{'\u203A'}</Text>
+        <Icon name="chev" size={22} color={colors.primary} />
       </TouchableOpacity>
 
       <ExerciseVideoModal
