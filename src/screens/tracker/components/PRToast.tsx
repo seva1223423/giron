@@ -1,7 +1,8 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { View, Text, Animated } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { useThemeColors } from '../../../store';
+import { useThemeStore } from '../../../store';
+import { Icon } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 
@@ -12,8 +13,11 @@ interface Props {
 // Confetti particle
 interface Particle { x: Animated.Value; y: Animated.Value; opacity: Animated.Value; color: string; size: number }
 
-// Round 242: replaced legacy purple confetti with Direction A gold
-const CONFETTI_COLORS = ['#F59E0B', '#EF4444', '#D4B07A', '#10B981', '#3B82F6', '#EC4899'];
+// Direction A gold-tonal confetti — variants of champagne gold / amber / terracotta
+// so the celebration stays on-brand (Patek not Hublot — see PHILOSOPHY.md).
+// Hardcoded as design literals (not theme-mapped) because the values are intentional
+// brand-warm gradients, not banned old palette.
+const CONFETTI_COLORS = ['#D4B07A', '#B08A4E', '#E5C896', '#E8A36A', '#E07A6B', '#F4F1EA'];
 
 function useConfetti(active: boolean) {
   const particles = useRef<Particle[]>(
@@ -51,7 +55,7 @@ function useConfetti(active: boolean) {
 }
 
 export const PRToast: React.FC<Props> = ({ toast }) => {
-  const colors = useThemeColors();
+  const { colors } = useThemeStore();
   const anim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const [confettiActive, setConfettiActive] = useState(false);
@@ -116,17 +120,18 @@ export const PRToast: React.FC<Props> = ({ toast }) => {
         shadowColor: colors.accent, shadowOffset: { width: 0, height: 6 },
         shadowOpacity: 0.45, shadowRadius: 12, elevation: 10,
       }}>
-        {/* Badge */}
-        <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.25)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)', alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: 10, fontWeight: '900', color: '#fff', letterSpacing: 0.5 }}>PR</Text>
-          <Text style={{ fontSize: 9, color: 'rgba(255,255,255,0.8)' }}>🏆</Text>
+        {/* Badge — trophy icon. Dark-on-gold per Direction A §20:
+            cream-on-gold = 2.8:1 (WCAG fail), graphite-on-gold = 7.5:1 (AAA). */}
+        <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(14,14,15,0.18)', borderWidth: 1.5, borderColor: 'rgba(14,14,15,0.25)', alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name="trophy" size={18} color="#0E0E0F" />
         </View>
         <View style={{ marginLeft: spacing.sm, flex: 1 }}>
-          <Text style={[typography.captionMedium, { color: '#fff', letterSpacing: 1.2 }]}>ЛИЧНЫЙ РЕКОРД!</Text>
-          <Text style={[typography.small, { color: 'rgba(255,255,255,0.9)', marginTop: 1 }]} numberOfLines={1}>
+          {/* `#0E0E0F` literal — theme-invariant dark on gold (§20). */}
+          <Text style={[typography.metaLabel, { color: '#0E0E0F' }]}>ЛИЧНЫЙ РЕКОРД</Text>
+          <Text style={[typography.small, { color: 'rgba(14,14,15,0.85)', marginTop: 1 }]} numberOfLines={1}>
             {toast.name}
           </Text>
-          <Text style={{ fontSize: 11, fontWeight: '700', color: '#FEF3C7', marginTop: 1 }} numberOfLines={1}>
+          <Text style={[typography.captionMedium, { color: 'rgba(14,14,15,0.75)', marginTop: 1 }]} numberOfLines={1}>
             {improvement}
           </Text>
         </View>

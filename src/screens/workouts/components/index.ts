@@ -6,6 +6,7 @@ export { ProgramsTab } from './ProgramsTab';
 export { HeroStartButton } from './HeroStartButton';
 export { HistoryTab } from './HistoryTab';
 export { UtilityMenu } from './UtilityMenu';
+export { ExercisesTab } from './ExercisesTab';
 export { ExerciseSelectStep } from './ExerciseSelectStep';
 export { ConfigureStepContainer } from './ConfigureStep';
 export { CreateExerciseModal } from './CreateExerciseModal';

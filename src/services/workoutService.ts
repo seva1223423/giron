@@ -27,6 +27,7 @@ export const workoutService = {
     level?: string;
     daysPerWeek: number;
     durationWeeks?: number;
+    days?: Array<{ name?: string; exerciseIds: string[] }>;
   }): Promise<Program> {
     const { data } = await api.post('/workouts/programs', params);
     return data;

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useCallback } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, withSequence, Easing, cancelAnimation } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
 import { useThemeColors } from '../../../store';
@@ -30,6 +31,35 @@ export const RestTimerOverlay: React.FC<Props> = ({ isResting, restTime, restTot
   const safeTop = useSafeTop();
   const lastVibrationRef = useRef<number>(-1);
   const lastTapRef = useRef<number>(0);
+
+  // PHILOSOPHY §5 state-as-event: the timer is not a static number that
+  // counts down silently. Last 5 seconds — the number pulses (breathing
+  // scale). At 0 — full-screen flash. Standing between sets, you feel
+  // the moment when it's time to go without looking at the screen.
+  const pulse = useSharedValue(1);
+  const flash = useSharedValue(0);
+  const isUrgent = restTime <= 5 && restTime > 0;
+
+  useEffect(() => {
+    if (isUrgent) {
+      pulse.value = withRepeat(withTiming(1.15, { duration: 500, easing: Easing.inOut(Easing.sin) }), -1, true);
+    } else {
+      cancelAnimation(pulse);
+      pulse.value = withTiming(1, { duration: 200 });
+    }
+  }, [isUrgent]);
+
+  useEffect(() => {
+    if (restTime === 0 && isResting) {
+      flash.value = withSequence(
+        withTiming(1, { duration: 100 }),
+        withTiming(0, { duration: 300 }),
+      );
+    }
+  }, [restTime, isResting]);
+
+  const pulseStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulse.value }] }));
+  const flashStyle = useAnimatedStyle(() => ({ opacity: flash.value }));
 
   // Vibration every 10s + final countdown at 5/4/3/2/1
   useEffect(() => {
@@ -62,10 +92,10 @@ export const RestTimerOverlay: React.FC<Props> = ({ isResting, restTime, restTot
   if (!isResting) return null;
 
   const progress = restTotal > 0 ? restTime / restTotal : 0;
-  // Color shifts to warning/amber when ≤ 5s
-  const isUrgent = restTime <= 5 && restTime > 0;
-  const ringColor = isUrgent ? '#F59E0B' : '#FFF';
-  const bgColor = isUrgent ? '#D97706' : colors.primary;
+  // Color shifts to warning/amber when ≤ 5s — Direction A warning token (warm amber).
+  // `isUrgent` already computed above (used for pulse trigger).
+  const ringColor = isUrgent ? colors.warning : '#FFF';
+  const bgColor = isUrgent ? colors.warning : colors.primary;
 
   // Circular progress ring dimensions
   const ringSize = 180;
@@ -75,6 +105,17 @@ export const RestTimerOverlay: React.FC<Props> = ({ isResting, restTime, restTot
   const ringDashoffset = ringCircumference - Math.min(Math.max(progress, 0), 1) * ringCircumference;
 
   return (
+    <>
+    {/* Full-screen flash at restTime === 0 — state-as-event for the moment
+        when rest ends. 100ms in, 300ms out — feels like a heartbeat. */}
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        StyleSheet.absoluteFillObject,
+        { backgroundColor: colors.primary, zIndex: 11 },
+        flashStyle,
+      ]}
+    />
     <TouchableOpacity
       activeOpacity={1}
       onPress={handleDoubleTap}
@@ -87,7 +128,7 @@ export const RestTimerOverlay: React.FC<Props> = ({ isResting, restTime, restTot
       <Text style={[typography.captionMedium, { color: 'rgba(255,255,255,0.7)', letterSpacing: 2 }]}>
         ОТДЫХ{isUrgent ? ' — ГОТОВЬСЯ!' : ''}
       </Text>
-      <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>
+      <Text style={[typography.caption, { color: 'rgba(255,255,255,0.4)', marginTop: 2 }]}>
         двойной тап — пропустить
       </Text>
 
@@ -122,14 +163,19 @@ export const RestTimerOverlay: React.FC<Props> = ({ isResting, restTime, restTot
           );
         })}
 
-        <Text
-          style={{ fontSize: 48, fontWeight: '800', color: isUrgent ? '#FEF3C7' : '#FFF' }}
+        {/* hero countdown — 48pt is intentional; typography.number (32pt)
+            is too small for at-a-glance reads from a bench. */}
+        <Animated.Text
+          style={[
+            { fontSize: 48, fontWeight: '800', color: isUrgent ? '#FEF3C7' : '#FFF' },
+            pulseStyle,
+          ]}
           numberOfLines={1}
           adjustsFontSizeToFit
           minimumFontScale={0.6}
         >
           {formatTime(restTime)}
-        </Text>
+        </Animated.Text>
       </View>
 
       <Text style={[typography.caption, { color: 'rgba(255,255,255,0.5)', marginTop: spacing.xs }]}>
@@ -167,5 +213,6 @@ export const RestTimerOverlay: React.FC<Props> = ({ isResting, restTime, restTot
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
+    </>
   );
 };

@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
-import { useThemeColors } from '../../../store';
-import { Card, FadeIn } from '../../../components';
+import { useThemeStore } from '../../../store';
+import { Card, FadeIn, Icon } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import type { Program } from '../../../types';
@@ -24,7 +24,7 @@ interface Props {
 
 export const UserProgramsList: React.FC<Props> = ({ programs, navigation, onStartWorkout }) => {
   const haptic = useHaptic();
-  const colors = useThemeColors();
+  const { colors } = useThemeStore();
 
   if (programs.length === 0) return null;
 
@@ -44,7 +44,7 @@ export const UserProgramsList: React.FC<Props> = ({ programs, navigation, onStar
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
                   {/* Icon */}
                   <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: goalColor + '18', borderWidth: 1.5, borderColor: goalColor + '40', alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ fontSize: 13, fontWeight: '800', color: goalColor }}>
+                    <Text style={[typography.smallMedium, { color: goalColor }]}>
                       {program.createdBy === 'ai' ? 'AI' : 'MY'}
                     </Text>
                   </View>
@@ -57,7 +57,7 @@ export const UserProgramsList: React.FC<Props> = ({ programs, navigation, onStar
                       </Text>
                       {program.isActive && (
                         <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: colors.success + '22', borderWidth: 1, borderColor: colors.success + '40' }}>
-                          <Text style={{ fontSize: 10, fontWeight: '700', color: colors.success }}>АКТИВНАЯ</Text>
+                          <Text style={[typography.metaLabel, { color: colors.success }]}>АКТИВНАЯ</Text>
                         </View>
                       )}
                     </View>
@@ -65,7 +65,7 @@ export const UserProgramsList: React.FC<Props> = ({ programs, navigation, onStar
                     {/* Meta row */}
                     <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: 4, flexWrap: 'wrap' }}>
                       <View style={[{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: goalColor + '18', borderWidth: 1, borderColor: goalColor + '35' }]}>
-                        <Text style={{ fontSize: 10, fontWeight: '600', color: goalColor }}>
+                        <Text style={[typography.metaLabel, { color: goalColor }]}>
                           {GOAL_LABELS[program.goal] || program.goal}
                         </Text>
                       </View>
@@ -77,13 +77,13 @@ export const UserProgramsList: React.FC<Props> = ({ programs, navigation, onStar
 
                   {/* Arrow + quick start */}
                   <View style={{ alignItems: 'flex-end', gap: 6 }}>
-                    <Text style={[typography.body, { color: colors.textTertiary }]}>›</Text>
+                    <Icon name="chev" size={16} color={colors.textTertiary} />
                     {program.workouts.length > 0 && (
                       <TouchableOpacity
                         onPress={(e) => { e.stopPropagation(); haptic.medium(); onStartWorkout(program.workouts[0]); }}
                         style={{ backgroundColor: goalColor, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 }}
                       >
-                        <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '700' }}>Начать</Text>
+                        <Text style={[typography.captionMedium, { color: colors.textInverse }]}>Начать</Text>
                       </TouchableOpacity>
                     )}
                   </View>

@@ -52,6 +52,13 @@ interface Props {
    *  тренироваться" if provided. Workout-mode ignores it. */
   onPressSecondary?: () => void;
   secondaryLabel?: string;
+  /** Active workout in progress — when set, the card overrides mode/rest
+   *  and shows an "Идёт тренировка" state with a Continue CTA. Highest
+   *  priority: a live session is the most actionable thing on the home
+   *  screen. (Merged from master's b69c12e6 active-state design.) */
+  activeWorkout?: { name: string } | null;
+  /** Tap-through to the ActiveWorkout screen (used only in active state). */
+  onPressContinue?: () => void;
 }
 
 /**
@@ -84,21 +91,32 @@ export const AICoachCard: React.FC<Props> = ({
   onPressRefresh,
   onPressSecondary,
   secondaryLabel,
+  activeWorkout,
+  onPressContinue,
 }) => {
   const colors = useThemeColors();
   const haptic = useHaptic();
 
-  const isRest = mode === 'rest';
+  // Active workout wins over everything — a live session is the single
+  // most actionable card on the home screen. Falls back to rest/workout.
+  const isActive = !!activeWorkout;
+  const isRest = !isActive && mode === 'rest';
 
   // Sage accent for rest-day. Matches the V4 mockup palette — chosen
   // for "recovery" semantics (green = nature/rest in Direction A).
   const SAGE = '#9AC28C';
   const accentColor = isRest ? SAGE : colors.primary;
 
-  const eyebrowText =
-    eyebrow ?? (isRest ? 'День восстановления' : 'Тренер рекомендует');
-  const finalCtaLabel =
-    ctaLabel ?? (isRest ? 'Обзор недели' : 'Начать тренировку');
+  const eyebrowText = isActive
+    ? 'Идёт тренировка'
+    : eyebrow ?? (isRest ? 'День восстановления' : 'Тренер рекомендует');
+  const heroText = isActive
+    ? activeWorkout?.name ?? 'Текущая тренировка'
+    : recommendation;
+  const finalCtaLabel = isActive
+    ? 'Продолжить'
+    : ctaLabel ?? (isRest ? 'Обзор недели' : 'Начать тренировку');
+  const finalOnPressCta = isActive ? (onPressContinue ?? onPressCta) : onPressCta;
 
   // Gradient stops — warmer for workout, cooler/sage for rest.
   const gradStops = isRest
@@ -156,7 +174,7 @@ export const AICoachCard: React.FC<Props> = ({
             }}
           >
             <Icon
-              name={isRest ? 'moon' : 'spark'}
+              name={isActive ? 'play' : isRest ? 'moon' : 'spark'}
               size={16}
               color={colors.textInverse}
               strokeWidth={2.2}
@@ -228,7 +246,7 @@ export const AICoachCard: React.FC<Props> = ({
             },
           ]}
         >
-          {recommendation}
+          {heroText}
         </Text>
 
         {/* Optional WHY paragraph — rest-mode usage. */}
@@ -249,7 +267,7 @@ export const AICoachCard: React.FC<Props> = ({
         {/* Action row. Layout depends on mode + which secondary is provided. */}
         <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg }}>
           <TouchableOpacity
-            onPress={() => { haptic.medium(); onPressCta(); }}
+            onPress={() => { haptic.medium(); finalOnPressCta(); }}
             accessibilityLabel={finalCtaLabel}
             accessibilityRole="button"
             style={{
@@ -274,8 +292,8 @@ export const AICoachCard: React.FC<Props> = ({
           </TouchableOpacity>
 
           {/* Workout-mode: refresh icon. Rest-mode: optional secondary
-              text button ("Всё равно тренироваться"). */}
-          {!isRest && onPressRefresh && (
+              text button ("Всё равно тренироваться"). Active-mode: neither. */}
+          {!isRest && !isActive && onPressRefresh && (
             <TouchableOpacity
               onPress={() => { haptic.selection(); onPressRefresh(); }}
               accessibilityLabel="Обновить рекомендацию"

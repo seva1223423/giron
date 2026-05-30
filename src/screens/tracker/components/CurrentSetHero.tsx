@@ -126,6 +126,11 @@ const Stat: React.FC<{ label: string; value: string; unit: string }> = ({ label,
   </View>
 );
 
+// Direction A rule (PHILOSOPHY.md + design.md §20): gold CTA always has
+// DARK text — cream-on-gold fails contrast at 2.8:1. All literal
+// rgba(10,10,10,...) values in this file are the dark-on-gold pairing,
+// intentional. Do not refactor to colors.text — that would invert in
+// light mode and break the gold hero's contrast.
 const styles = StyleSheet.create({
   card: {
     borderRadius: borderRadius.xxl,
@@ -149,6 +154,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 10,
   },
+  // Dark text on gold (philosophy §"Числа — тяжёлые", design §20)
   eyebrow: {
     color: 'rgba(10,10,10,0.65)',
     fontSize: 10,
@@ -173,6 +179,8 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
     textTransform: 'uppercase',
   },
+  // Hero number — dive-watch typography from PHILOSOPHY.md. 40pt is the
+  // "read from a bench at 0.5s" target.
   statValue: {
     color: '#0A0A0A',
     fontSize: 40,

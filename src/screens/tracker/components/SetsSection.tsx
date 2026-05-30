@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, Alert, useWindowDimensions } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
-import { useThemeColors, useWorkoutStore } from '../../../store';
-import { Card, Button, AnimatedPressable } from '../../../components';
+import { useThemeStore, useWorkoutStore } from '../../../store';
+import { Card, Button, AnimatedPressable, Icon } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { Workout, WorkoutExercise } from '../../../types';
@@ -31,7 +31,7 @@ export const SetsSection: React.FC<Props> = ({
   const { width: screenW } = useWindowDimensions();
   const SHOW_PLATE_CALC = screenW > 360;
   const haptic = useHaptic();
-  const colors = useThemeColors();
+  const { colors } = useThemeStore();
 
   // Progressive overload suggestion: if all prev sets hit target reps, suggest +2.5kg
   const overloadSuggestion = useMemo(() => {
@@ -135,8 +135,8 @@ export const SetsSection: React.FC<Props> = ({
           backgroundColor: colors.primary + '08', borderColor: colors.primary + '30',
           marginBottom: spacing.sm,
         }}>
-          <Text style={[typography.caption, { color: colors.primary }]} numberOfLines={2}>
-            {'\u{1F3AF} '}
+          <Icon name="target" size={14} color={colors.primary} />
+          <Text style={[typography.caption, { color: colors.primary, flex: 1 }]} numberOfLines={2}>
             {suggestedWeights.map((s, i) => {
               if (!s) return null;
               return `${i + 1}: ${s.weight}\u043A\u0433`;
@@ -155,7 +155,11 @@ export const SetsSection: React.FC<Props> = ({
           backgroundColor: colors.success + '12', borderColor: colors.success + '40',
           marginBottom: spacing.sm,
         }}>
-          <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: colors.success + '18', borderWidth: 1, borderColor: colors.success + '40', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 11, fontWeight: '700', color: colors.success }}>{'\u25B2'}</Text></View>
+          <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: colors.success + '18', borderWidth: 1, borderColor: colors.success + '40', alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ transform: [{ rotate: '-90deg' }] }}>
+              <Icon name="chev" size={10} color={colors.success} strokeWidth={3} />
+            </View>
+          </View>
           <Text style={[typography.caption, { color: colors.success, flex: 1 }]} numberOfLines={2}>
             {'\u0412 \u043F\u0440\u043E\u0448\u043B\u044B\u0439 \u0440\u0430\u0437 \u0432\u0441\u0435 \u043F\u043E\u0434\u0445\u043E\u0434\u044B \u0432\u044B\u043F\u043E\u043B\u043D\u0435\u043D\u044B \u2014 \u043F\u043E\u043F\u0440\u043E\u0431\u0443\u0439 '}
             <Text style={{ fontWeight: '700' }}>{overloadSuggestion} {'\u043A\u0433'}</Text> {'\u0441\u0435\u0433\u043E\u0434\u043D\u044F (+2.5)'}
@@ -206,25 +210,30 @@ export const SetsSection: React.FC<Props> = ({
         <View style={{ width: 40 }} />
       </View>
 
-      {/* Sets */}
-      {currentExercise.sets.map((set, setIndex) => (
-        <SetRow
-          key={set.id}
-          set={set}
-          setIndex={setIndex}
-          prevSet={previousSets?.sets[setIndex] ?? null}
-          suggestedRpe={suggestedRpe}
-          onComplete={(reps, weight) => onCompleteSet(setIndex, reps, weight)}
-          onRpeChange={(rpe) => { updateSetData(currentExerciseIndex, setIndex, { rpe }); onRpeSelected?.(rpe); }}
-          onRemove={currentExercise.sets.length > 1 ? () => { haptic.medium(); removeSet(currentExerciseIndex, setIndex); } : undefined}
-          onTypeChange={(type) => updateSetData(currentExerciseIndex, setIndex, { type: type as any })}
-          onOpenPlates={(w) => navigation.navigate('PlateCalculator', {
-            initialWeight: w,
-            applyTarget: { exerciseIndex: currentExerciseIndex, setIndex },
-          })}
-          colors={colors}
-        />
-      ))}
+      {/* Sets — `activeSetIndex` is the first uncompleted set; it gets a
+          gold highlight so the user's eye lands there mid-workout. */}
+      {(() => {
+        const activeSetIndex = currentExercise.sets.findIndex((s) => !s.completed);
+        return currentExercise.sets.map((set, setIndex) => (
+          <SetRow
+            key={set.id}
+            set={set}
+            setIndex={setIndex}
+            prevSet={previousSets?.sets[setIndex] ?? null}
+            suggestedRpe={suggestedRpe}
+            isActive={setIndex === activeSetIndex}
+            onComplete={(reps, weight) => onCompleteSet(setIndex, reps, weight)}
+            onRpeChange={(rpe) => { updateSetData(currentExerciseIndex, setIndex, { rpe }); onRpeSelected?.(rpe); }}
+            onRemove={currentExercise.sets.length > 1 ? () => { haptic.medium(); removeSet(currentExerciseIndex, setIndex); } : undefined}
+            onTypeChange={(type) => updateSetData(currentExerciseIndex, setIndex, { type: type as any })}
+            onOpenPlates={(w) => navigation.navigate('PlateCalculator', {
+              initialWeight: w,
+              applyTarget: { exerciseIndex: currentExerciseIndex, setIndex },
+            })}
+            colors={colors}
+          />
+        ));
+      })()}
 
       {/* Mini-summary of completed sets */}
       {(() => {
@@ -353,9 +362,11 @@ export const SetsSection: React.FC<Props> = ({
               ]
             );
           }}
-          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.error + '50' }}
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, marginTop: spacing.sm, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.error + '50' }}
         >
-          <Text style={{ fontSize: 14, marginRight: spacing.xs }}>{'\uD83D\uDDD1'}</Text>
+          <View style={{ transform: [{ rotate: '45deg' }] }}>
+            <Icon name="plus" size={14} color={colors.error} />
+          </View>
           <Text style={[typography.small, { color: colors.error }]}>{'\u0423\u0431\u0440\u0430\u0442\u044C \u0443\u043F\u0440\u0430\u0436\u043D\u0435\u043D\u0438\u0435'}</Text>
         </TouchableOpacity>
       )}

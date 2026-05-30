@@ -98,7 +98,9 @@ export function sendErrorToTelegram(
   ].filter(Boolean);
   const text = parts.join('\n\n').slice(0, MAX_TELEGRAM_MESSAGE);
 
-  // Fire-and-forget POST
+  // Fire-and-forget POST — plain text, no inline buttons. The "Fix it"
+  // auto-fix flow was reverted (too complex for solo-dev volume); user
+  // just reads errors here, manually fixes via Claude chat later.
   fetch(`https://api.telegram.org/bot${creds.token}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useThemeColors } from '../../../store';
+import { useThemeStore } from '../../../store';
+import { Icon } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { AIActionResult } from '../../../services';
@@ -10,14 +11,14 @@ interface Props {
 }
 
 export const ActionsBar: React.FC<Props> = ({ actions }) => {
-  const colors = useThemeColors();
+  const { colors } = useThemeStore();
   if (actions.length === 0) return null;
   return (
     <View style={[styles.bar, { backgroundColor: colors.success + '18', borderTopColor: colors.success + '40' }]}>
       {actions.map((action, i) => (
         <View key={i} style={[styles.chip, { backgroundColor: colors.success + '22', borderColor: colors.success + '55' }]}>
-          <Text style={{ fontSize: 13, fontWeight: '700', color: colors.success, marginRight: 4 }}>✓</Text>
-          <Text style={[typography.small, { color: colors.success, flex: 1 }]} numberOfLines={1}>{action.description}</Text>
+          <Icon name="check" size={14} color={colors.success} />
+          <Text style={[typography.smallMedium, { color: colors.success, flex: 1, marginLeft: 6 }]} numberOfLines={1}>{action.description}</Text>
         </View>
       ))}
     </View>
