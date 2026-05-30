@@ -7,7 +7,7 @@ import { useAuthStore, useWorkoutStore, useNutritionStore, useSubscriptionStore,
 import { useMeasurementsStore } from '../../store/useMeasurementsStore';
 import { useSleepStore } from '../../store/useSleepStore';
 import { useSettingsStore } from '../../store/useSettingsStore';
-import { PaywallModal } from '../../components';
+import { PaywallModal, type IconName } from '../../components';
 import { ChatMessage } from '../../types';
 import { aiService, getApiError, AIActionResult, AIMeta, AIStarter, nutritionService, workoutService } from '../../services';
 import { applyAINavigation } from '../../utils/aiNavigation';
@@ -20,27 +20,50 @@ import { localDateStr } from '../../utils/date';
 import { useAIChatCommands } from './useAIChatCommands';
 import { CurrentWorkoutPanel } from './components/CurrentWorkoutPanel';
 
-const FALLBACK_PROMPTS = [
-  { emoji: '◎', text: 'Составь программу тренировок под мои цели' },
-  { emoji: '◑', text: 'Рассчитай мне КБЖУ и составь рацион' },
-  { emoji: '◎', text: 'Как правильно делать становую тягу?' },
-  { emoji: '◉', text: 'Программа тренировок дома без оборудования' },
-  { emoji: '◑', text: 'Составь рацион на день для похудения' },
-  { emoji: '◈', text: 'Я застрял на плато — как пробить?' },
-  { emoji: '◧', text: 'Какие добавки реально работают по науке?' },
-  { emoji: '◫', text: 'Как оптимизировать сон и восстановление?' },
-  { emoji: '◎', text: 'Как одновременно худеть и набирать мышцы?' },
-  { emoji: '◈', text: 'Как не бросить тренировки и держать мотивацию?' },
-  { emoji: '◉', text: 'Как совмещать кардио и силовые?' },
-  { emoji: '◫', text: 'Болит плечо при жиме — что делать?' },
+// Round 233 + master polish: prompts carry an on-brand SVG IconName
+// instead of a raw emoji glyph (CLAUDE.md bans glyphs in UI).
+// QuickPromptsList renders prompt.iconName directly.
+const FALLBACK_PROMPTS: { iconName: IconName; text: string }[] = [
+  { iconName: 'target',   text: 'Составь программу тренировок под мои цели' },
+  { iconName: 'apple',    text: 'Рассчитай мне КБЖУ и составь рацион' },
+  { iconName: 'dumbbell', text: 'Как правильно делать становую тягу?' },
+  { iconName: 'home',     text: 'Программа тренировок дома без оборудования' },
+  { iconName: 'apple',    text: 'Составь рацион на день для похудения' },
+  { iconName: 'chart',    text: 'Я застрял на плато — как пробить?' },
+  { iconName: 'bolt',     text: 'Какие добавки реально работают по науке?' },
+  { iconName: 'moon',     text: 'Как оптимизировать сон и восстановление?' },
+  { iconName: 'target',   text: 'Как одновременно худеть и набирать мышцы?' },
+  { iconName: 'flame',    text: 'Как не бросить тренировки и держать мотивацию?' },
+  { iconName: 'heart',    text: 'Как совмещать кардио и силовые?' },
+  { iconName: 'heart',    text: 'Болит плечо при жиме — что делать?' },
   // Round 128: prompts that exercise the new analytics + memory tools
   // (rounds 94-100). Surfacing them in the welcome chip list nudges
   // users to discover features that otherwise only fire when the user
   // already knows to ask.
-  { emoji: '◇', text: 'Покажи мои личные рекорды за последние месяцы' },
-  { emoji: '◇', text: 'Сравни мои тренировки за этот месяц с прошлым' },
-  { emoji: '◇', text: 'Что приготовить под лёгкий ужин до 500 ккал?' },
+  { iconName: 'trophy',   text: 'Покажи мои личные рекорды за последние месяцы' },
+  { iconName: 'chart',    text: 'Сравни мои тренировки за этот месяц с прошлым' },
+  { iconName: 'apple',    text: 'Что приготовить под лёгкий ужин до 500 ккал?' },
 ];
+
+// Map by first character of the emoji to the closest Icon name; everything
+// else falls through to a neutral default. Used for server-provided starters
+// which still arrive with an emoji field.
+function starterEmojiToIcon(emoji: string | undefined): IconName {
+  if (!emoji) return 'spark';
+  const first = Array.from(emoji)[0] ?? '';
+  if ('🏋💪🤸'.includes(first)) return 'dumbbell';
+  if ('🍎🥗🍳🥦🥩'.includes(first)) return 'apple';
+  if ('🔥'.includes(first)) return 'flame';
+  if ('🏆🥇'.includes(first)) return 'trophy';
+  if ('💧💦'.includes(first)) return 'water';
+  if ('🌙😴'.includes(first)) return 'moon';
+  if ('❤️♥️'.includes(first)) return 'heart';
+  if ('🎯'.includes(first)) return 'target';
+  if ('📊📈'.includes(first)) return 'chart';
+  if ('⏱⏰'.includes(first)) return 'timer';
+  if ('⚡'.includes(first)) return 'bolt';
+  return 'spark';
+}
 
 export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const haptic = useHaptic();
@@ -508,8 +531,10 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     }
   };
 
-  const staticPrompts = serverStarters.length > 0 ? serverStarters.map((s) => ({ emoji: s.emoji, text: s.text })) : FALLBACK_PROMPTS;
-  const allPrompts = [...dynamicPrompts, ...staticPrompts];
+  const staticPrompts: { iconName: IconName; text: string }[] = serverStarters.length > 0
+    ? serverStarters.map((s) => ({ iconName: starterEmojiToIcon(s.emoji), text: s.text }))
+    : FALLBACK_PROMPTS;
+  const allPrompts: { iconName: IconName; text: string }[] = [...dynamicPrompts, ...staticPrompts];
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={90}>
