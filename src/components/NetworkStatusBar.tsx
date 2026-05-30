@@ -27,10 +27,12 @@ import { spacing, borderRadius } from '../theme/spacing';
 export const NetworkStatusBar: React.FC = () => {
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
-  const isOnline = useConnectionStore((s) => s.isOnline);
+  // Use the DEBOUNCED offline flag so a short blip doesn't flash the red banner.
+  // Slow stays immediate (its own debounce is the 8s in-flight threshold).
+  const isOfflineConfirmed = useConnectionStore((s) => s.isOfflineConfirmed);
   const slowCount = useConnectionStore((s) => s.slowRequestCount);
 
-  const variant: 'offline' | 'slow' | null = !isOnline ? 'offline' : slowCount > 0 ? 'slow' : null;
+  const variant: 'offline' | 'slow' | null = isOfflineConfirmed ? 'offline' : slowCount > 0 ? 'slow' : null;
   if (!variant) return null;
 
   const bg = variant === 'offline' ? colors.error : colors.warning;
