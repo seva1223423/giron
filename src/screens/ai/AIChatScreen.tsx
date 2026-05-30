@@ -682,6 +682,10 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           // and append "— остановлено —" to the assistant bubble.
           abortRef.current?.abort();
         }}
+        // Camera → food scanner (cross-stack, same pattern HomeScreen uses).
+        // Design ai-chat-pro input dock; lets the user log a meal by photo
+        // without leaving the coach conversation.
+        onCamera={() => navigation.navigate('NutritionTab', { screen: 'FoodScanner' })}
       />
     </KeyboardAvoidingView>
   );
