@@ -82,6 +82,7 @@ import AdminSubscriptionsScreen from '../screens/admin/AdminSubscriptionsScreen'
 import AdminSecurityEventsScreen from '../screens/admin/AdminSecurityEventsScreen';
 import { AdminGuard } from '../screens/admin/AdminGuard';
 import { AIProgramDetailScreen } from '../screens/workouts/AIProgramDetailScreen';
+import { ExerciseSearchScreen } from '../screens/workouts/ExerciseSearchScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createMaterialTopTabNavigator();
@@ -179,6 +180,7 @@ function WorkoutsStackNavigator() {
       <WorkoutsStack.Screen name="Cardio" component={CardioScreen} />
       <WorkoutsStack.Screen name="AddCardio" component={AddCardioScreen} options={{ animation: 'slide_from_bottom' }} />
       <WorkoutsStack.Screen name="AIProgramDetail" component={AIProgramDetailScreen} />
+      <WorkoutsStack.Screen name="ExerciseSearch" component={ExerciseSearchScreen} options={{ animation: 'slide_from_bottom' }} />
       {/* Прогресс перенесён сюда из таб-бара. Доступен по навигации
           (Home → quick action), но не показывается в WorkoutsScreen. */}
       <WorkoutsStack.Screen name="Progress" component={ProgressScreen} options={{ animation: 'slide_from_right' }} />
