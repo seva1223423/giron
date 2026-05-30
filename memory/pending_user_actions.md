@@ -19,18 +19,15 @@ prod-environment access — agent can't do them autonomously.
 
 ## Server / Neon database
 
-- [ ] `cd server && npx prisma db push`
-      — apply the new `@@index([workoutExerciseId, completed])` composite
-      index on WorkoutSet. Added in commit 9c05b377, not yet in Neon.
-      ALSO applies Routine.source/presetKey/iconName + RoutineSource enum
-      + @@unique([userId,presetKey]) + @@index([userId,source]) from
-      commit 5857ecf2 (2026-05-23). Routes don't read the new Routine
-      fields yet, so still non-urgent — but a single push clears both.
-      ALSO (audit 2026-05-29, H8) applies `User.weeklySummarySentDate String?`
-      — the weekly-summary cron now gates each send on it via an atomic claim
-      to stop double-sends across restarts. Until pushed, the Sunday cron throws
-      (caught + logged → 0 emails) — harmless at 0 users, but push before launch
-      so weekly summaries actually send.
+- [x] **DONE 2026-05-30** `cd server && npx prisma db push --accept-data-loss`
+      — applied to live Neon (eu-central). "Your database is now in sync",
+      exit 0. Cleared: WorkoutSet `@@index([workoutExerciseId, completed])`
+      (9c05b377), Routine source/presetKey/iconName + RoutineSource enum +
+      `@@unique([userId,presetKey])` (5857ecf2, came in via the master merge),
+      `User.weeklySummarySentDate` (H8), and the r240 health models/columns.
+      Needed `--accept-data-loss` only for the new Routine unique constraint
+      (safe at 0 users — no duplicate presetKey rows possible). Weekly-summary
+      cron now works.
 
 - [ ] Render env: append `?pgbouncer=true&connection_limit=1&pool_timeout=20`
       to `DATABASE_URL`. Without it, the Neon free-tier pool can exhaust
@@ -38,9 +35,41 @@ prod-environment access — agent can't do them autonomously.
 
 ## Git workflow
 
-- [ ] Merge `fix/google-oauth-button-config` → `master` via GitHub PR.
-      Direct push to master blocked by classifier. All audit commits live
-      on that branch.
+- [~] **PARTIALLY DONE 2026-05-30** — merged `origin/master` INTO
+      `fix/google-oauth-button-config` (not the other direction yet).
+      The branch had diverged 2-way (44 commits ours: audit C1/C2/H1-H8,
+      Home redesign, AI-chat parser, flashBus, Google-OAuth-on-RuStore;
+      10 commits master: Workouts IA 3-tab refactor + CreateProgramScreen
+      wizard, AI/Home/tracker "premium polish"). Resolved 18 conflicts
+      "best of both" (merge commit 6296e0f, type-fix 6255ab47). HEAD now
+      6255ab47, tsc clean both sides, 223 client tests green, pushed.
+      STILL TODO: open the PR `fix/google-oauth-button-config` → `master`
+      and merge it (direct push to master blocked by classifier). The
+      branch is now a superset of master, so the PR will be clean.
+
+## Android signing key — SECURITY (C1, still open)
+
+- [ ] **Rotate the APK signing key + purge git history.** `android-keystore.jks`
+      + `credentials.json` (plaintext pw `irongym2026`) were untracked in
+      commit 3ddd4a4c but REMAIN in git history (introduced ab702d66). Anyone
+      with repo/history access can sign a malicious APK. Founder-only:
+      (1) generate a new upload/signing keystore in EAS managed credentials,
+      (2) rotate the passwords (stop reusing irongym2026),
+      (3) purge both files from history (git-filter-repo / BFG) + force-push.
+
+## Broken plugin hook (cosmetic noise)
+
+- [ ] **Disable the `cockroachdb` plugin in Cowork plugin settings.** It
+      registers a PostToolUse hook (`check-sql-files.py`) that fails on every
+      Write/Edit with "No such file" (the bundled `python3` App-Execution-Alias
+      can't open the script path). Harmless — it's a CockroachDB linter that
+      exits 0; all edits apply fine — but it spams the tool output. Can't be
+      killed locally: the hook command is baked into the running process at
+      session start, and the plugin is re-extracted from the cloud Cowork
+      manifest each session (it's NOT in ~/.claude.json or ~/.claude/settings.json).
+      Fix = `/plugin` → disable `cockroachdb`, or remove it from the
+      knowledge-work-plugins marketplace selection in Cowork. You don't use
+      CockroachDB (giron is on Postgres/Neon), so it's safe to drop entirely.
 
 ## AI provider swaps (when keys ready)
 
