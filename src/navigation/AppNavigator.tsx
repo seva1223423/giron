@@ -5,7 +5,6 @@ import { createMaterialTopTabNavigator, type MaterialTopTabBarProps } from '@rea
 import { Text, View, AppState, Platform, Linking, Pressable, Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeStore, useThemeColors, useAuthStore } from '../store';
-import { useConnectionStore } from '../store/useConnectionStore';
 import { typography } from '../theme';
 import * as Notifications from 'expo-notifications';
 import { requestNotificationPermissions, registerPushTokenWithServer } from '../services/notificationService';
@@ -491,7 +490,6 @@ const linking: any = {
 export const AppNavigator: React.FC = () => {
   const { isAuthenticated, isOnboarded } = useAuthStore();
   const { colors, applyAutoTheme } = useThemeStore();
-  const { isOnline } = useConnectionStore();
   const [hydrated, setHydrated] = React.useState(() => useAuthStore.persist.hasHydrated());
 
   React.useEffect(() => {
@@ -547,16 +545,9 @@ export const AppNavigator: React.FC = () => {
     <NavigationContainer linking={linking}>
       <ErrorBoundary>
         <View style={{ flex: 1 }}>
-          {!isOnline && (
-            <View style={{ backgroundColor: colors.warning, paddingVertical: 6, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <Text
-                style={{ color: colors.textInverse, fontSize: 12, fontWeight: '600' }}
-                numberOfLines={2}
-                accessibilityLiveRegion="polite"
-                accessibilityRole="alert"
-              >Нет соединения — данные сохраняются локально</Text>
-            </View>
-          )}
+          {/* Offline/slow banner now lives in the global <NetworkStatusBar />
+              mounted in App.tsx (debounced offline + slow-request states).
+              Removed the duplicate that the VPN-resilience salvage left here. */}
           <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
             {!isAuthenticated ? (
               <Stack.Screen name="Auth" component={AuthStack} />
