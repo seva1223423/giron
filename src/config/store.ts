@@ -60,7 +60,10 @@ export const exerciseThumbSource = (id: string): number | undefined =>
  */
 export const features = {
   // ── Social auth ──────────────────────────────────────────────────────────
-  googleOAuth: STORE_TARGET !== 'rustore',
+  // 2026-05-30: enabled on rustore too (was `!== 'rustore'`). Google OAuth via
+  // expo-auth-session uses Custom Tabs / system browser — no Google Play
+  // Services dependency, so it's safe on RuStore. (Salvaged from PR #17.)
+  googleOAuth: true,
   appleSignIn: STORE_TARGET === 'appstore',
   vkOAuth: true,     // VK works in all regions, keep enabled
   yandexOAuth: true, // Yandex works in all regions, keep enabled
