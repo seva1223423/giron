@@ -14,7 +14,7 @@ import { applyAINavigation } from '../../utils/aiNavigation';
 import {
   ChatHeader, MessageBubble, QuickPromptsList, TypingIndicator,
   ActionsBar, CelebrationBar, ChatInputBar, UndoToast, useDynamicPrompts,
-  SuggestionChips, FirstPromptCta,
+  SuggestionChips, FirstPromptCta, ContextStrip,
 } from './components';
 import { localDateStr } from '../../utils/date';
 import { useAIChatCommands } from './useAIChatCommands';
@@ -546,6 +546,10 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           Phase A commands (`+подход 100×6`, `done`, etc.) mutate the
           workout store, the panel re-renders. */}
       <CurrentWorkoutPanel />
+
+      {/* Live daily stats (КБЖУ / белок / вода / вес / сон) from the Direction A
+          ai-chat-pro design — glanceable context so the coach reads as data-aware. */}
+      <ContextStrip />
 
       <FlatList
         ref={scrollRef}
