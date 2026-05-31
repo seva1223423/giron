@@ -71,11 +71,14 @@ export const WeekStats: React.FC = () => {
       </View>
 
       <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
+        {/* Redesign 2026-05-31 §3.4: weekly averages carry their macro colours
+            so the colour language matches the КБЖУ ring + MacroBar across the
+            screen — one macro = one colour everywhere. */}
         {[
-          { label: 'Ккал', value: weekStats.avgCalories, color: colors.primary },
-          { label: 'Белки', value: `${weekStats.avgProtein}г`, color: colors.success },
-          { label: 'Жиры', value: `${weekStats.avgFats}г`, color: colors.warning },
-          { label: 'Углев.', value: `${weekStats.avgCarbs}г`, color: colors.accent },
+          { label: 'Ккал', value: weekStats.avgCalories, color: colors.calories },
+          { label: 'Белки', value: `${weekStats.avgProtein}г`, color: colors.protein },
+          { label: 'Жиры', value: `${weekStats.avgFats}г`, color: colors.fats },
+          { label: 'Углев.', value: `${weekStats.avgCarbs}г`, color: colors.carbs },
         ].map(({ label, value, color }) => (
           <View key={label} style={{ alignItems: 'center', flex: 1 }}>
             <Text style={[typography.bodySemibold, { color }]} numberOfLines={1}>{value}</Text>
