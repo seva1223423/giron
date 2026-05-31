@@ -16,6 +16,7 @@ import type { AnnouncementType } from '../../types';
 import {
   HomeHeader,
   AICoachCard, RingStatsCard, StreakPRGrid, WeekPlanStrip, QuickActionsGrid,
+  AnnouncementsBanner, FirstWorkoutBanner,
 } from './components';
 import { Text, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { typography } from '../../theme';
@@ -78,6 +79,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
   const [emailBannerDismissed, setEmailBannerDismissed] = useState(false);
   const [firstWorkoutBannerDismissed, setFirstWorkoutBannerDismissed] = useState(false);
+  const [firstWorkoutSnoozeUntil, setFirstWorkoutSnoozeUntil] = useState(0);
   const [resendingVerification, setResendingVerification] = useState(false);
   const [showEmailVerifModal, setShowEmailVerifModal] = useState(false);
   const [emailVerifCode, setEmailVerifCode] = useState('');
@@ -85,6 +87,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [emailVerifError, setEmailVerifError] = useState('');
   const [resendCountdown, setResendCountdown] = useState(0);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const snoozeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const startResendCountdown = (seconds = 60) => {
     setResendCountdown(seconds);
@@ -98,9 +101,25 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     countdownRef.current = id;
   };
 
-  useEffect(() => () => { if (countdownRef.current) clearInterval(countdownRef.current); }, []);
+  useEffect(() => () => {
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    if (snoozeTimerRef.current) clearTimeout(snoozeTimerRef.current);
+  }, []);
   const { user } = useAuthStore();
-  const { programs, workoutHistory, activeWorkout, weekPlan, isLoadingHistory, fetchPrograms, fetchHistory, customExercises, fetchWeekPlan, startWorkoutFromRoutine } = useWorkoutStore();
+  // Per-slice selectors instead of full-store destructure. Default
+  // destructure subscribes to every field — including restTimeRemaining
+  // which ticks every second during an active workout, re-rendering the
+  // whole HomeScreen tree once per second for no reason.
+  const programs = useWorkoutStore((s) => s.programs);
+  const workoutHistory = useWorkoutStore((s) => s.workoutHistory);
+  const activeWorkout = useWorkoutStore((s) => s.activeWorkout);
+  const weekPlan = useWorkoutStore((s) => s.weekPlan);
+  const isLoadingHistory = useWorkoutStore((s) => s.isLoadingHistory);
+  const customExercises = useWorkoutStore((s) => s.customExercises);
+  const fetchPrograms = useWorkoutStore((s) => s.fetchPrograms);
+  const fetchHistory = useWorkoutStore((s) => s.fetchHistory);
+  const fetchWeekPlan = useWorkoutStore((s) => s.fetchWeekPlan);
+  const startWorkoutFromRoutine = useWorkoutStore((s) => s.startWorkoutFromRoutine);
   const { getDayLog } = useNutritionStore();
 
   useEffect(() => {
@@ -272,6 +291,94 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     );
   }, [lastWorkout, navigation, haptic]);
 
+  // ─── Memoized JSX-section computations ────────────────────────────────
+  // Audit R-2026-05-22: these were inline `(() => {...})()` blocks in
+  // the JSX below — every HomeScreen render re-ran the filter/map/reduce.
+  // Hoisted to useMemo so they only recompute when their inputs change.
+  //
+  // Tier 1 item 3 (2026-05-22 follow-up): banner blocks moved into
+  // proper memo subcomponents (AnnouncementsBanner, FirstWorkoutBanner).
+  // The visibility check + filter now live INSIDE the components so
+  // HomeScreen doesn't need to track the derived state. Stable
+  // useCallback handlers below let the memoized children bail out
+  // cleanly on parent re-render.
+
+  /** Pre-built color/icon meta for each announcement type. Depends only
+   *  on the 4 theme colors so it's stable across most renders. */
+  const announcementMeta = useMemo(
+    () =>
+      buildAnnouncementMeta({
+        primary: colors.primary,
+        warning: colors.warning,
+        error: colors.error,
+        success: colors.success,
+      }),
+    [colors.primary, colors.warning, colors.error, colors.success],
+  );
+
+  /** Dismiss handler — stable ref so AnnouncementsBanner can bail via memo. */
+  const handleDismissAnnouncement = useCallback((id: string) => {
+    setDismissedIds((s) => new Set([...s, id]));
+  }, []);
+
+  /** First-workout banner: dismiss + CTA handlers, stable refs. */
+  const handleDismissFirstWorkoutBanner = useCallback(() => {
+    setFirstWorkoutBannerDismissed(true);
+  }, []);
+  const handleStartFirstWorkout = useCallback(() => {
+    navigation.navigate('WorkoutsTab' as never);
+  }, [navigation]);
+
+  /** Defer the first-workout banner for 1h instead of dismissing
+   *  forever. A timer un-snoozes so it reappears after the window
+   *  (session-scoped, consistent with the dismiss flag). */
+  const handleSnoozeFirstWorkout = useCallback(() => {
+    const ONE_HOUR = 60 * 60 * 1000;
+    setFirstWorkoutSnoozeUntil(Date.now() + ONE_HOUR);
+    if (snoozeTimerRef.current) clearTimeout(snoozeTimerRef.current);
+    snoozeTimerRef.current = setTimeout(() => setFirstWorkoutSnoozeUntil(0), ONE_HOUR);
+  }, []);
+
+  /** AI coach card headline — choose between active workout recommendation,
+   *  rest-day tip, or generic nudge. */
+  const aiCoachHeadline = useMemo(() => {
+    return workoutRecommendation?.name
+      ? `${workoutRecommendation.name} · ${workoutRecommendation.daysLabel ?? ''}`.trim()
+      : restDayRecommendation?.tip
+        ?? 'Готов начать — выбери тренировку или попроси ИИ составить план';
+  }, [workoutRecommendation, restDayRecommendation]);
+
+  /** Ring stats — daily calories/protein/workouts. The reduce was running
+   *  on every render of HomeScreen; now only when dayLog or week count
+   *  actually changes. */
+  const ringStatsData = useMemo(() => {
+    const calTarget = dayLog.targetCalories || 2400;
+    const calNow = (dayLog.meals ?? []).reduce((s, m) => s + (m?.totalCalories ?? 0), 0);
+    const protTarget = dayLog.targetProtein || 160;
+    const protNow = (dayLog.meals ?? []).reduce((s, m) => s + (m?.totalProtein ?? 0), 0);
+    const dayProgress = calorieDayProgress(calNow, calTarget);
+    return { calTarget, calNow, protTarget, protNow, dayProgress };
+  }, [dayLog, weekWorkoutsCount]);
+
+  /** Week dots + best PR — both scan workoutHistory; memoize the pair. */
+  const streakPRData = useMemo(() => {
+    return {
+      weekDots: buildWeekDotsFromHistory(workoutHistory),
+      pr: findHeaviestPR(workoutHistory),
+    };
+  }, [workoutHistory]);
+
+  /** Week plan strip — derive the 7 day cards. Recomputes only when the
+   *  weekPlan or workoutHistory changes (not on every render). */
+  const weekPlanDays = useMemo(
+    () => deriveWeekPlanDays(weekPlan, workoutHistory),
+    [weekPlan, workoutHistory],
+  );
+
+  /** Bell dot signal — true when there are announcements the user
+   *  hasn't dismissed. Replaces the old always-on placeholder dot. */
+  const hasUnreadAnnouncements = announcements.some((a) => !dismissedIds.has(a.id));
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
     <ScrollView
@@ -280,35 +387,17 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       showsVerticalScrollIndicator={false}
     >
       <FadeIn delay={0} from="top">
-        <HomeHeader navigation={navigation} />
+        <HomeHeader navigation={navigation} streakDays={streak} hasUnread={hasUnreadAnnouncements} />
       </FadeIn>
 
       {/* ── Announcements ─────────────────── */}
-      {(() => {
-        const ANN_META = buildAnnouncementMeta({ primary: colors.primary, warning: colors.warning, error: colors.error, success: colors.success });
-        return announcements.filter((a) => !dismissedIds.has(a.id)).map((a) => {
-          const m = ANN_META[a.type];
-          return (
-            <View key={a.id} style={[annStyles.banner, { borderColor: m.color + '40', backgroundColor: m.color + '10' }]}>
-              <Icon name={m.iconName} size={18} color={m.color} />
-              <View style={{ flex: 1 }}>
-                <Text style={[annStyles.title, { color: m.color }]}>{a.title}</Text>
-                <Text style={[annStyles.body, { color: colors.textSecondary }]} numberOfLines={3}>{a.body}</Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => setDismissedIds((s) => new Set([...s, a.id]))}
-                hitSlop={12}
-                accessibilityRole="button"
-                accessibilityLabel="Скрыть объявление"
-              >
-                <View style={{ transform: [{ rotate: '45deg' }], padding: 4 }}>
-                  <Icon name="plus" size={18} color={colors.textSecondary} />
-                </View>
-              </TouchableOpacity>
-            </View>
-          );
-        });
-      })()}
+      <AnnouncementsBanner
+        announcements={announcements}
+        dismissedIds={dismissedIds}
+        colors={colors}
+        meta={announcementMeta}
+        onDismiss={handleDismissAnnouncement}
+      />
 
       {/* ── Email verification banner ─────────── */}
       {!user?.emailVerified && !emailBannerDismissed && (
@@ -362,46 +451,15 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           users who genuinely don't want to train (or are just browsing)
           aren't nagged forever; for active users the trigger fires once
           per session and goes away the moment they complete a set. */}
-      {(() => {
-        if (firstWorkoutBannerDismissed) return null;
-        if (!user?.createdAt) return null;
-        const ageMs = Date.now() - new Date(user.createdAt).getTime();
-        if (ageMs < 24 * 60 * 60 * 1000) return null;
-        const hasAnyWorkout = workoutHistory.some((w) => w.completedAt);
-        if (hasAnyWorkout) return null;
-        return (
-          <View style={[annStyles.banner, { borderColor: colors.primary + '40', backgroundColor: colors.primary + '10', marginBottom: spacing.md }]}>
-            <Icon name="dumbbell" size={20} color={colors.primary} />
-            <View style={{ flex: 1 }}>
-              <Text style={[annStyles.title, { color: colors.primary }]}>Время первой тренировки</Text>
-              <Text style={[annStyles.body, { color: colors.textSecondary }]} numberOfLines={2}>
-                Ты с нами больше суток — попробуй короткую тренировку. Без неё профиль не оживает.
-              </Text>
-            </View>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              <TouchableOpacity
-                onPress={() => navigation.navigate('WorkoutsTab' as never)}
-                style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6, backgroundColor: colors.primary, borderWidth: 1, borderColor: colors.primary }}
-                accessibilityRole="button"
-                accessibilityLabel="Начать первую тренировку"
-              >
-                <Text style={[typography.captionMedium, { color: colors.textInverse }]}>Начать</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setFirstWorkoutBannerDismissed(true)}
-                hitSlop={12}
-                style={{ padding: 4 }}
-                accessibilityRole="button"
-                accessibilityLabel="Скрыть напоминание"
-              >
-                <View style={{ transform: [{ rotate: '45deg' }] }}>
-                  <Icon name="plus" size={16} color={colors.textSecondary} />
-                </View>
-              </TouchableOpacity>
-            </View>
-          </View>
-        );
-      })()}
+      <FirstWorkoutBanner
+        userCreatedAt={user?.createdAt}
+        workoutHistory={workoutHistory}
+        dismissed={firstWorkoutBannerDismissed || Date.now() < firstWorkoutSnoozeUntil}
+        colors={colors}
+        onDismiss={handleDismissFirstWorkoutBanner}
+        onStart={handleStartFirstWorkout}
+        onSnooze={handleSnoozeFirstWorkout}
+      />
 
       {/* Email verification modal */}
       <Modal visible={showEmailVerifModal} transparent animationType="fade" onRequestClose={() => setShowEmailVerifModal(false)}>
@@ -511,28 +569,44 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           state.
           ═══════════════════════════════════════════════════════════ */}
 
-      {/* 1. AI coach hero — when a workout is in progress, switches to
-             "Идёт тренировка" + Continue CTA. Otherwise prefers the
-             workout recommendation copy (most specific signal), then
-             rest-day recommendation, then a generic nudge. */}
-      {(() => {
-        const headline = workoutRecommendation?.name
-          ? `${workoutRecommendation.name} · ${workoutRecommendation.daysLabel ?? ''}`.trim()
-          : restDayRecommendation?.tip
-          ?? 'Готов начать — выбери тренировку или попроси ИИ составить план';
-        return (
-          <FadeIn delay={60}>
-            <AICoachCard
-              navigation={navigation}
-              recommendation={headline}
-              activeWorkout={activeWorkout ? { name: activeWorkout.workout.name } : null}
-              onPressContinue={() => navigation.navigate('ActiveWorkout')}
-              onPressCta={handleStartPlannedWorkout}
-              onPressRefresh={() => { haptic.selection(); fetchWeekPlan(); }}
-            />
-          </FadeIn>
-        );
-      })()}
+      {/* 1. AI coach hero — single card, three states by priority:
+             1) active workout in progress → "Идёт тренировка" + Continue
+             2) rest-day recommended       → sage rest-mode card
+             3) otherwise                  → workout recommendation
+             The card resolves the priority internally (activeWorkout wins
+             over mode='rest'); we only pass the inputs. */}
+      {activeWorkout ? (
+        <FadeIn delay={60}>
+          <AICoachCard
+            navigation={navigation}
+            recommendation={aiCoachHeadline}
+            activeWorkout={{ name: activeWorkout.workout.name }}
+            onPressContinue={() => navigation.navigate('ActiveWorkout')}
+            onPressCta={() => navigation.navigate('ActiveWorkout')}
+          />
+        </FadeIn>
+      ) : restDayRecommendation ? (
+        <FadeIn delay={60}>
+          <AICoachCard
+            navigation={navigation}
+            mode="rest"
+            recommendation={restDayRecommendation.reason}
+            subText={restDayRecommendation.tip}
+            onPressCta={() => { haptic.selection(); navigation.navigate('WorkoutsTab', { screen: 'WorkoutsList' }); }}
+            onPressSecondary={todayPlan ? handleStartPlannedWorkout : undefined}
+            secondaryLabel="Всё равно"
+          />
+        </FadeIn>
+      ) : (
+        <FadeIn delay={60}>
+          <AICoachCard
+            navigation={navigation}
+            recommendation={aiCoachHeadline}
+            onPressCta={handleStartPlannedWorkout}
+            onPressRefresh={() => { haptic.selection(); fetchWeekPlan(); }}
+          />
+        </FadeIn>
+      )}
 
       {/* PHILOSOPHY §"Hairline gold divider": subtle gold hairline at
           12.5% alpha — gives the section break a deliberate feel
@@ -543,81 +617,63 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
              Calories + protein come from today's nutrition log; the
              third row mirrors the design's "Шаги" line by showing a
              static target for now (wired to the pedometer hook later). */}
-      {(() => {
-        const calTarget = dayLog.targetCalories || 2400;
-        const calNow = (dayLog.meals ?? []).reduce((s, m) => s + (m?.totalCalories ?? 0), 0);
-        const protTarget = dayLog.targetProtein || 160;
-        const protNow = (dayLog.meals ?? []).reduce((s, m) => s + (m?.totalProtein ?? 0), 0);
-        const dayProgress = calorieDayProgress(calNow, calTarget);
-        return (
-          <FadeIn delay={120}>
-            <RingStatsCard
-              dayProgress={dayProgress}
-              rows={[
-                {
-                  label: 'СЕГОДНЯ · КАЛОРИИ',
-                  numerator: Math.round(calNow),
-                  suffix: `/ ${calTarget.toLocaleString('ru-RU')} ккал`,
-                  progress: calNow / Math.max(1, calTarget),
-                  color: colors.calories,
-                },
-                {
-                  label: 'СЕГОДНЯ · БЕЛОК',
-                  numerator: Math.round(protNow),
-                  suffix: `/ ${protTarget} г`,
-                  progress: protNow / Math.max(1, protTarget),
-                  color: colors.primary,
-                },
-                {
-                  label: 'НА ЭТОЙ НЕДЕЛЕ · ТРЕНИРОВКИ',
-                  numerator: weekWorkoutsCount,
-                  suffix: '/ 4',
-                  progress: weekWorkoutsCount / 4,
-                  color: colors.carbs,
-                },
-              ]}
-            />
-          </FadeIn>
-        );
-      })()}
+      {/* Master's animated numerator/suffix card shape, fed by HEAD's
+          memoized ringStatsData (no per-render reduce in an IIFE). */}
+      <FadeIn delay={120}>
+        <RingStatsCard
+          dayProgress={ringStatsData.dayProgress}
+          rows={[
+            {
+              label: 'СЕГОДНЯ · КАЛОРИИ',
+              numerator: Math.round(ringStatsData.calNow),
+              suffix: `/ ${ringStatsData.calTarget.toLocaleString('ru-RU')} ккал`,
+              progress: ringStatsData.calNow / Math.max(1, ringStatsData.calTarget),
+              color: colors.calories,
+            },
+            {
+              label: 'СЕГОДНЯ · БЕЛОК',
+              numerator: Math.round(ringStatsData.protNow),
+              suffix: `/ ${ringStatsData.protTarget} г`,
+              progress: ringStatsData.protNow / Math.max(1, ringStatsData.protTarget),
+              color: colors.primary,
+            },
+            {
+              label: 'НА ЭТОЙ НЕДЕЛЕ · ТРЕНИРОВКИ',
+              numerator: weekWorkoutsCount,
+              suffix: '/ 4',
+              progress: weekWorkoutsCount / 4,
+              color: colors.carbs,
+            },
+          ]}
+        />
+      </FadeIn>
 
       <View style={{ height: 1, backgroundColor: colors.primary + '20', marginVertical: spacing.md }} />
 
       {/* 3. Streak + PR side-by-side grid. Weekly dots look at the
              last 7 calendar days; PR picks the heaviest completed set
              across all history. */}
-      {(() => {
-        const weekDots = buildWeekDotsFromHistory(workoutHistory);
-        const pr = findHeaviestPR(workoutHistory);
-        return (
-          <FadeIn delay={180}>
-            <StreakPRGrid
-              streakDays={streak}
-              weekDots={weekDots}
-              prKg={pr.kg}
-              prLabel={pr.exerciseName}
-            />
-          </FadeIn>
-        );
-      })()}
+      <FadeIn delay={180}>
+        <StreakPRGrid
+          streakDays={streak}
+          weekDots={streakPRData.weekDots}
+          prKg={streakPRData.pr.kg}
+          prLabel={streakPRData.pr.exerciseName}
+        />
+      </FadeIn>
 
       <View style={{ height: 1, backgroundColor: colors.primary + '20', marginVertical: spacing.md }} />
 
       {/* 4. Week plan strip — weekPlan is keyed by dow (0=Mon..6=Sun),
              not an array. We iterate 0..6 explicitly so the strip
              renders all 7 cards even on days with null entries. */}
-      {(() => {
-        const days = deriveWeekPlanDays(weekPlan, workoutHistory);
-        return (
-          <FadeIn delay={240}>
-            <WeekPlanStrip
-              days={days}
-              onPressAll={() => navigation.navigate('WorkoutsTab', { screen: 'WorkoutsList' })}
-              onPressDay={() => navigation.navigate('WorkoutsTab', { screen: 'WorkoutsList' })}
-            />
-          </FadeIn>
-        );
-      })()}
+      <FadeIn delay={240}>
+        <WeekPlanStrip
+          days={weekPlanDays}
+          onPressAll={() => navigation.navigate('WorkoutsTab', { screen: 'WorkoutsList' })}
+          onPressDay={() => navigation.navigate('WorkoutsTab', { screen: 'WorkoutsList' })}
+        />
+      </FadeIn>
 
       <View style={{ height: 1, backgroundColor: colors.primary + '20', marginVertical: spacing.md }} />
 
@@ -628,21 +684,27 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         <QuickActionsGrid
           actions={[
             {
+              // Food scan → terracotta (calorie domain)
               icon: 'scan',
               label: 'Сканировать еду',
               subtitle: 'ИИ определит КБЖУ',
+              accent: 'calories',
               onPress: () => navigation.navigate('NutritionTab', { screen: 'FoodScanner' }),
             },
             {
+              // Body weight → gold primary (own brand colour)
               icon: 'chart',
               label: 'Добавить вес',
               subtitle: 'Утреннее взвешивание',
+              accent: 'primary',
               onPress: () => navigation.navigate('WorkoutsTab', { screen: 'Progress' }),
             },
             {
+              // Progress charts → sage (growth/improvement semantic)
               icon: 'spark',
               label: 'Прогресс',
               subtitle: 'Графики и статистика',
+              accent: 'carbs',
               onPress: () => navigation.navigate('WorkoutsTab', { screen: 'Progress' }),
             },
           ]}

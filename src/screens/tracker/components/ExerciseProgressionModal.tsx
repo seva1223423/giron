@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, Modal, TouchableOpacity, ScrollView, useWindowDimensions } from 'react-native';
 import Svg, { Path, Circle, Defs, LinearGradient, Stop, Line } from 'react-native-svg';
-import { useWorkoutStore, useThemeStore } from '../../../store';
+import { useWorkoutStore, useThemeColors } from '../../../store';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 
@@ -17,7 +17,7 @@ function epley1RM(weight: number, reps: number) {
 }
 
 export const ExerciseProgressionModal: React.FC<Props> = ({ visible, onClose, exerciseId, exerciseName }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const getExerciseHistory = useWorkoutStore((s) => s.getExerciseHistory);
   const { width: screenW } = useWindowDimensions();
 

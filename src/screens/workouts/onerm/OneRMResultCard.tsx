@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { Card, FadeIn } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
@@ -17,7 +17,7 @@ interface Props {
 }
 
 export const OneRMResultCard: React.FC<Props> = ({ avg, estimates, delay = 80 }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
 
   return (
     <FadeIn delay={delay}>

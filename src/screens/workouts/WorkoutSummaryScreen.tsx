@@ -4,7 +4,7 @@ import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
 import * as Sharing from 'expo-sharing';
 import { captureRef } from 'react-native-view-shot';
-import { useThemeStore, useWorkoutStore, useNutritionStore } from '../../store';
+import { useThemeColors, useWorkoutStore, useNutritionStore } from '../../store';
 import { Button, FadeIn, Card } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -31,7 +31,7 @@ import {
 export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = ({ route, navigation }) => {
   const safeTop = useSafeTop();
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { workoutHistory, routines, addRoutine } = useWorkoutStore();
 
   // Save-as-routine modal state — lives here rather than in a card component so

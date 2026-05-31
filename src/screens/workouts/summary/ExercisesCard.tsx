@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, Image, StyleSheet } from 'react-native';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { Card } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
@@ -10,7 +10,7 @@ import { exerciseThumbSource } from '../../../config/store';
 interface Props { workout: Workout }
 
 export const ExercisesCard: React.FC<Props> = ({ workout }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
 
   return (
     <Card style={{ marginBottom: spacing.lg }}>

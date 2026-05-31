@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Modal, StyleSheet } from 'react-native';
-import { useThemeStore, useTrainerStore } from '../../../store';
+import { useThemeColors, useTrainerStore } from '../../../store';
 import { Button } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
@@ -24,7 +24,7 @@ interface Props {
  */
 export const AcceptInviteModal: React.FC<Props> = ({ visible, onClose, onSuccess }) => {
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { acceptInvite } = useTrainerStore();
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);

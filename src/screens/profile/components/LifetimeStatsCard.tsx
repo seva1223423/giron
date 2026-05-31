@@ -1,13 +1,13 @@
 import React, { useMemo } from 'react';
 import { View, Text } from 'react-native';
-import { useThemeStore, useWorkoutStore } from '../../../store';
+import { useThemeColors, useWorkoutStore } from '../../../store';
 import { Card, FadeIn } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
 import { localDateStr } from '../../../utils/date';
 
 export const LifetimeStatsCard: React.FC<{ delay?: number }> = ({ delay = 100 }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { workoutHistory } = useWorkoutStore();
 
   const stats = useMemo(() => {

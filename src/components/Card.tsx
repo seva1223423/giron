@@ -19,7 +19,7 @@ interface CardProps {
   elevated?: boolean;
 }
 
-export const Card: React.FC<CardProps> = ({
+const CardImpl: React.FC<CardProps> = ({
   children,
   style,
   onPress,
@@ -86,3 +86,8 @@ export const Card: React.FC<CardProps> = ({
 
   return <View style={[cardStyle, style]}>{children}</View>;
 };
+
+// React.memo: re-rendered ~per screen mount (parent state churn). Default
+// shallow prop equality is enough because callers pass primitive padding/
+// elevated and stable onPress refs from useCallback.
+export const Card = React.memo(CardImpl);

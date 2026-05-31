@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
-import { useThemeStore, useCardioStore } from '../../store';
+import { useThemeColors, useCardioStore } from '../../store';
 import { Button } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -33,7 +33,7 @@ const todayDate = () => localDateStr(new Date());
 export const AddCardioScreen: React.FC<{ navigation: any; route: any }> = ({ navigation }) => {
   const safeTop = useSafeTop();
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { addSession } = useCardioStore();
 
   const [selectedType, setSelectedType] = useState<CardioType>('running');

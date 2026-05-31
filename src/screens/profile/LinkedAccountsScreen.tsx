@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri } from 'expo-auth-session';
-import { useThemeStore, useAuthStore } from '../../store';
+import { useThemeColors, useAuthStore } from '../../store';
 import { GoogleAuthButton, Icon } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -25,7 +25,7 @@ const googleConfigured = !!(
  */
 export const LinkedAccountsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const safeTop = useSafeTop();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { user } = useAuthStore();
 
   const [unlinkingProvider, setUnlinkingProvider] = useState<string | null>(null);

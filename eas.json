@@ -14,7 +14,9 @@
         "credentialsSource": "local"
       },
       "env": {
-        "EXPO_PUBLIC_STORE": "universal"
+        "EXPO_PUBLIC_STORE": "universal",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB": "752233520722-5tq411j4bv3d8fla9sf3iothtk6g255v.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID": "752233520722-jnlgc229ip1tsmp3umvj6m7hjrlgtrvt.apps.googleusercontent.com"
       }
     },
     "preview": {
@@ -42,7 +44,9 @@
       },
       "env": {
         "EXPO_PUBLIC_STORE": "rustore",
-        "EXPO_PUBLIC_API_URL": "https://iron-gym-swoe.onrender.com/api"
+        "EXPO_PUBLIC_API_URL": "https://iron-gym-swoe.onrender.com/api",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB": "752233520722-5tq411j4bv3d8fla9sf3iothtk6g255v.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID": "752233520722-jnlgc229ip1tsmp3umvj6m7hjrlgtrvt.apps.googleusercontent.com"
       }
     },
     "play": {
@@ -54,7 +58,9 @@
       },
       "env": {
         "EXPO_PUBLIC_STORE": "play",
-        "EXPO_PUBLIC_API_URL": "https://iron-gym-swoe.onrender.com/api"
+        "EXPO_PUBLIC_API_URL": "https://iron-gym-swoe.onrender.com/api",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB": "752233520722-5tq411j4bv3d8fla9sf3iothtk6g255v.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID": "752233520722-jnlgc229ip1tsmp3umvj6m7hjrlgtrvt.apps.googleusercontent.com"
       }
     },
     "appstore": {
@@ -73,7 +79,9 @@
       "channel": "production",
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_STORE": "universal"
+        "EXPO_PUBLIC_STORE": "universal",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB": "752233520722-5tq411j4bv3d8fla9sf3iothtk6g255v.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID": "752233520722-jnlgc229ip1tsmp3umvj6m7hjrlgtrvt.apps.googleusercontent.com"
       }
     }
   },

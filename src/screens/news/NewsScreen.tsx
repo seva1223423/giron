@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, RefreshControl, ActivityIndicator, TextInput, Animated as RNAnimated } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
-import { useThemeStore } from '../../store';
+import { useThemeColors } from '../../store';
 import { Card } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -23,7 +23,7 @@ const CATEGORIES: { key: NewsCategory | 'all'; label: string }[] = [
 export const NewsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const safeTop = useSafeTop();
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const [tab, setTab] = useState<'feed' | 'saved'>('feed');
   const [activeCategory, setActiveCategory] = useState<NewsCategory | 'all'>('all');
   const [news, setNews] = useState<NewsArticle[]>(FALLBACK_NEWS);

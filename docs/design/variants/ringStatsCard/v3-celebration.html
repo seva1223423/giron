@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<title>RingStatsCard — V3 Celebration</title>
+<style>
+  :root {
+    --bg: #0E0E0F; --surface: #17171A;
+    --primary: #D4B07A;
+    --text: #F4F1EA; --text-secondary: #C9C7C0; --text-tertiary: #8A8780;
+    --border: rgba(255, 255, 255, 0.10);
+    --calories: #E07A6B; --carbs: #9AC28C;
+    --success: #9AC28C;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif; padding: 40px; width: 375px; }
+  .label { color: var(--text-tertiary); font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 12px; }
+
+  /* V3 — celebration state when all rings hit 100%. Glow border,
+     checkmark in the center of the ring, success colour for the % text. */
+  .card {
+    background: var(--surface);
+    border: 1px solid rgba(154, 194, 140, 0.35);
+    border-radius: 24px;
+    padding: 20px;
+    box-shadow: 0 0 24px rgba(154, 194, 140, 0.10) inset;
+    position: relative;
+    overflow: hidden;
+  }
+  .card::before {
+    content: ''; position: absolute; top: -30px; right: -30px;
+    width: 140px; height: 140px; border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(154, 194, 140, 0.18) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .row { display: flex; align-items: center; gap: 20px; position: relative; }
+  .ring-wrap { width: 110px; height: 110px; display: flex; align-items: center; justify-content: center; position: relative; }
+  .ring-svg { width: 110px; height: 110px; transform: rotate(-90deg); }
+  .ring-track { fill: none; stroke: rgba(154, 194, 140, 0.18); stroke-width: 8; }
+  .ring-progress { fill: none; stroke: var(--success); stroke-width: 8; stroke-linecap: round; stroke-dasharray: 320.44; stroke-dashoffset: 0; }
+  .ring-center { text-align: center; position: absolute; }
+  .check { font-size: 30px; color: var(--success); line-height: 1; }
+  .ring-label { color: var(--success); font-size: 10px; text-transform: uppercase; letter-spacing: 1.3px; margin-top: 4px; font-weight: 700; }
+  .stats { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+  .stat-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+  .stat-label { color: var(--text-secondary); font-size: 12px; display: flex; align-items: center; gap: 5px; }
+  .stat-check { color: var(--success); font-size: 11px; }
+  .stat-value { color: var(--text); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .bar-track { height: 4px; background: var(--border); border-radius: 999px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 999px; }
+  .celebrate-tag {
+    position: absolute; top: 12px; right: 16px;
+    font-size: 10px; font-weight: 700; color: var(--success);
+    text-transform: uppercase; letter-spacing: 1.3px;
+  }
+</style>
+</head>
+<body>
+  <div class="label">V3 — Celebration state (all 3 goals reached)</div>
+  <div class="card">
+    <div class="celebrate-tag">✓ цели</div>
+    <div class="row">
+      <div class="ring-wrap">
+        <svg class="ring-svg" viewBox="0 0 110 110">
+          <circle class="ring-track" cx="55" cy="55" r="51"></circle>
+          <circle class="ring-progress" cx="55" cy="55" r="51"></circle>
+        </svg>
+        <div class="ring-center">
+          <div class="check">✓</div>
+          <div class="ring-label">100%</div>
+        </div>
+      </div>
+      <div class="stats">
+        <div>
+          <div class="stat-head">
+            <span class="stat-label">Калории <span class="stat-check">✓</span></span>
+            <span class="stat-value">2 400 / 2 400</span>
+          </div>
+          <div class="bar-track"><div class="bar-fill" style="width: 100%; background: var(--calories);"></div></div>
+        </div>
+        <div>
+          <div class="stat-head">
+            <span class="stat-label">Белок <span class="stat-check">✓</span></span>
+            <span class="stat-value">162 / 160 г</span>
+          </div>
+          <div class="bar-track"><div class="bar-fill" style="width: 100%; background: var(--primary);"></div></div>
+        </div>
+        <div>
+          <div class="stat-head">
+            <span class="stat-label">Тренировки/нед. <span class="stat-check">✓</span></span>
+            <span class="stat-value">4 / 4</span>
+          </div>
+          <div class="bar-track"><div class="bar-fill" style="width: 100%; background: var(--carbs);"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

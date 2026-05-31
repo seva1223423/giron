@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<title>AICoachCard — V5 Smart state (default + rest-day)</title>
+<style>
+  :root {
+    --bg: #0E0E0F; --surface: #17171A;
+    --primary: #D4B07A; --primary-deep: #B08A4E;
+    --text: #F4F1EA; --text-secondary: #C9C7C0; --text-tertiary: #8A8780;
+    --text-inverse: #0A0A0A;
+    --border: rgba(255, 255, 255, 0.10);
+    --sage: #9AC28C;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif; padding: 40px; width: 800px; }
+  .header { color: var(--text-tertiary); font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 12px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .col { width: 375px; }
+  .col-label {
+    color: var(--text-tertiary); font-size: 11px; text-transform: uppercase;
+    letter-spacing: 1.5px; margin-bottom: 12px; font-weight: 700;
+  }
+
+  /* Shared base */
+  .card {
+    position: relative;
+    border-radius: 28px;
+    overflow: hidden;
+    padding: 22px;
+  }
+  .train { /* default workout state */
+    border: 1px solid var(--border);
+    background:
+      radial-gradient(circle at 85% 0%, rgba(212, 176, 122, 0.2) 0%, transparent 45%),
+      linear-gradient(135deg, #1E1810 0%, #2A1F12 60%, #382612 100%);
+  }
+  .rest { /* recovery state */
+    border: 1px solid rgba(154, 194, 140, 0.18);
+    background:
+      radial-gradient(circle at 85% 0%, rgba(154, 194, 140, 0.12) 0%, transparent 45%),
+      linear-gradient(135deg, #14201A 0%, #1A2520 60%, #1E2A22 100%);
+  }
+  .eyebrow {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+  }
+  .icon-square {
+    width: 28px; height: 28px; border-radius: 8px;
+    color: var(--text-inverse);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  .train .icon-square { background: var(--primary); }
+  .rest .icon-square { background: var(--sage); }
+  .eyebrow-text {
+    font-size: 12px; font-weight: 600;
+    letter-spacing: 1.2px; text-transform: uppercase;
+  }
+  .train .eyebrow-text { color: var(--primary); }
+  .rest .eyebrow-text { color: var(--sage); }
+
+  /* V2-style chips */
+  .chips { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 10px; border-radius: 100px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    color: var(--text-secondary);
+    font-size: 11px; font-weight: 600;
+  }
+  .chip.streak {
+    color: var(--primary);
+    border-color: rgba(212, 176, 122, 0.3);
+    background: rgba(212, 176, 122, 0.10);
+  }
+  .chip.rpe {
+    color: var(--sage);
+    border-color: rgba(154, 194, 140, 0.3);
+    background: rgba(154, 194, 140, 0.10);
+  }
+  .chip-icon { font-size: 12px; }
+
+  .hero {
+    color: var(--text); font-size: 22px; font-weight: 600;
+    line-height: 26px; max-width: 280px; margin: 0;
+  }
+  .why {
+    color: var(--text-secondary); font-size: 13px;
+    line-height: 18px; margin: 10px 0 0 0; max-width: 290px;
+  }
+  .actions {
+    display: flex; gap: 8px; margin-top: 18px;
+  }
+  .cta {
+    flex: 1; height: 44px; border-radius: 16px;
+    background: var(--primary); color: var(--text-inverse);
+    border: none; font-size: 13px; font-weight: 600;
+    cursor: pointer;
+  }
+  .rest .cta {
+    background: transparent;
+    border: 1px solid var(--sage);
+    color: var(--sage);
+  }
+  .skip {
+    height: 44px; padding: 0 14px; border-radius: 16px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border); color: var(--text-secondary);
+    font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .refresh {
+    width: 44px; height: 44px; border-radius: 16px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border); color: var(--text);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; cursor: pointer;
+  }
+</style>
+</head>
+<body>
+  <div class="header">V5 — Smart state: same component, conditional render based on recovery + streak signals</div>
+  <div class="grid">
+    <div class="col">
+      <div class="col-label">DEFAULT (workout day)</div>
+      <div class="card train">
+        <div class="eyebrow">
+          <div class="icon-square">⚡</div>
+          <span class="eyebrow-text">Тренер рекомендует</span>
+        </div>
+        <div class="chips">
+          <span class="chip streak"><span class="chip-icon">🔥</span> 5 дней подряд</span>
+          <span class="chip"><span class="chip-icon">⏱</span> 2 дня без зала</span>
+        </div>
+        <h3 class="hero">Сегодня — грудь и трицепс. Жим штанги на 2.5 кг больше</h3>
+        <div class="actions">
+          <button class="cta">Начать тренировку</button>
+          <button class="refresh">↻</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="col-label">REST DAY (recovery signal)</div>
+      <div class="card rest">
+        <div class="eyebrow">
+          <div class="icon-square">🌿</div>
+          <span class="eyebrow-text">День восстановления</span>
+        </div>
+        <div class="chips">
+          <span class="chip rpe"><span class="chip-icon">●</span> Последний RPE 8.5</span>
+          <span class="chip"><span class="chip-icon">😴</span> Сон 5.8 ч</span>
+        </div>
+        <h3 class="hero">Сегодня отдых — мышцы растут не в зале</h3>
+        <p class="why">Тяжёлая тренировка + недосып. 24-48 ч восстановления — и следующая сильнее.</p>
+        <div class="actions">
+          <button class="cta">Обзор недели</button>
+          <button class="skip">Всё равно</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, TextInput, Modal, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
-import { useThemeStore, useNutritionStore, useAuthStore } from '../../../store';
+import { useThemeColors, useNutritionStore, useAuthStore } from '../../../store';
 import { Button } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
@@ -57,7 +57,7 @@ interface Props {
 
 export const GoalsModal: React.FC<Props> = ({ visible, onClose, selectedDate }) => {
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { getDayLog, setTargets } = useNutritionStore();
   const { user } = useAuthStore();
   const dayLog = getDayLog(selectedDate);

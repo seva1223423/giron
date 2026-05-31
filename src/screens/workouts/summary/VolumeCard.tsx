@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { Card } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
@@ -10,7 +10,7 @@ import { formatNum } from '../../../utils/date';
 interface Props { workout: Workout }
 
 export const VolumeCard: React.FC<Props> = ({ workout }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
 
   const rpeValues = workout.exercises
     .flatMap((e) => e.sets.filter((s) => s.completed && s.rpe))

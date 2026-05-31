@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, withSequence, Easing, cancelAnimation } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { useSafeTop } from '../../../hooks/useSafeTop';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
@@ -27,7 +27,7 @@ function formatTime(sec: number) {
 const SEGMENTS = 60;
 
 export const RestTimerOverlay: React.FC<Props> = ({ isResting, restTime, restTotal, onSkip, onAddTime, nextExerciseName, isLastSetOfExercise }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const safeTop = useSafeTop();
   const lastVibrationRef = useRef<number>(-1);
   const lastTapRef = useRef<number>(0);

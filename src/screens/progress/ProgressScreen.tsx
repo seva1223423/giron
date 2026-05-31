@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
-import { useThemeStore, useWorkoutStore, useAuthStore, useNutritionStore, useMeasurementsStore } from '../../store';
+import { useThemeColors, useWorkoutStore, useAuthStore, useNutritionStore, useMeasurementsStore } from '../../store';
 import { useSleepStore } from '../../store/useSleepStore';
 import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
@@ -21,7 +21,7 @@ type TabKey = 'overview' | 'activity' | 'body' | 'records' | 'sleep';
 export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const safeTop = useSafeTop();
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { workoutHistory, isLoadingHistory } = useWorkoutStore();
   const { user } = useAuthStore();
   const { dailyLog } = useNutritionStore();

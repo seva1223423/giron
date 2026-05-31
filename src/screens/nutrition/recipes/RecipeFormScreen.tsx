@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from 'react-native';
-import { useThemeStore, useRecipesStore } from '../../../store';
+import { useThemeColors, useRecipesStore } from '../../../store';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useSafeTop } from '../../../hooks/useSafeTop';
 import { Icon, Card, Button, Input } from '../../../components';
@@ -53,7 +53,7 @@ export const RecipeFormScreen: React.FC<{ navigation: any; route: any }> = ({ na
   const editing = route.params?.recipe as Recipe | undefined;
   const safeTop = useSafeTop();
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { createMine, updateMine } = useRecipesStore();
 
   const initial = editing ? recipeToDraft(editing) : {
