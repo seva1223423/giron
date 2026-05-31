@@ -14,10 +14,12 @@ import { applyAINavigation } from '../../utils/aiNavigation';
 import {
   ChatHeader, MessageBubble, QuickPromptsList, TypingIndicator,
   ActionsBar, CelebrationBar, ChatInputBar, UndoToast, useDynamicPrompts,
-  SuggestionChips, FirstPromptCta, ContextStrip,
+  SuggestionChips, FirstPromptCta, ContextStrip, ChatWidgetView,
 } from './components';
+import type { ChatWidget } from './chatWidgets';
 import { localDateStr } from '../../utils/date';
 import { useAIChatCommands } from './useAIChatCommands';
+import { drainChatWidget } from './chatWidgets';
 import { CurrentWorkoutPanel } from './components/CurrentWorkoutPanel';
 
 // Round 233 + master polish: prompts carry an on-brand SVG IconName
@@ -269,13 +271,21 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     // the chat shows what the user typed.
     if (chatCommands.tryHandle(trimmed)) {
       haptic.light();
+      const now = Date.now();
       const userMessage: ChatMessage = {
-        id: `user-${Date.now()}`,
+        id: `user-${now}`,
         role: 'user',
         content: trimmed,
         createdAt: new Date().toISOString(),
       };
-      setMessages((prev) => [...prev, userMessage]);
+      // Block 2: a handler may have attached an inline widget (water/macro/
+      // diff/summary). If so, append an assistant confirmation bubble that
+      // carries it — gives the local command a visual reply, not just a toast.
+      const pending = drainChatWidget();
+      const extra: ChatMessage[] = pending
+        ? [{ id: `ai-${now}`, role: 'assistant', content: pending.text, createdAt: new Date().toISOString(), widget: pending.widget }]
+        : [];
+      setMessages((prev) => [...prev, userMessage, ...extra]);
       setInput('');
       scheduleScroll(true, 100);
       isSendingRef.current = false;
@@ -556,12 +566,17 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         data={messages}
         keyExtractor={(msg) => msg.id}
         renderItem={({ item, index }: ListRenderItemInfo<ChatMessage>) => (
-          <MessageBubble
-            message={item}
-            isLast={index === messages.length - 1}
-            speakingId={speakingId}
-            onSpeak={handleSpeak}
-          />
+          <>
+            <MessageBubble
+              message={item}
+              isLast={index === messages.length - 1}
+              speakingId={speakingId}
+              onSpeak={handleSpeak}
+            />
+            {/* Block 2: inline widget (water/macro/diff/summary) attached to a
+                local-command confirmation bubble. */}
+            {item.widget != null && <ChatWidgetView widget={item.widget as ChatWidget} />}
+          </>
         )}
         contentContainerStyle={styles.messages}
         showsVerticalScrollIndicator={false}
