@@ -58,6 +58,16 @@ export const RestTimerOverlay: React.FC<Props> = ({ isResting, restTime, restTot
     }
   }, [restTime, isResting]);
 
+  // Cancel both animations on unmount. Without this, an unmount while the
+  // pulse is mid-`withRepeat(-1)` (timer at 1-5s, user leaves the screen)
+  // leaks an infinite animation loop driving an orphaned shared value.
+  useEffect(() => {
+    return () => {
+      cancelAnimation(pulse);
+      cancelAnimation(flash);
+    };
+  }, []);
+
   const pulseStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulse.value }] }));
   const flashStyle = useAnimatedStyle(() => ({ opacity: flash.value }));
 
