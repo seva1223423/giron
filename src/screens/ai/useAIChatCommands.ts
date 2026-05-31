@@ -36,6 +36,7 @@ import {
   type MealType,
 } from './parseChatCommand';
 import { flashBus, flashKey } from '../../utils/flashBus';
+import { emitChatWidget } from './chatWidgets';
 
 export interface AIChatCommandHandler {
   tryHandle: (text: string) => boolean;
@@ -124,8 +125,16 @@ function flashSet(exIdx: number, setIdx: number): void {
 
 function handleAddWater(ml: number): void {
   const today = localDateStr(new Date());
-  useNutritionStore.getState().addWater(today, ml);
+  const ns = useNutritionStore.getState();
+  ns.addWater(today, ml);
   toast.success(`+${ml} мл воды`);
+  // Block 2: confirm with a water-progress widget on the chat bubble.
+  const log = ns.getDayLog(today);
+  emitChatWidget(`Записал +${ml} мл воды.`, {
+    kind: 'water',
+    got: log.waterMl ?? 0,
+    target: log.waterTargetMl ?? 2500,
+  });
 }
 
 function handleAddSet(weight: number, reps: number): void {
@@ -247,9 +256,18 @@ function handleSetWeight(weight: number): void {
   const sets = aw.workout.exercises[exIdx]?.sets ?? [];
   const firstPending = sets.findIndex((s) => !s.completed);
   if (firstPending === -1) { toast.info('Нет невыполненных подходов'); return; }
+  const before = sets[firstPending]?.weight ?? 0;
   state.updateSetData(exIdx, firstPending, { weight });
   flashSet(exIdx, firstPending);
   toast.success(`Вес: ${weight} кг`);
+  // Block 2: before → after diff widget for the changed set.
+  if (before !== weight) {
+    const exName = aw.workout.exercises[exIdx]?.exercise?.name ?? 'Упражнение';
+    emitChatWidget(`Поменял вес в подходе #${firstPending + 1}.`, {
+      kind: 'diff', title: exName, label: `Подход ${firstPending + 1}`,
+      before, after: weight, unit: ' кг',
+    });
+  }
 }
 
 function handleSetReps(reps: number): void {
@@ -462,6 +480,10 @@ function handleStatsMeal(): void {
   toast.info(
     `Калории: ${totalKcal} / ${targetKcal} ккал · Белок: ${totalProtein} г · Приёмов: ${meals.length}`,
   );
+  // Block 2: protein-progress widget.
+  emitChatWidget(`Калории: ${totalKcal} / ${targetKcal} ккал · приёмов: ${meals.length}.`, {
+    kind: 'macro', protein: totalProtein, target: dayLog.targetProtein ?? 160,
+  });
 }
 
 function handleStatsProgress(): void {
@@ -470,6 +492,20 @@ function handleStatsProgress(): void {
   const totalVolume = history.reduce((sum, w) => sum + (w.totalVolume ?? 0), 0);
   const totalTons = Math.round(totalVolume / 100) / 10;
   toast.info(`Тренировок: ${completed} · Общий объём: ${totalTons} т`);
+  // Block 2: day-summary widget (today's water / protein / sets done).
+  const today = localDateStr(new Date());
+  const log = useNutritionStore.getState().getDayLog(today);
+  const proteinToday = Math.round((log.meals ?? []).reduce((s, m) => s + (m.totalProtein ?? 0), 0));
+  const aw = useWorkoutStore.getState().activeWorkout;
+  const setsDone = aw
+    ? aw.workout.exercises.reduce((a, e) => a + e.sets.filter((s) => s.completed).length, 0)
+    : 0;
+  emitChatWidget('Итог дня:', {
+    kind: 'summary',
+    water: { got: log.waterMl ?? 0, target: log.waterTargetMl ?? 2500 },
+    protein: { got: proteinToday, target: log.targetProtein ?? 160 },
+    setsDone,
+  });
 }
 
 function handleStatsLastWorkout(): void {
