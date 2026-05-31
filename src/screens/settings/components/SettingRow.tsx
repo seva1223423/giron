@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
 
@@ -13,7 +13,7 @@ interface Props {
 }
 
 export const SettingRow: React.FC<Props> = ({ label, sublabel, right, onPress, divider }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const Container: any = onPress ? TouchableOpacity : View;
   return (
     <Container onPress={onPress} style={[styles.row, divider && { borderTopWidth: 1, borderTopColor: colors.divider }]}>

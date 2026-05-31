@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
-import { useThemeStore, useNutritionStore } from '../../store';
+import { useThemeColors, useNutritionStore } from '../../store';
 import { Button } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -20,7 +20,7 @@ export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({
   const safeTop = useSafeTop();
   const mealType = route.params?.mealType || 'snack';
   const routeDate = route.params?.date as string | undefined;
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { addMeal, dailyLog, saveFoodItem } = useNutritionStore();
 
   const today = routeDate ?? localDateStr(new Date());

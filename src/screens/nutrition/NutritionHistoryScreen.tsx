@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
-import { useThemeStore, useNutritionStore } from '../../store';
+import { useThemeColors, useNutritionStore } from '../../store';
 import { Card, FadeIn } from '../../components';
 import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
@@ -20,7 +20,7 @@ const PERIODS = [
 export const NutritionHistoryScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const safeTop = useSafeTop();
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { getDayLog } = useNutritionStore();
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
   const [period, setPeriod] = useState(30);

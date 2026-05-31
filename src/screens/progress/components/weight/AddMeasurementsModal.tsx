@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Modal, Alert, ActivityIndicator, ScrollView, StyleSheet } from 'react-native';
-import { useThemeStore, useMeasurementsStore } from '../../../../store';
+import { useThemeColors, useMeasurementsStore } from '../../../../store';
 import { typography } from '../../../../theme';
 import { spacing, borderRadius } from '../../../../theme/spacing';
 import { useHaptic } from '../../../../hooks/useHaptic';
@@ -29,7 +29,7 @@ interface Props {
 
 export const AddMeasurementsModal: React.FC<Props> = ({ visible, measurementHistory: _measurementHistory, onClose, onSaved }) => {
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { addEntry } = useMeasurementsStore();
   const [fields, setFields] = useState<Partial<Record<keyof BodyMeasurement, string>>>({});
   const [saving, setSaving] = useState(false);

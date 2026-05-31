@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { Card } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
@@ -10,7 +10,7 @@ interface PR { name: string; weight: number; reps: number; est1rm: number }
 interface Props { prs: PR[] }
 
 export const PRsCard: React.FC<Props> = ({ prs }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   if (prs.length === 0) return null;
 
   return (

@@ -3,7 +3,7 @@ import { View, Text, Alert, KeyboardAvoidingView, Platform, Animated, AppState }
 import ReanimatedAnimated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useHaptic } from '../../hooks/useHaptic';
-import { useThemeStore, useWorkoutStore } from '../../store';
+import { useThemeColors, useWorkoutStore } from '../../store';
 import { useSettingsStore } from '../../store/useSettingsStore';
 import { exercises as localExercises } from '../../data/exercises';
 import { scheduleRestEndNotification, cancelRestEndNotification, scheduleStreakRiskNotification, workoutService } from '../../services';
@@ -16,7 +16,7 @@ import {
 
 export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { restTimerDefault } = useSettingsStore();
   const {
     activeWorkout, workoutHistory,

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { Card } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
@@ -51,7 +51,7 @@ interface Props {
 export const CalendarGrid: React.FC<Props> = ({
   viewYear, viewMonth, todayStr, today, workoutsByDate, planDays, onPrevMonth, onNextMonth, onDayPress,
 }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const days = getDaysInMonth(viewYear, viewMonth);
   const leadingPad = mondayWeekday(days[0]);
   const isCurrentMonth = viewYear === today.getFullYear() && viewMonth === today.getMonth();

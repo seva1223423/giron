@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import type { WorkoutExercise } from '../../../types';
@@ -40,7 +40,7 @@ interface Props {
  * design (paywall CTA, Home AI card CTA, quick-action icon tiles).
  */
 export const CurrentSetHero: React.FC<Props> = ({ exercise, previousSet, onFocusCurrent }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const haptic = useHaptic();
 
   const live = findLiveSet(exercise.sets ?? []);

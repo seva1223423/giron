@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Modal, Alert, ActivityIndicator, StyleSheet } from 'react-native';
-import { useThemeStore } from '../../../../store';
+import { useThemeColors } from '../../../../store';
 import { Card } from '../../../../components';
 import { typography } from '../../../../theme';
 import { spacing, borderRadius } from '../../../../theme/spacing';
@@ -15,7 +15,7 @@ interface Props {
 
 export const AddWeightModal: React.FC<Props> = ({ visible, onClose, onSaved }) => {
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const [newWeight, setNewWeight] = useState('');
   const [saving, setSaving] = useState(false);
 

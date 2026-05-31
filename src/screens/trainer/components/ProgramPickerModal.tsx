@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet, useWindowDimensions } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { Button } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
@@ -21,7 +21,7 @@ interface Props {
 
 export const ProgramPickerModal: React.FC<Props> = ({ visible, currentProgram, onClose, onSelect, onClear }) => {
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { height: screenHeight } = useWindowDimensions();
 
   return (

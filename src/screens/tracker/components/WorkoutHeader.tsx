@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
-import { useThemeStore, useWorkoutStore, useAuthStore } from '../../../store';
+import { useThemeColors, useWorkoutStore, useAuthStore } from '../../../store';
 import { useSettingsStore } from '../../../store/useSettingsStore';
 import { useSafeTop } from '../../../hooks/useSafeTop';
 import { typography } from '../../../theme';
@@ -72,7 +72,7 @@ const MiniProgressRing: React.FC<{ progress: number; color: string; bgColor: str
 };
 
 export const WorkoutHeader: React.FC<Props> = ({ workout, elapsed, totalCompletedSets, totalSets, onCancel, onFinish }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { workoutDurationGoal } = useSettingsStore();
   const { user } = useAuthStore();
   const safeTop = useSafeTop();

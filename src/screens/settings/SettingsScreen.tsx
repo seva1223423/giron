@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { useSafeTop } from '../../hooks/useSafeTop';
-import { useThemeStore } from '../../store';
+import { useThemeColors } from '../../store';
 import { FadeIn } from '../../components';
 import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
@@ -12,7 +12,7 @@ import {
 
 export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const safeTop = useSafeTop();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
 
   return (
     <ScrollView

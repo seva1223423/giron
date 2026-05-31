@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { Card, Button } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
@@ -31,7 +31,7 @@ interface Props {
 
 export const ProgramDayCard: React.FC<Props> = ({ day, dayIndex, goalColor, isExpanded, onToggle, onStart }) => {
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
 
   return (
     <Card style={{ marginBottom: spacing.md }}>

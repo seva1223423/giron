@@ -19,8 +19,12 @@ jest.mock('../db', () => ({
       updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
     workout: {
+      // Audit 2026-05-29 (H8): weekly summary now batches via groupBy instead
+      // of per-user findMany/count.
+      groupBy: jest.fn(),
+    },
+    workoutExercise: {
       findMany: jest.fn(),
-      count: jest.fn(),
     },
   },
 }));
@@ -67,8 +71,8 @@ const mockSubFindMany = prisma.subscription.findMany as jest.Mock;
 const mockSubUpdate = prisma.subscription.update as jest.Mock;
 // Round 253: pre-renewal notice now uses updateMany for atomic claim.
 const mockSubUpdateMany = (prisma.subscription as any).updateMany as jest.Mock;
-const mockWorkoutFindMany = prisma.workout.findMany as jest.Mock;
-const mockWorkoutCount = prisma.workout.count as jest.Mock;
+const mockWorkoutGroupBy = prisma.workout.groupBy as jest.Mock;
+const mockWorkoutExerciseFindMany = prisma.workoutExercise.findMany as jest.Mock;
 const mockSendPush = sendPushToUser as jest.Mock;
 const mockWeeklyEmail = sendWeeklySummaryEmail as jest.Mock;
 const mockPreRenewalEmail = sendPreRenewalNotificationEmail as jest.Mock;
@@ -105,6 +109,10 @@ beforeEach(() => {
   mockSubUpdate.mockResolvedValue({});
   mockSubUpdateMany.mockResolvedValue({ count: 1 });
   mockWeeklyEmail.mockResolvedValue(undefined);
+  // Audit 2026-05-29 (H8): default the batched weekly-summary queries to empty
+  // so tests that don't care about workout data don't crash on .map.
+  mockWorkoutGroupBy.mockResolvedValue([]);
+  mockWorkoutExerciseFindMany.mockResolvedValue([]);
   mockPreRenewalEmail.mockResolvedValue(undefined);
   mockActivationEmail.mockResolvedValue(undefined);
 });
@@ -446,27 +454,27 @@ describe('processWeeklySummaryEmails', () => {
       { id: 'u-1', email: 'user@test.com', firstName: 'Иван' },
     ]);
 
-    // thisWeek workouts (findMany), lastWeek count
-    mockWorkoutFindMany.mockResolvedValueOnce([
+    // thisWeek aggregate (groupBy), lastWeek count (groupBy), exercise rows
+    mockWorkoutGroupBy
+      .mockResolvedValueOnce([
+        { userId: 'u-1', _count: { _all: 1 }, _sum: { totalVolume: 5000, durationMinutes: 60 } },
+      ])
+      .mockResolvedValueOnce([{ userId: 'u-1', _count: { _all: 2 } }]);
+    mockWorkoutExerciseFindMany.mockResolvedValueOnce([
       {
-        durationMinutes: 60,
-        totalVolume: 5000,
-        exercises: [
-          {
-            exercise: { name: 'Жим лёжа' },
-            sets: [
-              { weight: 100, reps: 5, completed: true },
-              { weight: 80, reps: 3, completed: false }, // excluded: completed=false
-            ],
-          },
-          {
-            exercise: { name: 'Присед' },
-            sets: [{ weight: 120, reps: 3, completed: true }],
-          },
+        workout: { userId: 'u-1' },
+        exercise: { name: 'Жим лёжа' },
+        sets: [
+          { weight: 100, reps: 5, completed: true },
+          { weight: 80, reps: 3, completed: false }, // excluded: completed=false
         ],
       },
+      {
+        workout: { userId: 'u-1' },
+        exercise: { name: 'Присед' },
+        sets: [{ weight: 120, reps: 3, completed: true }],
+      },
     ]);
-    mockWorkoutCount.mockResolvedValueOnce(2); // lastWeek
 
     const sent = await processWeeklySummaryEmails();
 
@@ -488,23 +496,23 @@ describe('processWeeklySummaryEmails', () => {
       { id: 'u-1', email: 'user@test.com', firstName: null },
     ]);
 
-    mockWorkoutFindMany.mockResolvedValueOnce([
+    mockWorkoutGroupBy
+      .mockResolvedValueOnce([
+        { userId: 'u-1', _count: { _all: 1 }, _sum: { totalVolume: 3000, durationMinutes: 45 } },
+      ])
+      .mockResolvedValueOnce([]); // no last-week workouts
+    mockWorkoutExerciseFindMany.mockResolvedValueOnce([
       {
-        durationMinutes: 45,
-        totalVolume: 3000,
-        exercises: [
-          {
-            exercise: { name: 'Тяга' },
-            sets: [{ weight: 150, reps: 5, completed: true }], // vol = 750
-          },
-          {
-            exercise: { name: 'Жим' },
-            sets: [{ weight: 100, reps: 5, completed: true }], // vol = 500
-          },
-        ],
+        workout: { userId: 'u-1' },
+        exercise: { name: 'Тяга' },
+        sets: [{ weight: 150, reps: 5, completed: true }], // vol = 750
+      },
+      {
+        workout: { userId: 'u-1' },
+        exercise: { name: 'Жим' },
+        sets: [{ weight: 100, reps: 5, completed: true }], // vol = 500
       },
     ]);
-    mockWorkoutCount.mockResolvedValueOnce(0);
 
     await processWeeklySummaryEmails();
 
@@ -521,9 +529,9 @@ describe('processWeeklySummaryEmails', () => {
       { id: 'u-ok', email: 'ok@test.com', firstName: null },
     ]);
 
-    // Both users get workout data
-    mockWorkoutFindMany.mockResolvedValue([]);
-    mockWorkoutCount.mockResolvedValue(0);
+    // Both users send with zeroed stats — no workout aggregates returned.
+    mockWorkoutGroupBy.mockResolvedValue([]);
+    mockWorkoutExerciseFindMany.mockResolvedValue([]);
 
     // u-fail email throws, u-ok succeeds
     mockWeeklyEmail

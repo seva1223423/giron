@@ -3,7 +3,7 @@ import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
   ActivityIndicator, Alert, StyleSheet,
 } from 'react-native';
-import { useThemeStore, useAuthStore } from '../../store';
+import { useThemeColors, useAuthStore } from '../../store';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { api } from '../../services/api';
@@ -14,7 +14,7 @@ type Step = 'enter_email' | 'enter_code' | 'enter_totp';
 
 export const ChangeEmailScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const safeTop = useSafeTop();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { setUser, user } = useAuthStore();
   const [step, setStep] = useState<Step>('enter_email');
   const [email, setEmail] = useState('');

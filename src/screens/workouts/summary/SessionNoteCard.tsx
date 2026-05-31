@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Text, TextInput } from 'react-native';
-import { useThemeStore, useWorkoutStore } from '../../../store';
+import { useThemeColors, useWorkoutStore } from '../../../store';
 import { Card } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
@@ -9,7 +9,7 @@ import { Workout } from '../../../types';
 interface Props { workout: Workout }
 
 export const SessionNoteCard: React.FC<Props> = ({ workout }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { updateWorkoutInHistory } = useWorkoutStore();
   const [note, setNote] = useState<string>(workout.notes ?? '');
 

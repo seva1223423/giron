@@ -17,6 +17,7 @@
 
 import { logger } from '../utils/logger';
 import { recordAIRequest } from '../utils/aiMetrics';
+import { guardLlmCall, recordLlmSuccess, recordLlmFailure } from '../utils/llmCircuitBreaker';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -146,6 +147,12 @@ export function trimHistory(
 // ─── Chat (text + tool calling) ──────────────────────────────────────────────
 
 export async function chat(options: ChatOptions): Promise<ChatResult> {
+  // Circuit breaker guard — short-circuit if the API is currently in
+  // OPEN state from a recent storm. Throws LlmCircuitOpenError; caller
+  // catches it and surfaces a friendly "AI временно недоступен" instead
+  // of waiting through 9 attempts × 60s.
+  guardLlmCall();
+
   const model = options.model || DEFAULT_MODEL;
 
   const messages: DeepSeekMessage[] = [
@@ -234,6 +241,9 @@ export async function chat(options: ChatOptions): Promise<ChatResult> {
       // Record successful non-cache call with latency (token estimate based on response length)
       const tokensEstimate = Math.ceil(((msg.content || '').length + JSON.stringify(rawToolCalls).length) / 4);
       recordAIRequest({ cacheHit: false, latencyMs, tokensEstimate });
+      // Tell the breaker the API is healthy — resets the failure counter
+      // and closes the breaker if it was HALF_OPEN (probe succeeded).
+      recordLlmSuccess();
 
       return {
         content: msg.content || '',
@@ -256,10 +266,14 @@ export async function chat(options: ChatOptions): Promise<ChatResult> {
       }
 
       recordAIRequest({ cacheHit: false, error: true });
+      // Final failure after retries exhausted — increment breaker
+      // counter; trips OPEN on the FAILURE_THRESHOLD-th consecutive.
+      recordLlmFailure();
       throw err;
     }
   }
 
+  recordLlmFailure();
   throw lastError || new Error('AI API: все попытки исчерпаны');
 }
 
@@ -639,26 +653,45 @@ export async function analyzeImage(
 export async function* chatStream(
   options: Omit<ChatOptions, 'tools'>,
 ): AsyncGenerator<string> {
+  // Circuit breaker guard — same protection as chat(). Throws
+  // LlmCircuitOpenError immediately if the API is in OPEN state.
+  guardLlmCall();
+
   const model = options.model || DEFAULT_MODEL;
   const messages: DeepSeekMessage[] = [
     { role: 'system', content: options.system },
     ...options.messages,
   ];
 
-  const response = await fetchWithTimeout(
-    `${AI_BASE_URL}/chat/completions`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getApiKey()}` },
-      body: JSON.stringify({ model, messages, stream: true, max_tokens: options.maxTokens || 4096, temperature: options.temperature ?? 0.7 }),
-    },
-    REQUEST_TIMEOUT_MS,
-  );
+  let response: Response;
+  try {
+    response = await fetchWithTimeout(
+      `${AI_BASE_URL}/chat/completions`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getApiKey()}` },
+        body: JSON.stringify({ model, messages, stream: true, max_tokens: options.maxTokens || 4096, temperature: options.temperature ?? 0.7 }),
+      },
+      REQUEST_TIMEOUT_MS,
+    );
+  } catch (err) {
+    // Network error / timeout BEFORE we got any HTTP response — counts
+    // as a provider failure for breaker purposes.
+    recordLlmFailure();
+    throw err;
+  }
 
   if (!response.ok) {
+    recordLlmFailure();
     const errorText = await response.text();
     throw new Error(`AI stream error ${response.status}: ${errorText}`);
   }
+
+  // HTTP 200 means the stream is starting — treat as success for the
+  // breaker. If the stream body then breaks mid-flight we don't trip
+  // the breaker; that's a partial-response problem, not a "provider is
+  // down" signal.
+  recordLlmSuccess();
 
   if (!response.body) throw new Error('AI stream response has no body');
   const reader = response.body.getReader();

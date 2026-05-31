@@ -27,6 +27,7 @@ const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 const NINETY_SECONDS_MS = 90 * 1000;
 const FIVE_MINUTES_MS = 5 * 60 * 1000;
+const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
 
 export interface CleanupResult {
   refreshTokens: number;
@@ -138,10 +139,60 @@ export async function runPasswordResetCleanup(db: Db): Promise<{ deleted: number
   }
 }
 
+/**
+ * Drop raw food-scan log entries older than 90 days. The aggregate Meal /
+ * MealItem rows live forever — only the per-scan diagnostic blob (which is
+ * never read after the meal is logged) is dropped. Without this the table
+ * grows unboundedly: an active user can scan 5-10 times/day → 1800-3600
+ * rows/year per user, with zero value past the first hour.
+ *
+ * Identified by the supabase-postgres-best-practices audit as the only
+ * append-only user-scoped table without a retention sweep.
+ */
+export async function runFoodScanLogCleanup(db: Db): Promise<{ deleted: number }> {
+  try {
+    const cutoff = new Date(Date.now() - NINETY_DAYS_MS);
+    const { count } = await db.foodScanLog.deleteMany({
+      where: { createdAt: { lt: cutoff } },
+    });
+    if (count > 0) logger.info(`[Cleanup] Deleted ${count} stale food scan log entries (>90d)`);
+    return { deleted: count };
+  } catch (err) {
+    reportError(err as Error, { tags: { origin: 'cleanup-food-scan-log' } });
+    return { deleted: 0 };
+  }
+}
+
+/**
+ * Drop raw HealthSample rows older than 90 days. Health watch can push
+ * 1440 HR samples/day/user — the table balloons fast if every user
+ * connects a wearable. The dashboards/AI context only read the last
+ * 30-60 days; older samples have minimal analytical value and are
+ * better aggregated into a weekly summary if that ever becomes a need.
+ *
+ * Skip empty environments early — if the table has zero rows, the
+ * deleteMany still issues a query; only emit a log line when something
+ * actually got cleaned.
+ */
+export async function runHealthSampleCleanup(db: Db): Promise<{ deleted: number }> {
+  try {
+    const cutoff = new Date(Date.now() - NINETY_DAYS_MS);
+    const { count } = await db.healthSample.deleteMany({
+      where: { startAt: { lt: cutoff } },
+    });
+    if (count > 0) logger.info(`[Cleanup] Deleted ${count} stale health samples (>90d)`);
+    return { deleted: count };
+  } catch (err) {
+    reportError(err as Error, { tags: { origin: 'cleanup-health-sample' } });
+    return { deleted: 0 };
+  }
+}
+
 // Constants exposed for the tests (so values stay in one place).
 export const _internal = {
   SEVEN_DAYS_MS,
   TWENTY_FOUR_HOURS_MS,
   NINETY_SECONDS_MS,
   FIVE_MINUTES_MS,
+  NINETY_DAYS_MS,
 };

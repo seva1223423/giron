@@ -71,6 +71,10 @@ model User {
   reactivation7dSentAt  DateTime?
   reactivation14dSentAt DateTime?
   reactivation30dSentAt DateTime?
+  /// Audit 2026-05-29 (H8): 'YYYY-MM-DD' of the Sunday a weekly-summary email
+  /// was last sent. Backs an atomic claim-then-send (updateMany CAS) so a 2nd
+  /// cron tick — even after a restart inside the send hour — can't double-send.
+  weeklySummarySentDate String?
 
   /// Onboarding funnel telemetry. Map of step number (0..4) → ISO
   /// timestamp, upserted by POST /user/onboarding/step as the user
@@ -309,6 +313,14 @@ model WorkoutSet {
   workoutExercise   WorkoutExercise @relation(fields: [workoutExerciseId], references: [id], onDelete: Cascade)
 
   @@index([workoutExerciseId])
+  // Composite covers leaderboard CTE and routine.start lookups that
+  // filter WHERE completed=true (workout.ts:1090, ai.ts:5723). Postgres
+  // can index-scan instead of seq-scanning the parent WorkoutExercise →
+  // WorkoutSet join. Partial index (WHERE completed=true AND type !=
+  // 'warmup') would be ~10x smaller but isn't expressible in Prisma
+  // schema — see scripts/db/partial-indexes.sql for the optional raw
+  // upgrade once the table grows past ~100K rows.
+  @@index([workoutExerciseId, completed])
 }
 
 // ==================== ROUTINES (UI: «Шаблоны») ====================

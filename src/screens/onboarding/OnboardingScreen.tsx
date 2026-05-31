@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
-import { useThemeStore, useAuthStore, useNutritionStore, useWorkoutStore } from '../../store';
+import { useThemeColors, useAuthStore, useNutritionStore, useWorkoutStore } from '../../store';
 import { useSafeTop } from '../../hooks/useSafeTop';
 import { Button, Icon } from '../../components';
 import { typography } from '../../theme';
@@ -30,7 +30,7 @@ const TOTAL_STEPS = 5;
  */
 export const OnboardingScreen: React.FC<{ navigation: any }> = () => {
   const safeTop = useSafeTop();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { updateProfile, completeOnboarding } = useAuthStore();
   const { setTargets } = useNutritionStore();
   const { setWeekPlanDay, weekPlan } = useWorkoutStore();

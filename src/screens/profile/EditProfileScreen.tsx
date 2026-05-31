@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
-import { useThemeStore, useAuthStore, useNutritionStore } from '../../store';
+import { useThemeColors, useAuthStore, useNutritionStore } from '../../store';
 import { Card, Button } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -13,7 +13,7 @@ import { localDateStr } from '../../utils/date';
 export const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const safeTop = useSafeTop();
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { user, setUser } = useAuthStore();
   const { setTargets } = useNutritionStore();
 

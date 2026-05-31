@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, TextInput, StyleSheet } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { Card, Button } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
@@ -21,7 +21,7 @@ const BARBELL_OPTIONS = [
 ];
 
 const PlateVisual: React.FC<{ plates: Map<number, number> }> = ({ plates }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const plateArray: number[] = [];
   PLATE_SIZES.forEach((size) => {
     for (let i = 0; i < (plates.get(size) || 0); i++) plateArray.push(size);
@@ -61,7 +61,7 @@ interface Props {
 
 export const PlateCalculatorTab: React.FC<Props> = ({ initialWeight, onApplyWeight }) => {
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const [targetWeight, setTargetWeight] = useState(initialWeight != null ? String(initialWeight) : '100');
   const [barbellIdx, setBarbellIdx] = useState(0);
 

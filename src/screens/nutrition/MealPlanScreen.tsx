@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet, ActivityIndicator } from 'react-native';
 import { Card, Button, FadeIn, PaywallModal } from '../../components';
-import { useThemeStore, useNutritionStore, useSubscriptionStore } from '../../store';
+import { useThemeColors, useNutritionStore, useSubscriptionStore } from '../../store';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { useHaptic } from '../../hooks/useHaptic';
@@ -103,7 +103,7 @@ function parsePlanFromAI(text: string): PlanDay[] | null {
 export const MealPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const safeTop = useSafeTop();
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { addMeal, getDayLog, defaultTargets } = useNutritionStore();
   const { canSendAiMessage, consumeAiMessage } = useSubscriptionStore();
 

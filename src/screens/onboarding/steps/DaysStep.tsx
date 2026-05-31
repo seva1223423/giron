@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 
@@ -20,7 +20,7 @@ interface Props {
 }
 
 export const DaysStep: React.FC<Props> = ({ selectedDays, onToggle }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   return (
     <View style={styles.container}>
       <Text style={[typography.h2, { color: colors.text, marginBottom: spacing.sm }]}>Дни тренировок</Text>

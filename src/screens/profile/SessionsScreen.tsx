@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, StyleSheet,
 } from 'react-native';
-import { useThemeStore } from '../../store';
+import { useThemeColors } from '../../store';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { userService } from '../../services/userService';
@@ -37,7 +37,7 @@ function parseDevice(ua?: string | null): string {
 
 export const SessionsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const safeTop = useSafeTop();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [trustedDevices, setTrustedDevices] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);

@@ -193,20 +193,22 @@ describe('response error: setOnlineStatus toggling', () => {
     // Slow LLM responses and Render cold-starts can take 30-60s; the
     // user shouldn't see "Нет соединения" banner during a long AI call.
     // Genuine "can't reach host" still goes through ERR_NETWORK below.
-    const err = { isAxiosError: true, code: 'ECONNABORTED', config: { method: 'get', headers: {} } };
+    // _retryCount at limit so the new VPN network-retry doesn't fire here —
+    // this test isolates the offline-marking (the retry path is covered below).
+    const err = { isAxiosError: true, code: 'ECONNABORTED', config: { method: 'get', headers: {}, _retryCount: 3 } };
     await expect(apiMock.handlers.responseError!(err)).rejects.toBe(err);
     expect(setOnlineStatusMock).toHaveBeenCalledWith(true);
     expect(setOnlineStatusMock).not.toHaveBeenCalledWith(false);
   });
 
   test('ERR_NETWORK → offline', async () => {
-    const err = { isAxiosError: true, code: 'ERR_NETWORK', config: { method: 'get', headers: {} } };
+    const err = { isAxiosError: true, code: 'ERR_NETWORK', config: { method: 'get', headers: {}, _retryCount: 3 } };
     await expect(apiMock.handlers.responseError!(err)).rejects.toBe(err);
     expect(setOnlineStatusMock).toHaveBeenCalledWith(false);
   });
 
   test('no `response` (network failure) → offline', async () => {
-    const err = { isAxiosError: true, config: { method: 'get', headers: {} } };
+    const err = { isAxiosError: true, config: { method: 'get', headers: {}, _retryCount: 3 } };
     await expect(apiMock.handlers.responseError!(err)).rejects.toBe(err);
     expect(setOnlineStatusMock).toHaveBeenCalledWith(false);
   });
@@ -240,8 +242,10 @@ describe('response error: 502/503/504 transient retry on GET', () => {
     expect(apiMock.apiInstance).not.toHaveBeenCalled();
   });
 
-  test('after 2 retries (3 attempts total) → reject', async () => {
-    const err = makeAxiosError(503, {}, { method: 'get', headers: {}, _retryCount: 2 });
+  test('after 3 retries (4 attempts total) → reject', async () => {
+    // Round 290 (VPN salvage): retry budget raised 2→3, so 4 attempts total
+    // before giving up; _retryCount at the limit means no further retry fires.
+    const err = makeAxiosError(503, {}, { method: 'get', headers: {}, _retryCount: 3 });
     await expect(apiMock.handlers.responseError!(err)).rejects.toBe(err);
     expect(apiMock.apiInstance).not.toHaveBeenCalled();
   });
