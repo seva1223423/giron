@@ -195,10 +195,12 @@ app.get('/health/sentry', (_, res) => {
   // We don't try to probe whether the @sentry/node module *loaded*
   // because the wrapper hides that. Instead we report on env state which
   // is the only thing the operator can act on.
+  // Audit 2026-06: this endpoint is unauthenticated. Return only the
+  // boolean state the operator can act on — NOT the DSN host (which
+  // fingerprints the Sentry project/ingest endpoint to anyone).
+  void host;
   res.json({
     sentryDsnConfigured: Boolean(dsn),
-    dsnHost: host,
-    nodeEnv: process.env.NODE_ENV || 'development',
     note: dsn
       ? 'A test error has been routed through reportError. Check sentry.io within 30s.'
       : 'SENTRY_DSN not set. errorReporter is in console-only mode; nothing leaves the server.',
@@ -224,10 +226,17 @@ app.get('/health/deep', async (_, res) => {
   const dbOk = dbResult.status === 'fulfilled';
   const llms = llmResults.status === 'fulfilled' ? llmResults.value : [];
   const allHealthy = dbOk && llms.every((p) => p.ok);
+  // Audit 2026-06: unauthenticated endpoint — return ok/degraded booleans
+  // only. Do NOT echo raw DB/LLM error strings (String(reason) /
+  // provider error bodies leak the DB host + upstream LLM endpoints to
+  // any anonymous caller). The detailed error is logged server-side.
+  if (!dbOk) {
+    logger.warn('[health/deep] db check failed:', (dbResult as PromiseRejectedResult).reason);
+  }
   res.status(allHealthy ? 200 : 503).json({
     status: allHealthy ? 'ok' : 'degraded',
-    db: { ok: dbOk, error: dbOk ? undefined : String((dbResult as PromiseRejectedResult).reason) },
-    llm: llms,
+    db: { ok: dbOk },
+    llm: llms.map((p: { name?: string; ok: boolean }) => ({ name: p.name, ok: p.ok })),
     durationMs: Date.now() - t0,
   });
 });

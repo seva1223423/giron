@@ -26,6 +26,11 @@ const INDEX_SRC = fs.readFileSync(
   'utf8',
 );
 
+const AUTH_SRC = fs.readFileSync(
+  path.resolve(__dirname, '..', 'routes', 'auth.ts'),
+  'utf8',
+);
+
 // ─── Rate limiter config ─────────────────────────────────────────────────────
 
 describe('TOTP rate limiter — config pin', () => {
@@ -100,6 +105,36 @@ describe('TOTP rate limiter — applied to all 2FA endpoints', () => {
     expect(INDEX_SRC).not.toMatch(
       /app\.use\(\s*['"]\/api\/auth['"]\s*,\s*totpRateLimiter\s*\)/,
     );
+  });
+});
+
+// ─── Per-account 2FA lockout (audit 2026-06, finding H1) ─────────────────────
+// The IP limiter above is bypassable by an attacker who already has the
+// password and rotates source IPs to brute the 6-digit TOTP / a backup code.
+// auth.ts adds a PER-USER failure counter that locks the 2FA step regardless
+// of IP. Static-grep pin (same style as the IP-limiter pins above) so a
+// future edit that drops the per-account guard is caught.
+
+describe('per-account 2FA lockout — config pin', () => {
+  test('auth.ts defines a per-user failure counter with a lockout window', () => {
+    expect(AUTH_SRC).toMatch(/TFA_MAX_FAILURES\s*=\s*5\b/);
+    expect(AUTH_SRC).toMatch(/TFA_LOCKOUT_MS\s*=\s*15\s*\*\s*60\s*\*\s*1000/);
+    expect(AUTH_SRC).toMatch(/function\s+is2faLocked/);
+    expect(AUTH_SRC).toMatch(/function\s+record2faFailure/);
+    expect(AUTH_SRC).toMatch(/function\s+clear2faFailures/);
+  });
+
+  test('/totp-verify checks the lock before validation and returns TOTP_LOCKED', () => {
+    expect(AUTH_SRC).toMatch(/if\s*\(\s*is2faLocked\(user\.id\)\s*\)/);
+    expect(AUTH_SRC).toMatch(/code:\s*['"]TOTP_LOCKED['"]/);
+  });
+
+  test('/totp-verify records failures on invalid code/backup/replay and clears on success', () => {
+    // record2faFailure on each failure branch, clear2faFailures on each success.
+    const records = AUTH_SRC.match(/record2faFailure\(user\.id\)/g) ?? [];
+    const clears = AUTH_SRC.match(/clear2faFailures\(user\.id\)/g) ?? [];
+    expect(records.length).toBeGreaterThanOrEqual(3); // invalid totp + invalid backup + replay
+    expect(clears.length).toBeGreaterThanOrEqual(2);  // totp success + backup success
   });
 });
 
