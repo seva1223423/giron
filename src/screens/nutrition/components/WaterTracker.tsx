@@ -122,7 +122,7 @@ export const WaterTracker: React.FC<Props> = ({ selectedDate }) => {
             if (ml > 0 && ml <= 3000) { handleAddWater(ml); setCustomAmount(''); }
           }}
         >
-          <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 14 }}>+</Text>
+          <Text style={{ color: colors.textInverse, fontWeight: '700', fontSize: 14 }}>+</Text>
         </TouchableOpacity>
       </View>
 
