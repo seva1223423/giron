@@ -82,11 +82,16 @@ api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
   // Round 290: if this request is still in-flight after 8s, mark it as
   // slow so the NetworkStatusBar shows "Соединение медленное…".
   // Reverted in the response/error interceptors.
-  const cfg = config as InternalAxiosRequestConfig & { _slowTimer?: ReturnType<typeof setTimeout>; _slowFired?: boolean };
-  cfg._slowTimer = setTimeout(() => {
-    cfg._slowFired = true;
-    markSlowRequest();
-  }, 8000);
+  // Skip under jest: the 8s timer outlives the test and fires after the
+  // module registry is reset → "markSlowRequest is not a function" worker
+  // crash. The slow-banner has no meaning in a unit test anyway.
+  if (process.env.NODE_ENV !== 'test') {
+    const cfg = config as InternalAxiosRequestConfig & { _slowTimer?: ReturnType<typeof setTimeout>; _slowFired?: boolean };
+    cfg._slowTimer = setTimeout(() => {
+      cfg._slowFired = true;
+      markSlowRequest();
+    }, 8000);
+  }
   return config;
 });
 
