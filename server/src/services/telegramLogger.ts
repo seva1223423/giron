@@ -36,6 +36,27 @@ function hashKey(message: string, firstFrame: string): string {
   return (message.slice(0, 80) + '|' + firstFrame.slice(0, 80)).toLowerCase();
 }
 
+/**
+ * Audit 2026-06 (finding 5a): the client-error pipe (/log-client-error)
+ * forwards arbitrary client-supplied `message` + `stack` verbatim to the
+ * founder's Telegram. A crash payload can carry a user's email, phone, a
+ * JWT, or an API key in the message text. The app-wide logger.scrub() is
+ * internal, so we redact PII / secrets here before the text leaves the
+ * server. Patterns mirror utils/logger.ts: emails, E.164 phones,
+ * JWT-shaped tokens, and long bearer/api-key-looking blobs.
+ */
+const PII_PATTERNS: Array<[RegExp, string]> = [
+  [/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, '[email]'],
+  [/\+?[78]\d{10,14}/g, '[phone]'],
+  [/eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g, '[jwt]'],
+  [/\b[A-Za-z0-9_-]{40,}\b/g, '[token]'],
+];
+function scrubPii(s: string): string {
+  let out = s;
+  for (const [re, repl] of PII_PATTERNS) out = out.replace(re, repl);
+  return out;
+}
+
 function escapeMarkdown(s: string): string {
   // MarkdownV2 reserved chars per Telegram docs.
   return s.replace(/([_*[\]()~`>#+\-=|{}.!])/g, '\\$1');
@@ -60,8 +81,10 @@ export function sendErrorToTelegram(
   if (!creds) return;
 
   const e = err instanceof Error ? err : new Error(typeof err === 'string' ? err : JSON.stringify(err));
-  const message = e.message || 'Unknown error';
-  const stack = e.stack ?? '';
+  // Scrub PII/secrets before anything leaves the server (finding 5a). Done
+  // up-front so the dedup key, displayed message, and stack are all clean.
+  const message = scrubPii(e.message || 'Unknown error');
+  const stack = scrubPii(e.stack ?? '');
   const firstFrame = stack.split('\n')[1]?.trim() ?? '';
 
   // Dedup
