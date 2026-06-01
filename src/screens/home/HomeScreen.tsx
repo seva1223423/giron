@@ -166,6 +166,15 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     computeStreak(workoutHistory.map((w) => w.completedAt).filter(Boolean) as string[]),
   [workoutHistory]);
 
+  // Weekly-workouts ring goal — count of planned training days in weekPlan
+  // (non-empty entries), not a hardcoded 4. Falls back to 4 when the user
+  // hasn't set up a weekly plan yet. (Roadmap A8 — ring no longer lies about
+  // the target for someone training 3 or 5 days a week.)
+  const weeklyWorkoutGoal = useMemo(() => {
+    const planned = Object.values(weekPlan).filter(Boolean).length;
+    return planned > 0 ? planned : 4;
+  }, [weekPlan]);
+
   useEffect(() => {
     if (daysSinceLastWorkout !== null) {
       scheduleInactivityReminder(daysSinceLastWorkout);
@@ -640,8 +649,8 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             {
               label: 'НА ЭТОЙ НЕДЕЛЕ · ТРЕНИРОВКИ',
               numerator: weekWorkoutsCount,
-              suffix: '/ 4',
-              progress: weekWorkoutsCount / 4,
+              suffix: `/ ${weeklyWorkoutGoal}`,
+              progress: weekWorkoutsCount / weeklyWorkoutGoal,
               color: colors.carbs,
             },
           ]}
