@@ -21,6 +21,7 @@ import { localDateStr } from '../../utils/date';
 import { useAIChatCommands } from './useAIChatCommands';
 import { drainChatWidget } from './chatWidgets';
 import { CurrentWorkoutPanel } from './components/CurrentWorkoutPanel';
+import { toast } from '../../components/app-modal/toast';
 
 // Round 233 + master polish: prompts carry an on-brand SVG IconName
 // instead of a raw emoji glyph (CLAUDE.md bans glyphs in UI).
@@ -701,6 +702,10 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         // Design ai-chat-pro input dock; lets the user log a meal by photo
         // without leaving the coach conversation.
         onCamera={() => navigation.navigate('NutritionTab', { screen: 'FoodScanner' })}
+        // Voice input — STT service not wired yet (#23). Honest "coming soon"
+        // affordance: the mic button is visible so users know it's planned, but
+        // tapping shows a hint instead of faking a recording.
+        onMic={() => { haptic.light(); toast.info('Голосовой ввод скоро будет доступен'); }}
       />
     </KeyboardAvoidingView>
   );
