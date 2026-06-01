@@ -26,7 +26,28 @@ export const UserProgramsList: React.FC<Props> = ({ programs, navigation, onStar
   const haptic = useHaptic();
   const { colors } = useThemeStore();
 
-  if (programs.length === 0) return null;
+  // Empty state (Roadmap A6) — a new user with no saved programs used to see
+  // this whole section vanish (return null), which reads as "broken/empty".
+  // Show a friendly hint card instead so the first-run screen never looks bare.
+  if (programs.length === 0) {
+    return (
+      <>
+        <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.md }]}>Мои программы</Text>
+        <Card style={{ marginBottom: spacing.lg, alignItems: 'center', paddingVertical: spacing.xl }}>
+          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: colors.primary + '15', borderWidth: 1, borderColor: colors.primary + '35', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md }}>
+            <Icon name="target" size={24} color={colors.primary} strokeWidth={2} />
+          </View>
+          <Text style={[typography.bodySemibold, { color: colors.text, textAlign: 'center' }]}>
+            Пока нет своих программ
+          </Text>
+          <Text style={[typography.caption, { color: colors.textSecondary, textAlign: 'center', marginTop: 4, paddingHorizontal: spacing.lg }]}>
+            Создай программу выше или выбери готовую ниже — и она появится здесь.
+          </Text>
+        </Card>
+        <View style={{ height: 1, backgroundColor: colors.border, marginBottom: spacing.lg }} />
+      </>
+    );
+  }
 
   return (
     <>
