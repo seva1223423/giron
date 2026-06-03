@@ -460,7 +460,7 @@ russianSportsSchool        — советская школа (Платонов, 
 
 ### Production
 - **Client:** EAS Update + native builds (eas build)
-- **Server:** Render (giron-api.onrender.com), auto-deploy on push to master
+- **Server:** Render (iron-gym-swoe.onrender.com), auto-deploy on push to master
 - **Database:** Neon PostgreSQL
 - **LLM:** Mistral API primary, DeepSeek / Ollama fallback
 - **Email:** Gmail SMTP
