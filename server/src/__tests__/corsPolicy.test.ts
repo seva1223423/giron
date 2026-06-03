@@ -113,10 +113,12 @@ describe('CORS — disallowed origins are rejected', () => {
     const res = await request(app)
       .get('/health/live')
       .set('Origin', 'https://evil.attacker.com');
-    // The cors() callback invokes `callback(new Error(...))` which Express
-    // turns into a 500 with no Access-Control-Allow-Origin header. The key
-    // assertion: no ACAO echo for the foreign origin (so the browser will
-    // block the response regardless).
+    // The cors() callback invokes `callback(new Error('Not allowed by CORS'))`.
+    // A dedicated error middleware (index.ts) turns that into a quiet 403 —
+    // no Sentry/Telegram page — with no Access-Control-Allow-Origin header.
+    // The key assertions: rejected status, and no ACAO echo for the foreign
+    // origin (so the browser blocks the response regardless).
+    expect(res.status).toBe(403);
     expect(res.headers['access-control-allow-origin']).toBeUndefined();
   });
 
