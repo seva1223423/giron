@@ -1,5 +1,6 @@
 - [User profile — sevka](user_sevka.md) — Russian, autonomous execution, no recaps, watches GitHub between sessions
 - [Giron working rules](feedback_workflow.md) — commit+push together, dual memory, refactor pattern, knowledge-block numbering, don'ts
+- [Дизайн HTML-first ОБЯЗАТЕЛЬНО](feedback_design_html_first.md) — любая UI-работа: сначала HTML-макет в правой Preview-панели (`docs/design/variants/*.html` → preview_start), 2-4 варианта, выбор, ПОТОМ RN-код. Закреплено в CLAUDE.md перед дизайн-агентом
 - [Giron project facts](project_giron.md) — stack, Prisma `db push` not migrate, logger/singleton/Zod rules, stale-doc warnings
 - [GitHub account & main repo](reference_github.md) — seva1223423/giron, master, server-tests.yml CI gate
 - [Credentials & services](reference_credentials.md) — local .env at `C:/Users/sevka/Desktop/1223/work/giron/server/.env`; Render + Neon + Mistral + EAS + Gmail
