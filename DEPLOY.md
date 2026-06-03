@@ -102,7 +102,7 @@ npm install              # сервер
 После того как Render показывает зелёный **Live**, проверка одной curl-командой:
 
 ```powershell
-curl https://giron-api.onrender.com/api/admin/digest/readiness
+curl https://iron-gym-swoe.onrender.com/api/admin/digest/readiness
 ```
 
 Ответ должен содержать:
@@ -120,7 +120,7 @@ curl https://giron-api.onrender.com/api/admin/digest/readiness
 Если приложения ещё нет на телефоне, регистрация через curl:
 
 ```powershell
-curl.exe -X POST https://giron-api.onrender.com/api/auth/register `
+curl.exe -X POST https://iron-gym-swoe.onrender.com/api/auth/register `
   -H "Content-Type: application/json" `
   -d "{\"email\":\"osipovvsevolod01@gmail.com\",\"password\":\"YourPass2026\",\"firstName\":\"Sevka\"}"
 ```
@@ -130,7 +130,7 @@ curl.exe -X POST https://giron-api.onrender.com/api/auth/register `
 После этого можно вручную дёрнуть digest:
 
 ```powershell
-curl.exe -X POST https://giron-api.onrender.com/api/admin/digest/send-now `
+curl.exe -X POST https://iron-gym-swoe.onrender.com/api/admin/digest/send-now `
   -H "Authorization: Bearer <твой-JWT>"
 ```
 
@@ -194,5 +194,5 @@ Backlog ≥6 месяцев — не трогать пока MRR не дойдё
 - Render dashboard: https://dashboard.render.com → My project → Giron
 - GitHub: https://github.com/seva1223423/giron
 - Sentry (после активации): https://sentry.io
-- Health check live: https://giron-api.onrender.com/health
-- Health check deep (DB + LLM): https://giron-api.onrender.com/health/deep
+- Health check live: https://iron-gym-swoe.onrender.com/health
+- Health check deep (DB + LLM): https://iron-gym-swoe.onrender.com/health/deep

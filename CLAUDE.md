@@ -83,6 +83,15 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, clarifying questions come before implementation rather than after mistakes.
 
+## 6. НЕ собирать APK / EAS build без разрешения
+
+**НИКОГДА не запускай сборку APK / EAS build (`eas build`, `expo run:android`, `gradlew assemble`, любой нативный билд) автономно — только когда пользователь ЯВНО попросил или разрешил в текущем запросе.**
+
+- Сборка дорогая (минуты EAS-очереди, build-минуты аккаунта, бамп versionCode) и её результат пользователь ставит руками. Это его решение, не дефолт.
+- Даже если задача «логически готова к сборке» (код дописан, тесты зелёные) — НЕ собирай по своей инициативе. Допиши, проверь, и **спроси/жди** явной команды «собери».
+- `eas update` (OTA, без нативной сборки) — тоже только по явной просьбе.
+- Исключение: пользователь в ЭТОМ сообщении написал «собери / build / сделай сборку / можешь собрать» — тогда собирай.
+
 **Conflicts with rest of file:**
 - Section "Дизайн-агент — ОБЯЗАТЕЛЬНО спавнить" — still applies (UI work needs the design sub-agent), but the design pass must itself follow §3 (surgical, no scope creep).
 - Any "audit-driven sweep across N files" pattern from prior rounds — superseded by §2 + §3. Future audits report findings; user picks which to fix; only those get fixed.
@@ -108,7 +117,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 - JWT (60m access + 30d refresh, refresh hashed SHA-256) + bcryptjs, helmet, express-rate-limit
 - Zod (валидация), Multer (загрузка файлов), CORS
 - AI: Mistral API (основной, `mistral-small-latest`), DeepSeek, Ollama (локальный fallback)
-- Деплой: Render (`giron-api.onrender.com`), автодеплой на push в master
+- Деплой: Render (реальный хост `iron-gym-swoe.onrender.com` — он же в `EXPO_PUBLIC_API_URL`; `giron-api` НЕ существует), автодеплой на push в master
 
 ## Архитектура клиента
 
@@ -118,13 +127,13 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 **16 сторов:** auth, workout (самый сложный — PR-детекция, суперсеты, недельный план), nutrition, subscription (лимиты: 10 AI msg/день, 5 сканов), theme, settings, trainer, cardio, connection, measurements, onboardingTips, sleep, support, recipes, health, density
 
-**25 компонентов:** Button, Card, Input, FadeIn, AnimatedPressable, ProgressRing, MacroBar, PaywallModal, ErrorBoundary, SkeletonLoader, Tooltip, GoogleAuthButton (mode: `login|link`), ForceUpdateModal, Icon, Spinner, ScreenContainer + ScreenScroll, SafeModal, AdaptiveGrid, HitTarget, ResponsiveText, FormField, Skeleton + SkeletonText, EmptyState, Toast (ToastProvider/useToast), ResponsiveButton, NavBar + SectionHeader, IconButton + IconLabel
+**19 компонентов** (`src/components/*.tsx`, после удаления 11 мёртвых в R284): AnimatedPressable, Button, Card, DiffCard, ErrorBoundary, FadeIn, ForceUpdateModal, GoogleAuthButton (mode: `login|link`), HitTarget, Icon, Input, MacroBar, PaywallModal, Pill, ProgressRing, SkeletonLoader, Spinner, Sticker, Tooltip + папка `components/app-modal/` (AppModalProvider, ToastHost, installAppAlert)
 
-**14 сервисов:** api.ts (axios + JWT auto-refresh), admin, ai, auth, cardio, news, notification, nutrition, support, trainer, user, workout, otaUpdater, recipe
+**15 сервисов:** api.ts (axios + JWT auto-refresh), admin, ai, auth, cardio, news, notification, nutrition, support, trainer, user, workout, otaUpdater, recipe, health/
 
-**Области экранов (15):** admin, ai, auth, cardio, home, news, nutrition, onboarding, profile, progress, settings, support, tracker, trainer, workouts
+**Области экранов (16):** admin, ai, auth, cardio, health, home, news, nutrition, onboarding, profile, progress, settings, support, tracker, trainer, workouts
 
-**Данные:** 111 упражнений (data/exercises.ts), 25 программ (data/programs.ts), 61 ачивка (utils/achievements.ts)
+**Данные:** 111 упражнений (data/exercises.ts), 25 программ (data/programs.ts), 64 ачивки (utils/achievements.ts)
 
 ## Архитектура сервера
 
@@ -144,6 +153,9 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 - `subscription.ts` — status, activate, cancel, webhook (RevenueCat/YuKassa/generic)
 - `trainer.ts` — клиенты тренера CRUD, invite code flow (generate/accept/expire), TOCTOU-safe `updateMany`
 - `cardio.ts`, `support.ts` — кардио, поддержка (тикеты)
+- `recipes.ts` — рецепты (curated + user), AI-генерация рецептов, add-to-diary
+- `health.ts` — smartwatch-данные (ConnectedDevice/HealthSample): sync шагов/сна/VO₂max/HR с Apple Health / Health Connect / BLE
+- `logging.ts` — `POST /log-client-error`: клиентские краши → Telegram основателя (rate-limit 30/час, PII скрабится — audit 2026-06)
 - `admin.ts` — пользователи, баны, роли, метрики, аналитика, объявления
   - `GET /admin/me` — uncached founder self-status (activation funnel, onboarding state, push tokens, sub, last AI/workout, sessions)
   - `GET /admin/cron-health` — in-memory liveness ledger for retention/digest/keep-warm crons (resets on dyno restart)
@@ -153,7 +165,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 ### AI система (server/src/routes/ai.ts + services/)
 - Intent: data_logging, program_creation, workout_modify, technique_question, nutrition_query, analytics_query, greeting, complaint, motivation, general
-- 37 tools: update_user_profile, log_body_weight, delete_body_weight, log_body_measurement, delete_body_measurement, create_workout, log_completed_workout, modify_workout, swap_exercise, add_superset, generate_warmup, set_workout_duration_goal, create_program, delete_program, set_weekly_plan, adjust_all_weights, activate_program, log_meal, delete_meal, modify_meal, update_nutrition_targets, log_water, set_water_target, find_recipes, add_recipe_to_diary, log_cardio, delete_cardio, log_sleep, delete_sleep, set_rest_timer, set_notifications, analyze_progress, suggest_next_workout, get_pr_history, compare_periods, search_exercises, explain_exercise, update_memory, navigate_to_screen
+- 42 tools (все inline в ai.ts, по числу `name:`-определений): update_user_profile, log_body_weight, delete_body_weight, log_body_measurement, delete_body_measurement, create_workout, log_completed_workout, modify_workout, swap_exercise, add_superset, generate_warmup, set_workout_duration_goal, create_program, delete_program, set_weekly_plan, adjust_all_weights, activate_program, log_meal, delete_meal, modify_meal, update_nutrition_targets, log_water, set_water_target, find_recipes, add_recipe_to_diary, log_cardio, delete_cardio, log_sleep, delete_sleep, set_rest_timer, set_notifications, analyze_progress, suggest_next_workout, get_pr_history, compare_periods, search_exercises, explain_exercise, update_memory, navigate_to_screen, get_health_summary, get_sleep_breakdown, get_readiness_score
 - 25 модулей знаний (server/src/knowledge/, 6547 строк)
 - AI Memory (9 категорий: preference, habit, injury, allergy, schedule, personality, goal, equipment, milestone)
 - Кэш: TTL 4ч, max 200, кэшируются только intent=technique_question/general
@@ -190,21 +202,21 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 ```
 src/
-  screens/       — admin, ai, auth, cardio, home, news, nutrition, onboarding, profile, progress, settings, support, tracker, trainer, workouts (15 областей)
-  store/         — 14 Zustand-сторов (все persist через AsyncStorage)
-  components/    — 15 переиспользуемых компонентов + components/app-modal/ (AppModalProvider, ToastHost, installAppAlert)
+  screens/       — admin, ai, auth, cardio, health, home, news, nutrition, onboarding, profile, progress, settings, support, tracker, trainer, workouts (16 областей)
+  store/         — 16 Zustand-сторов (все persist через AsyncStorage)
+  components/    — 19 переиспользуемых компонентов + components/app-modal/ (AppModalProvider, ToastHost, installAppAlert)
   navigation/    — AppNavigator.tsx (трёхступенчатый: Auth/Onboarding/Main)
-  services/      — 14 API-сервисов
+  services/      — 15 API-сервисов (+ health/)
   hooks/         — useHaptic.ts, useSafeTop.ts, useAchievementCheck.ts, usePedometer.ts
   theme/         — colors (light/dark), typography (18 стилей), spacing, borderRadius
   types/         — index.ts (все типы: User, Exercise, Workout, Program, Meal, NewsArticle, ChatMessage...)
-  data/          — exercises.ts (71), programs.ts (6 built-in)
-  utils/         — achievements.ts (20 ачивок)
+  data/          — exercises.ts (111), programs.ts (25)
+  utils/         — achievements.ts (64 ачивки)
 
 server/
   src/
-    routes/      — auth, user, workout, nutrition, news, subscription, ai, trainer, cardio, support, admin, recipes, health (13 файлов)
-    services/    — deepseekAI, localAI, newsRefreshService
+    routes/      — auth, user, workout, nutrition, news, subscription, ai, trainer, cardio, support, admin, recipes, health, logging (14 файлов)
+    services/    — deepseekAI, localAI, newsRefreshService, telegramLogger, emailService, smsService, pushService, retentionService, adminDigestService, aiMemoryService, errorReporter, …
     middleware/  — auth.ts (JWT verify)
     knowledge/   — 25 модулей (6547 строк, тренировки/питание/добавки/физиология/психология)
     models/      — (пусто, используется Prisma)
@@ -229,12 +241,12 @@ server/
 # Клиент
 npm start              # expo start
 npm run android        # expo start --android
-npm test               # jest (client unit tests, 81 суитов, ~2030 тестов)
+npm test               # jest (client unit tests, 117 суитов, ~5481 тест)
 
 # Сервер
 cd server
 npm run dev            # tsx watch src/index.ts (порт 3001)
-npm test               # jest (server integration tests, ~91 суит, ~2500+ тестов)
+npm test               # jest (server integration tests, 92 суита, ~2604 теста)
                        # Новые суиты добавлены в rounds 2-18 (2026-04-28):
                        # retentionService, adminDigestService, cronHealth,
                        # aiMetrics, memCache, activityTracker
