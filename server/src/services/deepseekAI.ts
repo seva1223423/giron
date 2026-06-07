@@ -115,9 +115,28 @@ function safeParseToolArgs(raw: string): Record<string, unknown> {
   }
 }
 
-/** Грубая оценка токенов (1 токен ≈ 4 символа для русского текста, ~3.5 для английского) */
+/** Token estimation that accounts for script.
+ *  Mistral / DeepSeek tokenizers (BPE) produce ~1 token per 3.5 chars
+ *  for Latin text but only ~1 token per 2.5 chars for Cyrillic — most
+ *  Russian letters take a 2-byte UTF-8 sequence and don't merge as
+ *  aggressively in the BPE vocab. The previous flat /3.5 underestimated
+ *  Russian by ~30%, which let trimHistory pack messages whose real
+ *  token count blew through the context window in mixed conversations.
+ *
+ *  AI-4: split per-script. Same flat divisor for non-Cyrillic chars
+ *  (Latin / digits / punctuation), tighter divisor for Cyrillic. Still
+ *  approximate — for exact counting we'd need the actual tokenizer
+ *  vocab — but errs on the side of overestimating, which means
+ *  trimHistory keeps a slightly tighter budget rather than overflowing. */
+const CYRILLIC_RE = /[а-яА-ЯёЁ]/g;
+const CHARS_PER_TOKEN_CYRILLIC = 2.5;
+const CHARS_PER_TOKEN_OTHER = 3.5;
+
 export function estimateTokens(text: string): number {
-  return Math.ceil(text.length / 3.5);
+  if (!text) return 0;
+  const cyrillicCount = (text.match(CYRILLIC_RE) || []).length;
+  const otherCount = text.length - cyrillicCount;
+  return Math.ceil(cyrillicCount / CHARS_PER_TOKEN_CYRILLIC + otherCount / CHARS_PER_TOKEN_OTHER);
 }
 
 /** Обрезка истории сообщений чтобы влезть в контекст */

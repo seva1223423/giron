@@ -82,6 +82,36 @@ describe('estimateTokens', () => {
     expect(estimateTokens('abc')).toBe(Math.ceil(3 / 3.5));
     expect(estimateTokens('a'.repeat(100))).toBe(Math.ceil(100 / 3.5));
   });
+
+  // AI-4: tighter Cyrillic estimation. Mistral / DeepSeek BPE produces
+  // ~1 token per 2.5 Cyrillic chars vs ~3.5 Latin. The previous flat
+  // /3.5 underestimated Russian-heavy chats by ~30% — risk of context
+  // overflow in trimHistory.
+
+  test('Cyrillic text uses tighter ratio (chars/2.5)', () => {
+    expect(estimateTokens('абв')).toBe(Math.ceil(3 / 2.5));
+    expect(estimateTokens('я'.repeat(100))).toBe(Math.ceil(100 / 2.5));
+  });
+
+  test('Cyrillic estimate is ~40% higher than the old flat /3.5 would give', () => {
+    // 100 Russian chars: old flat = 29 tokens, new = 40 tokens.
+    const russian = 'тренировка'.repeat(10); // 100 chars all Cyrillic
+    expect(estimateTokens(russian)).toBe(40);
+    expect(estimateTokens(russian)).toBeGreaterThan(Math.ceil(100 / 3.5));
+  });
+
+  test('mixed Cyrillic + Latin sums per-script counts', () => {
+    // 5 Cyrillic + 5 Latin = ceil(5/2.5 + 5/3.5) = ceil(2 + 1.428) = ceil(3.428) = 4
+    expect(estimateTokens('абвгдabcde')).toBe(Math.ceil(5 / 2.5 + 5 / 3.5));
+  });
+
+  test('digits and punctuation count as non-Cyrillic', () => {
+    expect(estimateTokens('123!?')).toBe(Math.ceil(5 / 3.5));
+  });
+
+  test('handles ё correctly (still Cyrillic)', () => {
+    expect(estimateTokens('ёж')).toBe(Math.ceil(2 / 2.5));
+  });
 });
 
 // ── Successful response shape ──────────────────────────────────────────────
