@@ -134,20 +134,6 @@ request ──────────► │  llm/router.ts       │
 
 ---
 
-## Чек-лист подключения GigaChat (аналогично)
-
-Principal difference: GigaChat использует OAuth2 (Client ID + Secret), не API-key. Токены живут ~30 минут — нужна автоматическая ротация.
-
-- [ ] Создать `server/src/services/llm/gigachat.ts` с:
-  - [ ] `getAccessToken()` — кэш на 25 мин, рефреш по expiry
-  - [ ] `chat(opts)` — POST `https://gigachat.devices.sberbank.ru/api/v1/chat/completions`
-  - [ ] Auth: `Bearer <access_token>`
-  - [ ] Body OpenAI-compatible (GigaChat имеет OpenAI-like формат)
-
-Остальные шаги идентичны YandexGPT.
-
----
-
 ## Риски миграции
 
 | Риск | Митигация |
@@ -163,3 +149,61 @@ Principal difference: GigaChat использует OAuth2 (Client ID + Secret),
 ## До появления API-ключа (сейчас)
 
 Никаких изменений в коде не нужно. Этот README — единственный артефакт этой подготовительной задачи. Когда ключ появится — следуй чек-листу.
+
+---
+
+## Обновление 2026-05-22: yandex adapter + DeepSeek-ready
+
+`yandexAdapter.ts` лежит в этой папке и зарегистрирован в `router.ts`.
+Без env-переменных он автоматически скипается `resolveChain()` —
+поведение `chat()` идентично текущему mistral-only.
+
+### Активировать Yandex GPT (когда будут ключи)
+
+```
+# .env / Render env
+AI_PRIMARY_PROVIDER=yandex
+AI_FALLBACK_CHAIN=mistral
+
+YANDEX_API_KEY=<Api-Key из консоли Yandex Cloud>
+YANDEX_FOLDER_ID=<folder catalog id>
+YANDEX_MODEL=yandexgpt-lite   # optional
+```
+
+### Переключить Mistral → DeepSeek
+
+`mistralAdapter` — это универсальный OpenAI-совместимый слот. DeepSeek
+тоже OpenAI-совместимый, никаких новых файлов писать не нужно. Только
+env:
+
+```
+# .env / Render env (заменить mistral-значения)
+AI_BASE_URL=https://api.deepseek.com
+AI_MODEL=deepseek-chat
+AI_API_KEY=<deepseek-ключ>
+```
+
+`AI_PRIMARY_PROVIDER` оставь `mistral` — это просто label, не строгое
+соответствие. После перезапуска все вызовы `chat()`/`chatStream()` будут
+бить по DeepSeek.
+
+### Что выпилено и почему
+
+- **GigaChat adapter удалён 2026-05-22** — решение не использовать в
+  проде. Если когда-нибудь понадобится — git history имеет полный
+  адаптер + 12 тестов, восстанавливается за `git revert`.
+- Маршруты intent → `AI_SAFETY_PROVIDER` / `AI_COMPLEX_PROVIDER` всё
+  ещё работают, просто список доступных провайдеров короче.
+
+**Ограничения текущей реализации:**
+
+- Yandex не поддерживает function-calling → tools в `chat()` молча
+  игнорируются. Если intent классифицирован как `complex_planning` —
+  router должен переключаться на провайдер с tools (Mistral/DeepSeek).
+- Streaming для Yandex не реализован — router падает на
+  не-стриминговый `chat()`. AI чат-стрим в UI обрывается на провайдере
+  без stream поддержки — на сегодня только mistral/deepseek (через
+  тот же mistralAdapter) могут стримить.
+
+Покрытие тестами: 21 тест для yandex. Mock global fetch, реальная сеть
+не нужна.

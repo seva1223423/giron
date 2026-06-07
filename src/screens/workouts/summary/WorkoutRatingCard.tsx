@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { useThemeStore, useWorkoutStore } from '../../../store';
+import { useThemeColors, useWorkoutStore } from '../../../store';
 import { Card } from '../../../components';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { typography } from '../../../theme';
@@ -18,7 +18,7 @@ const RATING_LABELS: Record<number, string> = {
 interface Props { workout: Workout }
 
 export const WorkoutRatingCard: React.FC<Props> = ({ workout }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { updateWorkoutInHistory } = useWorkoutStore();
   const haptic = useHaptic();
   const [rating, setRating] = useState<number>(workout.rating ?? 0);

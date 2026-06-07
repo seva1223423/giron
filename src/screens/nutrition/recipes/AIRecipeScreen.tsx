@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, KeyboardAvoidingView, Platform } from 'react-native';
-import { useThemeStore, useRecipesStore } from '../../../store';
+import { useThemeColors, useRecipesStore } from '../../../store';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useSafeTop } from '../../../hooks/useSafeTop';
 import { Icon, Card, Button, Input } from '../../../components';
@@ -28,7 +28,7 @@ const TIME_OPTIONS = [15, 30, 60];
 export const AIRecipeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const safeTop = useSafeTop();
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { createMine } = useRecipesStore();
 
   const [query, setQuery] = useState('');

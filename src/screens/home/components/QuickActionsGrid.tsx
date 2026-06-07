@@ -12,6 +12,20 @@ interface Action {
   label: string;
   subtitle: string;
   onPress: () => void;
+  /** Icon-tile accent — picks from the Direction A macro palette
+   *  (audit R-2026-05-22 V3 design pick). When unset, the tile uses
+   *  the gold primary — matching the V1 production look. The point
+   *  of per-action colour is faster visual scanning ("еда=терракот,
+   *  AI=янтарь, вес=золото") on a 4-tile grid where all-gold tiles
+   *  read identical at a glance.
+   *
+   *  Maps to theme tokens:
+   *    'primary'  → colors.primary (gold, default)
+   *    'calories' → colors.calories (terracotta)
+   *    'protein'  → colors.protein (gold deep)
+   *    'fats'     → colors.fats (amber)
+   *    'carbs'    → colors.carbs (sage) */
+  accent?: 'primary' | 'calories' | 'protein' | 'fats' | 'carbs';
 }
 
 interface Props {
@@ -44,44 +58,54 @@ export const QuickActionsGrid: React.FC<Props> = ({ actions }) => {
         gap: 10,
       }}
     >
-      {actions.map((a, i) => (
-        <TouchableOpacity
-          key={i}
-          onPress={() => { haptic.selection(); a.onPress(); }}
-          accessibilityLabel={a.label}
-          accessibilityHint={a.subtitle}
-          accessibilityRole="button"
-          style={{
-            flexGrow: 1,
-            flexBasis: '48%',
-            backgroundColor: colors.surface,
-            borderWidth: 1,
-            borderColor: colors.border,
-            borderRadius: 18,
-            padding: 14,
-          }}
-        >
-          <View
+      {actions.map((a, i) => {
+        // Resolve the accent to an actual theme colour. Defaults to
+        // primary so callers that don't opt in keep the V1 look.
+        const accentColor =
+          a.accent === 'calories' ? colors.calories
+          : a.accent === 'protein' ? colors.protein
+          : a.accent === 'fats' ? colors.fats
+          : a.accent === 'carbs' ? colors.carbs
+          : colors.primary;
+        return (
+          <TouchableOpacity
+            key={i}
+            onPress={() => { haptic.selection(); a.onPress(); }}
+            accessibilityLabel={a.label}
+            accessibilityHint={a.subtitle}
+            accessibilityRole="button"
             style={{
-              width: 32,
-              height: 32,
-              borderRadius: 10,
-              backgroundColor: colors.primary + '18',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: 10,
+              flexGrow: 1,
+              flexBasis: '48%',
+              backgroundColor: colors.surface,
+              borderWidth: 1,
+              borderColor: colors.border,
+              borderRadius: 18,
+              padding: 14,
             }}
           >
-            <Icon name={a.icon} size={16} color={colors.primary} />
-          </View>
-          <Text style={[typography.smallMedium, { color: colors.text }]}>
-            {a.label}
-          </Text>
-          <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]} numberOfLines={1}>
-            {a.subtitle}
-          </Text>
-        </TouchableOpacity>
-      ))}
+            <View
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 10,
+                backgroundColor: accentColor + '24' /* ~14% — slightly more saturated than V1's 10% gold; the non-gold tints need it to read as colour and not noise */,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 10,
+              }}
+            >
+              <Icon name={a.icon} size={16} color={accentColor} />
+            </View>
+            <Text style={[typography.smallLite, { color: colors.text }]}>
+              {a.label}
+            </Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 11, marginTop: 2 }} numberOfLines={1}>
+              {a.subtitle}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
     </View>
   );
 };

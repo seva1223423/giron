@@ -35,10 +35,10 @@ Use those agents when the task fits their scope — they carry repo-specific nav
 
 **CI:** `.github/workflows/server-tests.yml` runs on pushes touching `server/**` — installs, `prisma generate`, `tsc --noEmit`, `jest`. A tsc error blocks the whole pipeline. Verify tsc locally before pushing server changes.
 
-**Local working copy** for this session: `C:\Users\sevka\Desktop\1223\work\giron`. The user's own working directory is `C:\Users\sevka\Desktop\1223` — empty aside from this clone. Some agent files still reference the old `C:/Users/sevka/Projects/giron/` path — that's stale, don't chase it.
+**Local working copy** for this session: `C:\Users\sevka\Desktop\1223\work\iron-gym` (каталог остался `iron-gym`, хотя GitHub repo переименован в `giron`). The user's own working directory is `C:\Users\sevka\Desktop\1223` — empty aside from this clone. Some agent files still reference the old `C:/Users/sevka/Projects/iron-gym/` or `C:/Users/sevka/Projects/giron/` path — that's stale, don't chase it.
 
 **Known stale / contradictory docs to watch for:**
-- README.md says 17 Prisma models, orange brand — both superseded by CLAUDE.md (37 models, purple).
+- README.md says 17 Prisma models, orange brand — both superseded by CLAUDE.md (40 models, gold).
 - project_status.md says knowledge blocks go up to 1680; feedback_rules.md says 1690 — grep the actual `getBlock` count before adding.
 - project_status.md lists "забыли пароль" as unfinished, but `ForgotPasswordScreen.tsx` and `ResetPasswordScreen.tsx` exist in `src/screens/auth/` — verify state before claiming it's a todo.
 

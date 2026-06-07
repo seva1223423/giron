@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, TextInput, StyleSheet } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { Card } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
@@ -14,7 +14,7 @@ function calcLander(w: number, r: number) { return r === 1 ? w : r >= 38 ? w : (
 
 export const OneRMCalculatorTab: React.FC = () => {
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const [rmWeight, setRmWeight] = useState('100');
   const [rmReps, setRmReps] = useState('5');
 

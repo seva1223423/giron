@@ -15,7 +15,7 @@ interface AnimatedPressableProps extends PressableProps {
   scaleDown?: number;
 }
 
-export const AnimatedPressable: React.FC<AnimatedPressableProps> = ({
+const AnimatedPressableImpl: React.FC<AnimatedPressableProps> = ({
   children,
   style,
   onPress,
@@ -57,3 +57,7 @@ export const AnimatedPressable: React.FC<AnimatedPressableProps> = ({
     </AnimatedPress>
   );
 };
+
+// React.memo: rendered in lists / grids; saves re-render when only an
+// unrelated parent slice mutates.
+export const AnimatedPressable = React.memo(AnimatedPressableImpl);

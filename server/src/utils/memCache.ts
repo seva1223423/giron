@@ -127,3 +127,29 @@ export const newsCache = new MemCache<unknown>(200);
  *  cache covers the single-device re-scan case; this covers cross-device.
  *  100 entries / 24h TTL. */
 export const foodVisionCache = new MemCache<unknown>(100);
+
+/**
+ * AI /chat user-context cache (audit R-2026-05-22, supabase-postgres /
+ * vercel-react skill review).
+ *
+ * Identified by the audit: every /chat message fired ~16 parallel Prisma
+ * queries; the User row (with healthRestrictions JOIN) is the biggest
+ * payload and changes infrequently. Caching it cuts ~30-60ms of DB
+ * round-trip + JOIN cost off every message for a hot user.
+ *
+ * Keyed by userId; value is the same shape `prisma.user.findUnique({
+ * include: { healthRestrictions: true } })` returns (non-null — we only
+ * cache after confirming the row exists). 60s TTL matches authUserCache
+ * so an admin write or user-profile update is visible within a minute
+ * without explicit invalidation; the `update_user_profile` AI tool
+ * explicitly invalidates so its own write takes effect immediately.
+ *
+ * Capped at 10K entries — same envelope as authUserCache.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AiUserContextValue = any; // intentional: typed at the use site to
+// avoid pulling @prisma/client User+HealthRestriction types into this
+// shared util (the AI route does its own typed cast via `as
+// Awaited<ReturnType<typeof prisma.user.findUnique<{include:{healthRestrictions:true}}>>>`).
+export const aiUserContextCache = new MemCache<AiUserContextValue>(10_000);
+export const AI_USER_CONTEXT_TTL_MS = 60_000;

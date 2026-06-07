@@ -41,13 +41,14 @@ export const AchievementsTab: React.FC<AchievementsTabProps> = ({ colors, achiev
         </View>
       </View>
     </FadeIn>
-    {(['workout', 'strength', 'streak', 'exploration', 'nutrition'] as const).map((cat) => {
+    {(['workout', 'strength', 'streak', 'exploration', 'recovery', 'nutrition'] as const).map((cat) => {
       const catAchievements = achievements.filter((a) => a.category === cat);
       const catLabels: Record<string, string> = {
         workout: 'Тренировки',
         strength: 'Сила',
         streak: 'Серии',
         exploration: 'Разнообразие',
+        recovery: 'Восстановление',
         nutrition: 'Питание',
       };
       return (

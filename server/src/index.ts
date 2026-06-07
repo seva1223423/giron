@@ -195,10 +195,12 @@ app.get('/health/sentry', (_, res) => {
   // We don't try to probe whether the @sentry/node module *loaded*
   // because the wrapper hides that. Instead we report on env state which
   // is the only thing the operator can act on.
+  // Audit 2026-06: this endpoint is unauthenticated. Return only the
+  // boolean state the operator can act on — NOT the DSN host (which
+  // fingerprints the Sentry project/ingest endpoint to anyone).
+  void host;
   res.json({
     sentryDsnConfigured: Boolean(dsn),
-    dsnHost: host,
-    nodeEnv: process.env.NODE_ENV || 'development',
     note: dsn
       ? 'A test error has been routed through reportError. Check sentry.io within 30s.'
       : 'SENTRY_DSN not set. errorReporter is in console-only mode; nothing leaves the server.',
@@ -224,10 +226,17 @@ app.get('/health/deep', async (_, res) => {
   const dbOk = dbResult.status === 'fulfilled';
   const llms = llmResults.status === 'fulfilled' ? llmResults.value : [];
   const allHealthy = dbOk && llms.every((p) => p.ok);
+  // Audit 2026-06: unauthenticated endpoint — return ok/degraded booleans
+  // only. Do NOT echo raw DB/LLM error strings (String(reason) /
+  // provider error bodies leak the DB host + upstream LLM endpoints to
+  // any anonymous caller). The detailed error is logged server-side.
+  if (!dbOk) {
+    logger.warn('[health/deep] db check failed:', (dbResult as PromiseRejectedResult).reason);
+  }
   res.status(allHealthy ? 200 : 503).json({
     status: allHealthy ? 'ok' : 'degraded',
-    db: { ok: dbOk, error: dbOk ? undefined : String((dbResult as PromiseRejectedResult).reason) },
-    llm: llms,
+    db: { ok: dbOk },
+    llm: llms.map((p: { name?: string; ok: boolean }) => ({ name: p.name, ok: p.ok })),
     durationMs: Date.now() - t0,
   });
 });
@@ -362,6 +371,12 @@ app.use('/api/user/2fa', totpRateLimiter);
 app.use('/api/user/account', totpRateLimiter);
 app.use('/api/user/change-email', totpRateLimiter);
 app.use('/api/user/change-phone', totpRateLimiter);
+// Audit 2026-05-29 (HIGH): /change-password and /linked-accounts also accept a
+// password/TOTP step-up guess but were missing the strict limiter — only the
+// generic userRateLimiter (200/min) applied, enough to brute-force a password
+// with a stolen access token. Mount the strict limiter before the generic mount.
+app.use('/api/user/change-password', totpRateLimiter);
+app.use('/api/user/linked-accounts', totpRateLimiter);
 app.use('/api/user', userRateLimiter, userRouter);
 app.use('/api/workouts', userRateLimiter, workoutRouter);
 app.use('/api/nutrition', userRateLimiter, nutritionRouter);
@@ -394,6 +409,25 @@ app.use('/api/admin', adminRateLimiter, adminRouter);
 // (same pattern as /api/ai/analyze-food above).
 app.use('/api/recipes/ai-generate', recipeAiRateLimiter);
 app.use('/api/recipes', userRateLimiter, recipesRouter);
+
+// CORS origin rejections are an expected client-side condition (a request
+// arrived with a disallowed `Origin` header — a web dev origin like
+// http://localhost:8081 hitting prod, a scanner, or a misconfigured client),
+// NOT a server fault. Handle them quietly with 403 BEFORE the Sentry/Telegram
+// reporters below so a blocked preflight doesn't page the error channel on
+// every hit. A genuine route/DB failure has no such message and still flows
+// through to the reporters. Keep this in sync with the `cors({ origin })`
+// rejection message above.
+app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (err && err.message === 'Not allowed by CORS') {
+    logger.warn(`CORS blocked ${req.method} ${req.path} from origin ${req.headers.origin ?? 'unknown'}`);
+    if (!res.headersSent) {
+      res.status(403).json({ error: 'Origin not allowed' });
+    }
+    return; // swallow — do not forward to Sentry/Telegram reporters
+  }
+  next(err);
+});
 
 // Round 234 (security audit): Sentry's Express error handler must run
 // AFTER all route handlers and BEFORE our generic 500 fallback below.
@@ -445,6 +479,8 @@ import {
   runTotpReplayCleanup,
   runOtpCodesCleanup,
   runPasswordResetCleanup,
+  runFoodScanLogCleanup,
+  runHealthSampleCleanup,
 } from './utils/cleanupJobs';
 
 // Cleanup expired/revoked refresh tokens and expired trusted devices every 6 hours
@@ -481,6 +517,26 @@ setInterval(() => {
     await runPasswordResetCleanup(db);
   });
 }, 6 * 60 * 60 * 1000).unref();
+
+// Cleanup stale food-scan log entries (>90d) once a day. The aggregate
+// Meal/MealItem rows live forever; this only drops the per-scan diagnostic
+// blob that has no value past the day the meal was logged.
+setInterval(() => {
+  void trackCron('cleanup-food-scan-log', async () => {
+    const db = (await import('./db')).prisma;
+    await runFoodScanLogCleanup(db);
+  });
+}, 24 * 60 * 60 * 1000).unref();
+
+// Cleanup stale HealthSample rows (>90d) once a day. Raw watch samples
+// (HR/HRV/SpO2) can balloon fast — 1440 HR samples/day/user if a wearable
+// is connected. Dashboards/AI context only read the last 30-60 days.
+setInterval(() => {
+  void trackCron('cleanup-health-sample', async () => {
+    const db = (await import('./db')).prisma;
+    await runHealthSampleCleanup(db);
+  });
+}, 24 * 60 * 60 * 1000).unref();
 
 // Prune expired in-memory cache entries every 10 minutes to prevent memory growth.
 // foodVisionCache (24h TTL, 100 entries, 200KB/entry) was missing from this list —
@@ -614,7 +670,10 @@ setInterval(async () => {
 
 let isShuttingDown = false;
 
-const server = app.listen(PORT, () => {
+// Audit 2026-05-29 (CRITICAL): guard listen behind NODE_ENV so importing this
+// module in tests (supertest) does NOT bind a real TCP port and leak the handle
+// ("worker failed to exit gracefully" / EADDRINUSE on parallel suites).
+const server = process.env.NODE_ENV !== 'test' ? app.listen(PORT, () => {
   logger.info(`Giron API server running on port ${PORT}`);
   startNewsRefreshScheduler();
 
@@ -633,25 +692,45 @@ const server = app.listen(PORT, () => {
   // the admin promotion even when the user is registered.
   const bootstrapEmail = process.env.ADMIN_BOOTSTRAP_EMAIL?.trim().toLowerCase().normalize('NFKC');
   if (bootstrapEmail) {
-    prisma.user.updateMany({
-      where: { email: bootstrapEmail, role: { not: 'ADMIN' } },
-      data: { role: 'ADMIN' },
-    }).then((r) => {
-      if (r.count > 0) {
-        logger.info(`[AdminBootstrap] Promoted ${bootstrapEmail} to ADMIN`);
-      } else {
-        // Either already admin (fine) or user not yet registered (also fine —
-        // the upsert will fire on the next boot after they register).
-        logger.info(`[AdminBootstrap] No promotion needed for ${bootstrapEmail}`);
+    // Fire-and-forget with a small retry: this runs right after `listen`, so on
+    // a fresh Render deploy it can race a cold Neon compute that's still waking
+    // up — the first query then throws a transient "Can't reach database"
+    // PrismaClientInitializationError. Retry a few times with backoff so that
+    // self-healing cold-starts don't page the error channel; only a *persistent*
+    // failure (real outage / misconfig) still reports — and a real outage is
+    // already loudly visible via failing requests elsewhere.
+    void (async () => {
+      const MAX_ATTEMPTS = 3;
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        try {
+          const r = await prisma.user.updateMany({
+            where: { email: bootstrapEmail, role: { not: 'ADMIN' } },
+            data: { role: 'ADMIN' },
+          });
+          if (r.count > 0) {
+            logger.info(`[AdminBootstrap] Promoted ${bootstrapEmail} to ADMIN`);
+          } else {
+            // Either already admin (fine) or user not yet registered (also fine —
+            // the upsert will fire on the next boot after they register).
+            logger.info(`[AdminBootstrap] No promotion needed for ${bootstrapEmail}`);
+          }
+          return;
+        } catch (err) {
+          if (attempt === MAX_ATTEMPTS) {
+            reportError(err as Error, { tags: { origin: 'admin-bootstrap' } });
+          } else {
+            logger.warn(`[AdminBootstrap] DB not ready (attempt ${attempt}/${MAX_ATTEMPTS}), retrying…`);
+            await new Promise((resolve) => setTimeout(resolve, attempt * 2000));
+          }
+        }
       }
-    }).catch((err) => {
-      reportError(err as Error, { tags: { origin: 'admin-bootstrap' } });
-    });
+    })();
   }
-});
+}) : null;
 
 function gracefulShutdown(signal: string) {
   if (isShuttingDown) return; // idempotent — avoid double-handling SIGTERM+SIGINT
+  if (!server) return; // test env (NODE_ENV=test): no server started, nothing to drain
   isShuttingDown = true;
   logger.info(`[Shutdown] Received ${signal}, draining connections...`);
 

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, ActivityIndicator, StyleSheet, Alert, Linking } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing } from 'react-native-reanimated';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { useSafeTop } from '../../../hooks/useSafeTop';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { typography } from '../../../theme';
@@ -17,7 +17,7 @@ interface Props {
 }
 
 export const BarcodeScannerModal: React.FC<Props> = ({ visible, loading, scanned, onClose, onScan }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const safeTop = useSafeTop();
   const haptic = useHaptic();
   const [permission, requestPermission] = useCameraPermissions();

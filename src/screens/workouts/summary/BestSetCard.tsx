@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text } from 'react-native';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { Card } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
@@ -9,7 +9,7 @@ import { Workout } from '../../../types';
 interface Props { workout: Workout }
 
 export const BestSetCard: React.FC<Props> = ({ workout }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
 
   let bestName = '';
   let bestWeight = 0;

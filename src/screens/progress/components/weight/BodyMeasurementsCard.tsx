@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, Alert, StyleSheet, ScrollView } from 'react-native';
-import { useThemeStore } from '../../../../store';
+import { useThemeColors } from '../../../../store';
 import { Card, FadeIn } from '../../../../components';
 import { LineChart } from '../LineChart';
 import { typography } from '../../../../theme';
@@ -18,7 +18,7 @@ interface Props {
 }
 
 export const BodyMeasurementsCard: React.FC<Props> = ({ measurementHistory, user, onAddPress, delay = 250 }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const [selectedMeasure, setSelectedMeasure] = useState<keyof BodyMeasurement>('waist');
 
   const fieldsWithData = useMemo(

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, Image } from 'react-native';
 import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { useHaptic } from '../../../hooks/useHaptic';
 
 /**
@@ -61,7 +61,7 @@ export const ExerciseInlineVideo: React.FC<Props> = ({
   videoSource, posterSource, height, startMuted = true, hideMuteButton = false,
   nativeControls = false, paused = false, onError,
 }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const haptic = useHaptic();
   const videoRef = useRef<Video | null>(null);
   const [hasStartedPlayback, setHasStartedPlayback] = useState(false);
