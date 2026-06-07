@@ -109,6 +109,10 @@ app.use(cors({
 }));
 // Food image analysis needs up to 10MB for base64-encoded photos — apply before the global limit.
 app.use('/api/ai/analyze-food', express.json({ limit: '10mb' }));
+// Voice input: base64-encoded m4a (≤30s recording) is typically 200KB-1MB.
+// 3MB cap fits worst-case low-bitrate recordings while matching the Zod
+// schema's 2.5MB string cap in routes/ai.ts. Apply before global limit.
+app.use('/api/ai/voice', express.json({ limit: '3mb' }));
 // Watch sync ships GPS tracks (up to 5000 points × 30 bytes) and batches
 // of cardio/sleep/samples capped at 2000 each. A first-time sync of
 // historical data can realistically reach ~1-2 MB. The Zod schema caps

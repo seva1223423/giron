@@ -702,10 +702,8 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         // Design ai-chat-pro input dock; lets the user log a meal by photo
         // without leaving the coach conversation.
         onCamera={() => navigation.navigate('NutritionTab', { screen: 'FoodScanner' })}
-        // Voice input — STT service not wired yet (#23). Honest "coming soon"
-        // affordance: the mic button is visible so users know it's planned, but
-        // tapping shows a hint instead of faking a recording.
-        onMic={() => { haptic.light(); toast.info('Голосовой ввод скоро будет доступен'); }}
+        // Voice input — real STT via Yandex SpeechKit (#23). ChatInputBar
+        // self-manages recording → transcribe → fills the input field.
       />
     </KeyboardAvoidingView>
   );
