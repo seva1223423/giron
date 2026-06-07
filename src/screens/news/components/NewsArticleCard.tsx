@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Share } from 'react-native';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { Icon } from '../../../components';
 import { typography } from '../../../theme';
@@ -59,7 +59,7 @@ interface Props {
  * the old card — every article in the feed is already "our" feed.
  */
 export const NewsArticleCard: React.FC<Props> = ({ article, isSaved, onPress, onToggleSave }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const haptic = useHaptic();
 
   const handleShare = async () => {

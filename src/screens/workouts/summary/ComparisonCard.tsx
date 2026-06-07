@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import { useThemeStore, useWorkoutStore } from '../../../store';
+import { useThemeColors, useWorkoutStore } from '../../../store';
 import { Card } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
@@ -9,7 +9,7 @@ import { Workout } from '../../../types';
 interface Props { workout: Workout }
 
 export const ComparisonCard: React.FC<Props> = ({ workout }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { workoutHistory } = useWorkoutStore();
 
   const prevSameWorkout = workoutHistory.find(

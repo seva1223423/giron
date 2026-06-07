@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
-import { useThemeStore, useTrainerStore } from '../../../store';
+import { useThemeColors, useTrainerStore } from '../../../store';
 import { Card } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
@@ -13,7 +13,7 @@ interface Props {
 
 export const ClientNotesCard: React.FC<Props> = ({ clientId, initialNotes }) => {
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { updateClient } = useTrainerStore();
   const [notes, setNotes] = useState(initialNotes);
   const [editing, setEditing] = useState(false);

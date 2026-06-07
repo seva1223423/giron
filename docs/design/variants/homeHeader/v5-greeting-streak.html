@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<title>HomeHeader — V5 Greeting + streak</title>
+<style>
+  :root {
+    --bg: #0E0E0F; --surface: #17171A; --surface-elev: #1E1E22;
+    --primary: #D4B07A; --primary-deep: #B08A4E;
+    --text: #F4F1EA; --text-secondary: #C9C7C0; --text-tertiary: #8A8780;
+    --border: rgba(255, 255, 255, 0.10);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif; padding: 40px; width: 375px; }
+  .label { color: var(--text-tertiary); font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 12px; }
+
+  /* V5 — V2's gold time-aware greeting + V3's streak chip.
+     "Доброе утро," in gold ↔ behavioral driver in header. */
+  .header { display: flex; justify-content: space-between; align-items: center; }
+  .left { flex: 1; margin-right: 12px; min-width: 0; }
+  .greet { color: var(--text); font-size: 23px; font-weight: 700; letter-spacing: -0.3px; line-height: 28px; }
+  .greet .sun { color: var(--primary); }
+  .meta { color: var(--text-tertiary); font-size: 12px; margin-top: 2px; }
+  .right { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+  .streak-chip {
+    display: flex; align-items: center; gap: 5px;
+    padding: 7px 11px;
+    border-radius: 100px;
+    background: rgba(212, 176, 122, 0.12);
+    border: 1px solid rgba(212, 176, 122, 0.35);
+    color: var(--primary);
+    font-size: 13px; font-weight: 700;
+  }
+  .streak-icon { font-size: 14px; }
+  .bell-wrap { position: relative; }
+  .bell {
+    width: 40px; height: 40px; border-radius: 14px;
+    background: var(--surface-elev); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; color: var(--text);
+  }
+  .dot {
+    position: absolute; top: -2px; right: -2px;
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--primary); border: 2px solid var(--bg);
+  }
+</style>
+</head>
+<body>
+  <div class="label">V5 — FINAL: gold greeting + streak chip (V2 × V3)</div>
+  <div class="header">
+    <div class="left">
+      <div class="greet"><span class="sun">Доброе утро,</span> Sevka</div>
+      <div class="meta">Понедельник, 27 мая</div>
+    </div>
+    <div class="right">
+      <div class="streak-chip"><span class="streak-icon">🔥</span> 5</div>
+      <div class="bell-wrap">
+        <div class="bell">🔔</div>
+        <div class="dot"></div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

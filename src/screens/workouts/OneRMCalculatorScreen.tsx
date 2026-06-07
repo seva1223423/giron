@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
-import { useThemeStore, useAuthStore } from '../../store';
+import { useThemeColors, useAuthStore } from '../../store';
 import { useSafeTop } from '../../hooks/useSafeTop';
 import { Card, FadeIn } from '../../components';
 import { typography } from '../../theme';
@@ -15,7 +15,7 @@ function oconner(w: number, r: number) { return r === 1 ? w : Math.round(w * (1 
 
 export const OneRMCalculatorScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const safeTop = useSafeTop();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { user } = useAuthStore();
   const [weightStr, setWeightStr] = useState('');
   const [repsStr, setRepsStr] = useState('');

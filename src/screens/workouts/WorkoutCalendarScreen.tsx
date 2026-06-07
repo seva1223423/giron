@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
-import { useThemeStore, useWorkoutStore } from '../../store';
+import { useThemeColors, useWorkoutStore } from '../../store';
 import { Card, FadeIn } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -12,7 +12,7 @@ import { localDateStr } from '../../utils/date';
 export const WorkoutCalendarScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const haptic = useHaptic();
   const safeTop = useSafeTop();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { workoutHistory, weekPlan, routines } = useWorkoutStore();
 
   const today = new Date();

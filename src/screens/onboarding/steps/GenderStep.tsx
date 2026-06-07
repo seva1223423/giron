@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { Icon } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
@@ -12,7 +12,7 @@ interface Props {
 }
 
 export const GenderStep: React.FC<Props> = ({ gender, onSelect }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   return (
     <View style={styles.container}>
       {/* Meta eyebrow + big hero display + italic gold accent, pixel

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import { useThemeStore } from '../../../../store';
+import { useThemeColors } from '../../../../store';
 import { Card, FadeIn } from '../../../../components';
 import { typography } from '../../../../theme';
 import { spacing } from '../../../../theme/spacing';
@@ -26,7 +26,7 @@ interface Props {
 }
 
 export const StrengthStandardsCard: React.FC<Props> = ({ personalRecords, bodyWeightKg, delay = 200 }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
 
   const standardData = STRENGTH_STANDARDS.map((std) => {
     const pr = personalRecords.find((r) => r.exerciseId === std.exerciseId);

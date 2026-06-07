@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, TextInput, Modal, TouchableOpacity, StyleSheet } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
-import { useThemeStore, useNutritionStore } from '../../../store';
+import { useThemeColors, useNutritionStore } from '../../../store';
 import { Button } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
@@ -35,7 +35,7 @@ interface Props {
 
 export const QuickAddModal: React.FC<Props> = ({ visible, onClose, food, selectedDate }) => {
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { addMeal, getDayLog } = useNutritionStore();
   const [quickWeight, setQuickWeight] = useState('100');
   const [mealType, setMealType] = useState<'breakfast' | 'lunch' | 'dinner' | 'snack'>(defaultMealType);

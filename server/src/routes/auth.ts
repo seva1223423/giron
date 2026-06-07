@@ -44,6 +44,45 @@ async function isTotpReplay(userId: string, code: string): Promise<boolean> {
   return false;
 }
 
+// ─── Per-account 2FA brute-force lockout (audit 2026-06, finding H1) ──────────
+// /totp-verify is reached only AFTER a correct password (the realistic 2FA
+// threat: a phished/leaked password). The IP-based totpRateLimiter alone is
+// bypassable by an attacker rotating IPs to brute the 6-digit code or a
+// backup code. This adds a PER-USER counter so N failures lock the account's
+// 2FA step regardless of source IP. In-memory (mirrors the per-user AI rate
+// buckets pattern); resets on dyno restart, which an attacker can't force.
+const TFA_MAX_FAILURES = 5;
+const TFA_LOCKOUT_MS = 15 * 60 * 1000;
+interface TfaFailRecord { count: number; lockedUntil: number }
+const tfaFailures = new Map<string, TfaFailRecord>();
+
+function is2faLocked(userId: string): boolean {
+  const rec = tfaFailures.get(userId);
+  return !!rec && rec.lockedUntil > Date.now();
+}
+function record2faFailure(userId: string): void {
+  const now = Date.now();
+  const rec = tfaFailures.get(userId);
+  if (!rec || rec.lockedUntil <= now) {
+    // Fresh window (no record, or a prior lock already expired).
+    tfaFailures.set(userId, { count: 1, lockedUntil: 0 });
+    return;
+  }
+  rec.count++;
+  if (rec.count >= TFA_MAX_FAILURES) rec.lockedUntil = now + TFA_LOCKOUT_MS;
+}
+function clear2faFailures(userId: string): void {
+  tfaFailures.delete(userId);
+}
+// Prune stale records hourly. .unref() so it never keeps the process alive in tests.
+setInterval(() => {
+  const now = Date.now();
+  for (const [uid, rec] of tfaFailures) {
+    if (rec.lockedUntil < now && rec.count < TFA_MAX_FAILURES) tfaFailures.delete(uid);
+    else if (rec.lockedUntil && rec.lockedUntil < now - TFA_LOCKOUT_MS) tfaFailures.delete(uid);
+  }
+}, 60 * 60 * 1000).unref();
+
 const GOOGLE_CLIENT_IDS = [
   process.env.GOOGLE_CLIENT_ID_WEB,
   process.env.GOOGLE_CLIENT_ID_IOS,
@@ -574,6 +613,14 @@ router.post('/totp-verify', async (req: Request, res: Response) => {
       return res.status(400).json({ error: '2FA не включена', code: 'TOTP_NOT_ENABLED' });
     }
 
+    // Per-account 2FA lockout (finding H1): blocks brute-forcing the code /
+    // backup code via IP rotation. Checked before any validation so a locked
+    // account can't be probed further regardless of source IP.
+    if (is2faLocked(user.id)) {
+      await logSecurityEvent('LOGIN_FAIL', user.id, req, '2fa_locked');
+      return res.status(429).json({ error: 'Слишком много неверных кодов. Попробуйте через 15 минут.', code: 'TOTP_LOCKED' });
+    }
+
     // Verify TOTP code or backup code
     if (backupCode) {
       // Backup code flow — SELECT FOR UPDATE prevents two concurrent requests from
@@ -595,9 +642,11 @@ router.post('/totp-verify', async (req: Request, res: Response) => {
         });
       } catch { /* db error — treat as invalid */ }
       if (!backupCodeValid) {
+        record2faFailure(user.id);
         await logSecurityEvent('LOGIN_FAIL', user.id, req, 'backup_code_invalid');
         return res.status(401).json({ error: 'Резервный код недействителен или уже использован', code: 'INVALID_BACKUP_CODE' });
       }
+      clear2faFailures(user.id);
       await logSecurityEvent('LOGIN_SUCCESS', user.id, req, 'method=backup_code');
     } else {
       // TOTP code flow
@@ -609,13 +658,16 @@ router.post('/totp-verify', async (req: Request, res: Response) => {
       });
       const delta = totp.validate({ token: code!, window: 1 });
       if (delta === null) {
+        record2faFailure(user.id);
         await logSecurityEvent('LOGIN_FAIL', user.id, req, 'totp_invalid');
         return res.status(401).json({ error: 'Неверный код. Проверьте время на устройстве.', code: 'INVALID_TOTP' });
       }
       if (await isTotpReplay(user.id, code!)) {
+        record2faFailure(user.id);
         await logSecurityEvent('LOGIN_FAIL', user.id, req, 'totp_replayed');
         return res.status(401).json({ error: 'Этот код уже был использован. Дождитесь следующего кода.', code: 'TOTP_REPLAYED' });
       }
+      clear2faFailures(user.id);
       await logSecurityEvent('LOGIN_SUCCESS', user.id, req, 'method=totp');
     }
 

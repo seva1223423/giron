@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri } from 'expo-auth-session';
-import { useThemeStore, useAuthStore } from '../../store';
+import { useThemeColors, useAuthStore } from '../../store';
 import { Button, Input, GoogleAuthButton } from '../../components';
 import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
@@ -37,7 +37,7 @@ function formatPhoneDisplay(digits: string): string {
 }
 
 export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { login, loginByPhone, loginWithTotp, loginWithYandex, isLoading, error, clearError } = useAuthStore();
 
   const [tab, setTab] = useState<LoginTab>('email');

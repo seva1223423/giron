@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
-import { useThemeStore, useWorkoutStore } from '../../store';
+import { useThemeColors, useWorkoutStore } from '../../store';
 import { Card, Button, FadeIn } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -22,7 +22,7 @@ export const ProgramDetailScreen: React.FC<{ route: any; navigation: any }> = ({
   const haptic = useHaptic();
   const safeTop = useSafeTop();
   const program: BuiltInProgram = route.params?.program;
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { setWeekPlanDay } = useWorkoutStore();
   const [expandedDay, setExpandedDay] = useState<number | null>(0);
 

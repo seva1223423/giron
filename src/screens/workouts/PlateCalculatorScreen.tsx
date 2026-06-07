@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
-import { useThemeStore, useWorkoutStore } from '../../store';
+import { useThemeColors, useWorkoutStore } from '../../store';
 import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
 import { PlateCalculatorTab, OneRMCalculatorTab } from './calculator';
@@ -15,7 +15,7 @@ interface ApplyTarget {
 export const PlateCalculatorScreen: React.FC<{ navigation: any; route: any }> = ({ navigation, route }) => {
   const haptic = useHaptic();
   const safeTop = useSafeTop();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const [activeTab, setActiveTab] = useState<'plates' | 'onerm'>('plates');
   const updateSetData = useWorkoutStore((s) => s.updateSetData);
 

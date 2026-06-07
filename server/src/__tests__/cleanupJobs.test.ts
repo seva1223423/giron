@@ -27,6 +27,8 @@ import {
   runTotpReplayCleanup,
   runOtpCodesCleanup,
   runPasswordResetCleanup,
+  runFoodScanLogCleanup,
+  runHealthSampleCleanup,
   _internal,
 } from '../utils/cleanupJobs';
 
@@ -36,6 +38,8 @@ interface MockDb {
   usedTotpCode: { deleteMany: jest.Mock };
   otpCode: { deleteMany: jest.Mock };
   passwordResetToken: { deleteMany: jest.Mock };
+  foodScanLog: { deleteMany: jest.Mock };
+  healthSample: { deleteMany: jest.Mock };
 }
 
 function makeMockDb(): MockDb {
@@ -45,6 +49,8 @@ function makeMockDb(): MockDb {
     usedTotpCode: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
     otpCode: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
     passwordResetToken: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+    foodScanLog: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+    healthSample: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
   };
 }
 
@@ -213,6 +219,78 @@ describe('runPasswordResetCleanup', () => {
     expect(reportError).toHaveBeenCalledWith(
       expect.any(Error),
       expect.objectContaining({ tags: { origin: 'cleanup-password-reset' } }),
+    );
+  });
+});
+
+// ─── runFoodScanLogCleanup ───────────────────────────────────────────────────
+
+describe('runFoodScanLogCleanup', () => {
+  test('where clause: createdAt < now - 90d', async () => {
+    const db = makeMockDb();
+    const before = Date.now();
+    await runFoodScanLogCleanup(db);
+
+    const where = db.foodScanLog.deleteMany.mock.calls[0][0].where;
+    const cutoff = where.createdAt.lt as Date;
+    expect(cutoff).toBeInstanceOf(Date);
+    expect(cutoff.getTime()).toBeGreaterThanOrEqual(before - _internal.NINETY_DAYS_MS);
+    expect(cutoff.getTime()).toBeLessThanOrEqual(Date.now() - _internal.NINETY_DAYS_MS + 100);
+  });
+
+  test('returns row count from deleteMany', async () => {
+    const db = makeMockDb();
+    db.foodScanLog.deleteMany.mockResolvedValueOnce({ count: 137 });
+    const result = await runFoodScanLogCleanup(db);
+    expect(result).toEqual({ deleted: 137 });
+  });
+
+  test('errors → reportError with cleanup-food-scan-log tag, never throws', async () => {
+    const db = makeMockDb();
+    db.foodScanLog.deleteMany.mockRejectedValueOnce(new Error('boom'));
+    const result = await runFoodScanLogCleanup(db);
+    expect(result).toEqual({ deleted: 0 });
+    expect(reportError).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ tags: { origin: 'cleanup-food-scan-log' } }),
+    );
+  });
+});
+
+// ─── runHealthSampleCleanup ──────────────────────────────────────────────────
+
+describe('runHealthSampleCleanup', () => {
+  test('where clause: startAt < now - 90d (NOT createdAt — samples are timestamped by the wearable)', async () => {
+    const db = makeMockDb();
+    const before = Date.now();
+    await runHealthSampleCleanup(db);
+
+    const where = db.healthSample.deleteMany.mock.calls[0][0].where;
+    // Must filter by startAt — that's the watch-supplied timestamp; createdAt
+    // would be the ingest time and would keep stale samples around if the
+    // sync was delayed.
+    expect(where.startAt).toBeDefined();
+    expect(where.createdAt).toBeUndefined();
+    const cutoff = where.startAt.lt as Date;
+    expect(cutoff).toBeInstanceOf(Date);
+    expect(cutoff.getTime()).toBeGreaterThanOrEqual(before - _internal.NINETY_DAYS_MS);
+  });
+
+  test('returns row count from deleteMany', async () => {
+    const db = makeMockDb();
+    db.healthSample.deleteMany.mockResolvedValueOnce({ count: 1440 });
+    const result = await runHealthSampleCleanup(db);
+    expect(result).toEqual({ deleted: 1440 });
+  });
+
+  test('errors → reportError with cleanup-health-sample tag, never throws', async () => {
+    const db = makeMockDb();
+    db.healthSample.deleteMany.mockRejectedValueOnce(new Error('boom'));
+    const result = await runHealthSampleCleanup(db);
+    expect(result).toEqual({ deleted: 0 });
+    expect(reportError).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ tags: { origin: 'cleanup-health-sample' } }),
     );
   });
 });

@@ -60,7 +60,7 @@ Render автоматически перезапустит сервер.
 После того как Render показывает зелёный **Live** (~3-5 минут), открой в браузере:
 
 ```
-https://giron-api.onrender.com/health/sentry
+https://iron-gym-swoe.onrender.com/health/sentry
 ```
 
 Должен вернуть JSON:

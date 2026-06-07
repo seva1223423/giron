@@ -3,7 +3,7 @@ import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, Modal, Tex
 import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
-import { useThemeStore, useAuthStore, useWorkoutStore, useNutritionStore, useSubscriptionStore } from '../../store';
+import { useThemeColors, useAuthStore, useWorkoutStore, useNutritionStore, useSubscriptionStore } from '../../store';
 import { Card, Button, AnimatedPressable, Icon, type IconName } from '../../components';
 import { AchievementSticker } from '../../components/Sticker';
 import { typography } from '../../theme';
@@ -84,7 +84,7 @@ const MenuRow: React.FC<{
 export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const safeTop = useSafeTop();
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { user, logout } = useAuthStore();
   const { workoutHistory } = useWorkoutStore();
   const { dailyLog } = useNutritionStore();

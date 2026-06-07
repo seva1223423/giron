@@ -268,6 +268,11 @@ export interface ChatMessage {
   content: string;
   createdAt: string;
   actions?: AIAction[];
+  /** Optional inline widget (water/macro/diff/summary) attached to a
+   *  local-command confirmation bubble. Typed as `unknown` here to keep the
+   *  shared types module free of UI imports; the AI screen narrows it to
+   *  `ChatWidget` from screens/ai/chatWidgets.ts at render time. */
+  widget?: unknown;
 }
 
 export interface AIAction {

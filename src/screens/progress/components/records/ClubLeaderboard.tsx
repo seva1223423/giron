@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { useThemeStore } from '../../../../store';
+import { useThemeColors } from '../../../../store';
 import { Card, FadeIn, SkeletonLoader, PaywallModal } from '../../../../components';
 import { typography } from '../../../../theme';
 import { spacing } from '../../../../theme/spacing';
@@ -9,7 +9,7 @@ import type { LeaderboardEntry } from '../../../../services/workoutService';
 import { useSubscriptionStore } from '../../../../store/useSubscriptionStore';
 
 export const ClubLeaderboard: React.FC = () => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { canViewLeaderboard } = useSubscriptionStore();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(false);

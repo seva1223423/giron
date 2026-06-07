@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, Image } from 'react-native';
-import { useThemeStore } from '../../../../store';
+import { useThemeColors } from '../../../../store';
 import { Card, FadeIn } from '../../../../components';
 import { typography } from '../../../../theme';
 import { spacing, borderRadius } from '../../../../theme/spacing';
@@ -12,7 +12,7 @@ interface Props {
 }
 
 export const PhotoCompareCard: React.FC<Props> = ({ photos, delay = 80 }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   if (photos.length < 2) return null;
 
   const first = photos[photos.length - 1];

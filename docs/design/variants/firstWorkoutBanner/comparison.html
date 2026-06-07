@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<title>FirstWorkoutBanner — V1 baseline vs V10 final</title>
+<style>
+  :root {
+    --bg: #0E0E0F; --surface: #17171A;
+    --primary: #D4B07A; --primary-deep: #B08A4E;
+    --text: #F4F1EA; --text-secondary: #C9C7C0; --text-tertiary: #8A8780;
+    --text-inverse: #0A0A0A;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif; padding: 40px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; max-width: 850px; }
+  .col { width: 375px; }
+  .label { color: var(--text-tertiary); font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 12px; font-weight: 700; }
+  .meta { color: var(--text-secondary); font-size: 11px; line-height: 16px; margin-bottom: 16px; }
+  .meta strong { color: var(--text); font-weight: 700; }
+
+  /* V1 styles */
+  .v1 { display: flex; flex-direction: row; align-items: flex-start; gap: 10px; border-radius: 12px; border: 1px solid rgba(212, 176, 122, 0.25); background: rgba(212, 176, 122, 0.06); padding: 12px; }
+  .v1 .icon { width: 20px; height: 20px; flex-shrink: 0; color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .v1 .body { flex: 1; min-width: 0; }
+  .v1 .title { font-size: 13px; font-weight: 700; color: var(--primary); margin: 0 0 2px 0; }
+  .v1 .text { font-size: 12px; line-height: 18px; color: var(--text-secondary); margin: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .v1 .actions { display: flex; flex-direction: row; gap: 8px; flex-shrink: 0; }
+  .v1 .cta { padding: 6px 10px; border-radius: 6px; background: var(--primary); border: 1px solid var(--primary); color: var(--text-inverse); font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+  .v1 .close { padding: 4px; color: var(--text-secondary); background: transparent; border: none; cursor: pointer; font-size: 16px; line-height: 1; transform: rotate(45deg); }
+
+  /* V10 styles */
+  .v10 { position: relative; border-radius: 16px; padding: 16px 16px 14px; overflow: hidden; background: linear-gradient(135deg, rgba(212, 176, 122, 0.14) 0%, rgba(212, 176, 122, 0.02) 100%), var(--surface); border: 1px solid rgba(212, 176, 122, 0.3); }
+  .v10::before { content: ''; position: absolute; top: -30px; right: -30px; width: 110px; height: 110px; border-radius: 50%; background: radial-gradient(closest-side, rgba(212, 176, 122, 0.28) 0%, transparent 70%); pointer-events: none; }
+  .v10 .close { position: absolute; top: 8px; right: 10px; padding: 4px; color: var(--text-secondary); background: transparent; border: none; cursor: pointer; font-size: 16px; line-height: 1; transform: rotate(45deg); z-index: 2; }
+  .v10 .top { display: flex; align-items: center; gap: 13px; margin-bottom: 12px; }
+  .v10 .ring { flex-shrink: 0; width: 46px; height: 46px; position: relative; }
+  .v10 .ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .v10 .ring-track { fill: none; stroke: rgba(212, 176, 122, 0.18); stroke-width: 4; }
+  .v10 .ring-progress { fill: none; stroke: var(--primary); stroke-width: 4; stroke-linecap: round; stroke-dasharray: 125.66; stroke-dashoffset: 94.25; }
+  .v10 .ring-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--primary); }
+  .v10 .titles { flex: 1; min-width: 0; }
+  .v10 .label-tag { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.4px; color: var(--primary); margin-bottom: 2px; }
+  .v10 .title { font-size: 15px; font-weight: 700; color: var(--text); margin: 0; line-height: 20px; }
+  .v10 .actions { display: flex; gap: 8px; }
+  .v10 .cta-primary { flex: 1; padding: 11px 16px; border-radius: 10px; background: var(--primary); border: 1px solid var(--primary); color: var(--text-inverse); font-size: 13px; font-weight: 700; cursor: pointer; }
+  .v10 .cta-secondary { padding: 11px 12px; border-radius: 10px; background: transparent; border: 1px solid rgba(255, 255, 255, 0.14); color: var(--text-secondary); font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+</style>
+</head>
+<body>
+  <div class="grid">
+    <div class="col">
+      <div class="label">V1 — Текущий (в проде)</div>
+      <div class="meta">
+        <strong>Размер:</strong> 80px высоты<br/>
+        <strong>Заметность:</strong> низкая, теряется среди карточек<br/>
+        <strong>Friction:</strong> только «×» — dismiss-and-forget<br/>
+        <strong>Funnel signal:</strong> отсутствует
+      </div>
+      <div class="v1">
+        <div class="icon">🏋</div>
+        <div class="body">
+          <h3 class="title">Время первой тренировки</h3>
+          <p class="text">Ты с нами больше суток — попробуй короткую тренировку. Без неё профиль не оживает.</p>
+        </div>
+        <div class="actions">
+          <button class="cta">Начать</button>
+          <button class="close">+</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="label">V10 — Финальный пик</div>
+      <div class="meta">
+        <strong>Размер:</strong> 110px (+38%, всё ещё компактно)<br/>
+        <strong>Заметность:</strong> высокая — gold градиент + кольцо прогресса<br/>
+        <strong>Friction:</strong> «Через час» — snooze вместо dismiss<br/>
+        <strong>Funnel signal:</strong> «1/4» показывает onboarding journey
+      </div>
+      <div class="v10">
+        <button class="close">+</button>
+        <div class="top">
+          <div class="ring">
+            <svg viewBox="0 0 46 46">
+              <circle class="ring-track" cx="23" cy="23" r="20" />
+              <circle class="ring-progress" cx="23" cy="23" r="20" />
+            </svg>
+            <div class="ring-label">1/4</div>
+          </div>
+          <div class="titles">
+            <div class="label-tag">НАСТРОЙКА</div>
+            <h3 class="title">Первая тренировка — 15 минут</h3>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="cta-primary">Начать сейчас →</button>
+          <button class="cta-secondary">Через час</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

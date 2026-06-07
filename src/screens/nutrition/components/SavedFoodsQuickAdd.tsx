@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Alert } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
-import { useThemeStore, useNutritionStore } from '../../../store';
+import { useThemeColors, useNutritionStore } from '../../../store';
 import { Card } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
@@ -15,7 +15,7 @@ interface Props {
 
 export const SavedFoodsQuickAdd: React.FC<Props> = ({ onQuickAdd }) => {
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { savedFoods, removeSavedFood } = useNutritionStore();
   const [query, setQuery] = useState('');
 

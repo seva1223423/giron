@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { createEncryptedAsyncStorage } from '../utils/encryptedStorage';
+import { createThrottledStorage } from '../utils/throttledStorage';
 import { Workout, WorkoutExercise, WorkoutSet, Program, Exercise, Routine } from '../types';
 import { workoutService } from '../services';
 import { userService } from '../services/userService';
@@ -11,6 +12,55 @@ interface ActiveWorkout {
   currentExerciseIndex: number;
   isRestTimerActive: boolean;
   restTimeRemaining: number;
+  /**
+   * Per-exercise best Epley 1RM snapshotted from workoutHistory at the
+   * moment the workout was started. Used by `completeSet` to detect
+   * PRs in O(1) instead of re-scanning the full history on every set
+   * completion (the audit found completeSet was O(W*E*S) per set tap —
+   * up to 8000 iterations on a power-user history).
+   *
+   * Updated in-place by `completeSet` whenever a new PR beats the
+   * snapshot, so subsequent sets in the same workout don't all flag
+   * as PRs against the original baseline.
+   *
+   * Optional for backwards compatibility — pre-2026-05-22 active
+   * workouts persisted before this change won't have the field, and
+   * `completeSet` falls back to the original O(W*E*S) scan in that
+   * case (one workout's worth of legacy cost, then fresh starts use
+   * the cache).
+   */
+  bestRMs?: Record<string, number>;
+}
+
+/**
+ * Pre-compute the best Epley 1RM per exerciseId from completed workout
+ * history. Called at startWorkout / startWorkoutFromRoutine so the
+ * PR-detection in completeSet doesn't have to scan the full history on
+ * every set tap.
+ *
+ * Skips: in-progress (no completedAt), warmup sets, sets without
+ * weight/reps. Matches the filter logic in completeSet so cache and
+ * scan agree.
+ */
+function computeBestRMsFromHistory(
+  history: Workout[],
+  excludeWorkoutId?: string,
+): Record<string, number> {
+  const best: Record<string, number> = {};
+  for (const w of history) {
+    if (!w.completedAt) continue;
+    if (excludeWorkoutId && w.id === excludeWorkoutId) continue;
+    for (const ex of w.exercises) {
+      const exId = ex.exerciseId;
+      for (const st of ex.sets) {
+        if (!st.completed || !st.weight || !st.reps || st.type === 'warmup') continue;
+        const rm = st.weight * (1 + st.reps / 30);
+        const prev = best[exId] ?? -1;
+        if (rm > prev) best[exId] = rm;
+      }
+    }
+  }
+  return best;
 }
 
 export interface WeekPlanEntry {
@@ -342,15 +392,16 @@ export const useWorkoutStore = create<WorkoutStore>()(
               })),
             })),
           };
-          set({
+          set((s) => ({
             activeWorkout: {
               workout: { ...workout, startedAt: new Date().toISOString() },
               startTime: Date.now(),
               currentExerciseIndex: 0,
               isRestTimerActive: false,
               restTimeRemaining: 0,
+              bestRMs: computeBestRMsFromHistory(s.workoutHistory, workout.id),
             },
-          });
+          }));
           return workout;
         } catch {
           return null;
@@ -362,15 +413,16 @@ export const useWorkoutStore = create<WorkoutStore>()(
         // Callers should check the returned boolean and either navigate to the
         // existing active workout or prompt the user to finish/cancel it first.
         if (get().activeWorkout) return false;
-        set({
+        set((s) => ({
           activeWorkout: {
             workout: { ...workout, startedAt: new Date().toISOString() },
             startTime: Date.now(),
             currentExerciseIndex: 0,
             isRestTimerActive: false,
             restTimeRemaining: 0,
+            bestRMs: computeBestRMsFromHistory(s.workoutHistory, workout.id),
           },
-        });
+        }));
         return true;
       },
 
@@ -384,26 +436,45 @@ export const useWorkoutStore = create<WorkoutStore>()(
         if (setIndex < 0 || setIndex >= sets.length) return s;
         const completedSet = { ...sets[setIndex], ...data, completed: true };
 
-        // Detect PR: compute Epley 1RM and compare against history.
-        // Single-pass scan avoids the chain of flatMap + filter that creates
-        // O(W*E*S) intermediate arrays per set completion.
+        // Detect PR via the bestRMs snapshot pre-computed at startWorkout.
+        // O(1) lookup instead of O(W*E*S) scan per set tap (the audit found
+        // up to 8000 iterations per ✓ on power-user histories).
+        //
+        // Fallback: pre-2026-05-22 active workouts persisted without bestRMs
+        // still hit the original single-pass scan — they pay the cost once
+        // then upgrade on next startWorkout.
         const { weight, reps } = completedSet;
+        let nextBestRMs = s.activeWorkout.bestRMs;
         if (weight && reps && weight > 0 && reps > 0 && completedSet.type !== 'warmup') {
           const newRM = weight * (1 + reps / 30);
           const exerciseId = exercise.exerciseId;
-          let historyBest = -1;
-          for (const w of s.workoutHistory) {
-            if (w.id === workout.id || !w.completedAt) continue;
-            for (const ex of w.exercises) {
-              if (ex.exerciseId !== exerciseId) continue;
-              for (const st of ex.sets) {
-                if (!st.completed || !st.weight || !st.reps || st.type === 'warmup') continue;
-                const rm = st.weight * (1 + st.reps / 30);
-                if (rm > historyBest) historyBest = rm;
+          let historyBest: number;
+          if (s.activeWorkout.bestRMs) {
+            historyBest = s.activeWorkout.bestRMs[exerciseId] ?? -1;
+          } else {
+            // Legacy fallback — the original O(W*E*S) scan, kept verbatim
+            // so persisted-active-workout users see no behaviour change.
+            historyBest = -1;
+            for (const w of s.workoutHistory) {
+              if (w.id === workout.id || !w.completedAt) continue;
+              for (const ex of w.exercises) {
+                if (ex.exerciseId !== exerciseId) continue;
+                for (const st of ex.sets) {
+                  if (!st.completed || !st.weight || !st.reps || st.type === 'warmup') continue;
+                  const rm = st.weight * (1 + st.reps / 30);
+                  if (rm > historyBest) historyBest = rm;
+                }
               }
             }
           }
           completedSet.isPR = historyBest < 0 || newRM > historyBest;
+          // Update the snapshot in-place when we beat it, so the NEXT set
+          // in the same workout compares against the new high — otherwise
+          // every set heavier than the original baseline would falsely
+          // claim PR.
+          if (completedSet.isPR && nextBestRMs) {
+            nextBestRMs = { ...nextBestRMs, [exerciseId]: newRM };
+          }
         }
 
         sets[setIndex] = completedSet;
@@ -411,7 +482,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
         exercises[exerciseIndex] = exercise;
         workout.exercises = exercises;
         return {
-          activeWorkout: { ...s.activeWorkout, workout },
+          activeWorkout: { ...s.activeWorkout, workout, bestRMs: nextBestRMs },
         };
       }),
 
@@ -826,7 +897,17 @@ export const useWorkoutStore = create<WorkoutStore>()(
       // PRs, programs and weight/rep logs are personal health data.
       // AES-GCM-wrapped storage; bounded persisted snapshot is still
       // applied below (round 259) — encryption sits underneath.
-      storage: createJSONStorage(() => createEncryptedAsyncStorage()),
+      //
+      // Audit R-2026-05-22 (vercel-react / rerender-functional-setstate):
+      // wrapped in throttledStorage so a burst of completeSet() calls
+      // during an active workout (each ✓ persists 1-3 MB of encrypted
+      // snapshot) coalesces to one write per 2s. AppState background
+      // transition flushes whatever's pending — so app-switch always
+      // persists the latest state. Crash inside the throttle window
+      // loses ≤2s of mutations (≤1 set).
+      storage: createJSONStorage(() =>
+        createThrottledStorage(createEncryptedAsyncStorage(), 2000),
+      ),
       // Round 259: bound workoutHistory in the persisted snapshot.
       // A power user with 5+ years of training (1500+ workouts × 8
       // exercises × 5 sets ≈ 60K rows) was easily breaching

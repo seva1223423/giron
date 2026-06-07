@@ -310,20 +310,19 @@ export async function processReactivationCohort(
 
 /**
  * Weekly summary email (RETENTION-03). Sends every Sunday evening to users
- * who completed at least one workout in the past 7 days. Idempotent within
- * a Sunday — double-firing the cron in the same day is safe because we use
- * a lookback window keyed on the calling time and a per-user transmit
- * de-dupe (we just track that the email was sent on the *date*).
+ * who completed at least one workout in the past 7 days.
  *
- * For now we don't store an explicit weeklySummarySentAt column — instead
- * we rely on the cron firing once per Sunday at 18:00 UTC. If you want
- * stricter de-dup across server restarts, add a `weeklySummarySentDate`
- * field to User and gate on it.
+ * Audit 2026-05-29 (H8): per-user stats are now batched into 3 queries for the
+ * whole cohort (was 2 deep queries PER user — an N+1), and each send is gated
+ * by an atomic claim on User.weeklySummarySentDate so a 2nd cron tick (even
+ * across a restart inside the 18:00 hour) can't double-send.
  */
 export async function processWeeklySummaryEmails(): Promise<number> {
   const now = new Date();
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+  // 'YYYY-MM-DD' of the run (the Sunday) — the per-user once-per-week claim key.
+  const weekKey = now.toISOString().slice(0, 10);
 
   try {
     // Eligible cohort: users with email + at least one completed workout in
@@ -346,60 +345,72 @@ export async function processWeeklySummaryEmails(): Promise<number> {
 
     if (eligible.length === 0) return 0;
 
+    const ids = eligible.map((u) => u.id);
+
+    // Audit 2026-05-29 (H8): batch ALL aggregation up front (3 queries for the
+    // whole cohort) instead of 2 deep queries per user (the old N+1). groupBy
+    // gives per-user workout count + volume/duration sums; one workoutExercise
+    // scan feeds the top-exercise pick. DB load is now flat in the cohort size.
+    const [thisWeekAgg, lastWeekAgg, exerciseRows] = await Promise.all([
+      prisma.workout.groupBy({
+        by: ['userId'],
+        where: { userId: { in: ids }, completedAt: { gte: sevenDaysAgo, lte: now } },
+        _count: { _all: true },
+        _sum: { totalVolume: true, durationMinutes: true },
+      }),
+      prisma.workout.groupBy({
+        by: ['userId'],
+        where: { userId: { in: ids }, completedAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } },
+        _count: { _all: true },
+      }),
+      prisma.workoutExercise.findMany({
+        where: { workout: { userId: { in: ids }, completedAt: { gte: sevenDaysAgo, lte: now } } },
+        select: {
+          workout: { select: { userId: true } },
+          exercise: { select: { name: true } },
+          sets: { select: { weight: true, reps: true, completed: true } },
+        },
+      }),
+    ]);
+
+    const thisWeekByUser = new Map(thisWeekAgg.map((r) => [r.userId, r]));
+    const lastWeekCountByUser = new Map(lastWeekAgg.map((r) => [r.userId, r._count._all]));
+
+    // Per-user map of exercise name → completed-set volume, for the top pick.
+    const exVolByUser = new Map<string, Map<string, number>>();
+    for (const row of exerciseRows) {
+      const uid = row.workout?.userId;
+      const name = row.exercise?.name;
+      if (!uid || !name) continue;
+      const vol = row.sets
+        .filter((s) => s.completed)
+        .reduce((s, set) => s + (set.weight ?? 0) * (set.reps ?? 0), 0);
+      const byEx = exVolByUser.get(uid) ?? new Map<string, number>();
+      byEx.set(name, (byEx.get(name) ?? 0) + vol);
+      exVolByUser.set(uid, byEx);
+    }
+
     let sent = 0;
     for (const user of eligible) {
+      // Audit 2026-05-29 (H8): atomic claim-then-send — only one cron tick (even
+      // across a restart inside the 18:00 hour) sends this week's summary to a
+      // given user. Mirrors the activation/reactivation cohorts' CAS pattern.
+      const claim = await prisma.user.updateMany({
+        where: {
+          id: user.id,
+          OR: [{ weeklySummarySentDate: null }, { weeklySummarySentDate: { not: weekKey } }],
+        },
+        data: { weeklySummarySentDate: weekKey },
+      });
+      if (claim.count === 0) continue; // already sent this week
+
       try {
-        // Aggregate per-user stats. Two queries (this week, last week) are
-        // cheaper than a single complex GROUP BY for sub-100k users; revisit
-        // if user table grows past that.
-        const [thisWeek, lastWeek] = await Promise.all([
-          prisma.workout.findMany({
-            where: {
-              userId: user.id,
-              completedAt: { gte: sevenDaysAgo, lte: now },
-            },
-            select: {
-              durationMinutes: true,
-              totalVolume: true,
-              exercises: {
-                select: {
-                  exercise: { select: { name: true } },
-                  sets: { select: { weight: true, reps: true, completed: true } },
-                },
-              },
-            },
-          }),
-          prisma.workout.count({
-            where: {
-              userId: user.id,
-              completedAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo },
-            },
-          }),
-        ]);
+        const agg = thisWeekByUser.get(user.id);
 
-        const totalVolumeKg = Math.round(
-          thisWeek.reduce((sum, w) => sum + (w.totalVolume ?? 0), 0),
-        );
-        const totalDurationMin = thisWeek.reduce(
-          (sum, w) => sum + (w.durationMinutes ?? 0),
-          0,
-        );
-
-        // Top exercise: the one with the highest total volume this week.
-        const exerciseVolume = new Map<string, number>();
-        for (const w of thisWeek) {
-          for (const ex of w.exercises) {
-            const name = ex.exercise?.name;
-            if (!name) continue;
-            const vol = ex.sets
-              .filter((s) => s.completed)
-              .reduce((s, set) => s + (set.weight ?? 0) * (set.reps ?? 0), 0);
-            exerciseVolume.set(name, (exerciseVolume.get(name) ?? 0) + vol);
-          }
-        }
+        // Top exercise: highest completed-set volume this week.
         let topExerciseName: string | null = null;
         let topVolume = 0;
-        for (const [name, vol] of exerciseVolume) {
+        for (const [name, vol] of exVolByUser.get(user.id) ?? []) {
           if (vol > topVolume) {
             topVolume = vol;
             topExerciseName = name;
@@ -407,20 +418,23 @@ export async function processWeeklySummaryEmails(): Promise<number> {
         }
 
         const stats: WeeklySummaryStats = {
-          workoutsThisWeek: thisWeek.length,
-          workoutsLastWeek: lastWeek,
-          totalVolumeKg,
-          totalDurationMin,
+          workoutsThisWeek: agg?._count._all ?? 0,
+          workoutsLastWeek: lastWeekCountByUser.get(user.id) ?? 0,
+          totalVolumeKg: Math.round(agg?._sum.totalVolume ?? 0),
+          totalDurationMin: agg?._sum.durationMinutes ?? 0,
           topExerciseName,
           // Delta calculation deferred — needs prev-week max-set lookup.
-          // For now we simply highlight the leader by volume. Future work:
-          // compute estimated 1RM delta against prior 4 weeks.
           topExerciseDelta: null,
         };
 
         await sendWeeklySummaryEmail(user.email, user.firstName ?? null, stats);
         sent++;
       } catch (err) {
+        // Roll back the claim so a future tick retries this user.
+        await prisma.user.updateMany({
+          where: { id: user.id, weeklySummarySentDate: weekKey },
+          data: { weeklySummarySentDate: null },
+        }).catch(() => {});
         reportError(err as Error, {
           userId: user.id,
           tags: { origin: 'retention-weekly-summary' },
