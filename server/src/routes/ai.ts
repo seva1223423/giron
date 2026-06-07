@@ -1,6 +1,8 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { yandexTranscribe } from '../services/yandexSpeechKit';
+import { toLpcm16k } from '../services/audioConverter';
 import { buildDynamicContext } from '../ai/contextEngine';
 import { CONTEXT_TOOL_DEFINITIONS, executeContextTool, type ContextToolPreload } from '../ai/contextTools';
 import { NAV_WHITELIST, validateNavigation } from '../ai/navigationWhitelist';
@@ -19802,6 +19804,95 @@ ${exerciseSummaries}
   } catch (e) {
     logger.error('Workout insights error:', e);
     res.status(500).json({ error: 'Не удалось получить анализ' });
+  }
+});
+
+// ── Voice input — STT via Yandex SpeechKit ─────────────────────────────
+
+/**
+ * POST /api/ai/voice — accept short audio recording (≤ 30 sec) from
+ * the chat input bar, transcribe via Yandex SpeechKit, return the
+ * text so the client can either auto-send or let the user edit first.
+ *
+ * Audio is uploaded as base64 in JSON (client uses expo-av which
+ * produces m4a/AAC by default on Android, LPCM on iOS). Server
+ * converts to mono 16 kHz 16-bit LPCM via ffmpeg-static before
+ * forwarding to Yandex.
+ *
+ * Cost: ~6 коп per 15 sec at current Yandex pricing, free up to
+ * 5000 requests/month. Single-user dev volume is effectively free.
+ */
+router.post('/voice', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+
+    // ── Subscription gate ───────────────────────────────────────────────
+    // Voice STT calls Yandex SpeechKit which costs real money (~6 коп
+    // per 15s after the 5K/mo free tier). Gate to paid plans + admins.
+    // Admins bypass so the founder / internal testers don't need a sub.
+    // Free users are pointed to upgrade via the 402 Payment Required
+    // status code (semantically: "this is a paid feature").
+    if (req.userRole !== 'ADMIN') {
+      const sub = await prisma.subscription.findUnique({
+        where: { userId },
+        select: { plan: true, status: true, endDate: true },
+      });
+      const isPaid =
+        sub != null &&
+        ['pro', 'trainer', 'club'].includes(sub.plan) &&
+        (sub.status === 'active' || sub.status === 'cancelled') &&
+        (sub.endDate == null || sub.endDate >= new Date());
+      if (!isPaid) {
+        return res.status(402).json({
+          error: 'Голосовой ввод доступен только в Pro подписке',
+          code: 'VOICE_REQUIRES_PRO',
+        });
+      }
+    }
+
+    const parsed = z.object({
+      audio: z.string().min(100, 'audio too short').max(2_500_000, 'audio too large (>1.8 MB base64)'),
+      mimeType: z.string().min(1).max(100).optional(),
+    }).safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.errors[0].message });
+    }
+
+    const { audio, mimeType } = parsed.data;
+    // Strip a data URL prefix if present so the base64 decoder
+    // doesn't choke ("data:audio/m4a;base64,XXXXX" → just "XXXXX").
+    const b64 = audio.replace(/^data:[^;]+;base64,/, '');
+    const buf = Buffer.from(b64, 'base64');
+    if (buf.length < 1000) {
+      return res.status(400).json({ error: 'Запись слишком короткая' });
+    }
+
+    // Pick a hint extension for ffmpeg so it parses the container
+    // correctly. Common mimeTypes from expo-av: audio/m4a, audio/mp4,
+    // audio/wav, audio/x-caf, audio/3gpp.
+    const ext = (mimeType || '').match(/m4a|mp4|wav|3gp|caf|ogg|webm|aac|mp3/i)?.[0] || 'm4a';
+
+    const pcm = await toLpcm16k(buf, ext.toLowerCase());
+    if (pcm.length < 1000) {
+      return res.status(400).json({ error: 'Не удалось распознать голос (тихая запись)' });
+    }
+
+    const result = await yandexTranscribe({ audio: pcm });
+    if (!result.ok) {
+      logger.warn('[POST /ai/voice] yandex failure', { userId, status: result.status, err: result.error });
+      return res.status(result.status === 401 ? 503 : 502).json({
+        error: result.error || 'Yandex SpeechKit недоступен',
+        code: 'STT_FAILED',
+      });
+    }
+    if (!result.text) {
+      return res.json({ text: '' }); // genuine silence — client falls back to manual input
+    }
+    res.json({ text: result.text });
+  } catch (e: any) {
+    logger.error('[POST /ai/voice] crashed', e);
+    reportError(e, { route: 'ai-voice' });
+    res.status(500).json({ error: e?.message || 'Ошибка распознавания голоса' });
   }
 });
 

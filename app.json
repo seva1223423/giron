@@ -101,6 +101,7 @@
       "permissions": [
         "android.permission.ACTIVITY_RECOGNITION",
         "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
         "android.permission.READ_MEDIA_IMAGES",
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.health.READ_HEART_RATE",
