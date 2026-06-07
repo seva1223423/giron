@@ -114,6 +114,9 @@ export const authUserCache = new MemCache<{
   isBanned: boolean;
   role: string;
   lockedUntil: Date | null;
+  // Optional so existing cache-unit-test fixtures stay valid; authenticate() always
+  // populates it from the DB select, and its kill-switch check treats absence as "no cutoff".
+  tokensValidAfter?: Date | null;
 }>(10_000);
 
 export const AUTH_CACHE_TTL_MS = 60_000;
