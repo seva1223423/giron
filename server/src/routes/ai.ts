@@ -7923,7 +7923,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       cardioContext = `\n## КАРДИО (последние 7 дней)\n`;
       cardioContext += `Сессий: ${weekCardio.length}, суммарно: ${totalMin} мин${totalKm > 0 ? `, ${totalKm.toFixed(1)} км` : ''}${totalCal > 0 ? `, ${totalCal} ккал` : ''}\n`;
       weekCardio.slice(0, 5).forEach((s) => {
-        cardioContext += `- ${new Date(s.date).toLocaleDateString('ru-RU')}: ${TYPE_LABELS[s.type] || s.type}, ${s.durationMinutes} мин`;
+        cardioContext += `- ${new Date(s.date).toLocaleDateString('ru-RU')}: ${TYPE_LABELS[s.type] || sanitizeForPrompt(s.type, 40)}, ${s.durationMinutes} мин`;
         if (s.distanceKm) cardioContext += `, ${s.distanceKm} км`;
         if (s.caloriesBurned) cardioContext += `, ${s.caloriesBurned} ккал`;
         if (s.avgHeartRate) cardioContext += `, пульс ${s.avgHeartRate}`;

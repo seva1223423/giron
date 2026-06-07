@@ -43,6 +43,14 @@ if ((process.env.JWT_REFRESH_SECRET?.length ?? 0) < 32) {
   console.error('[FATAL] JWT_REFRESH_SECRET must be at least 32 characters for security');
   process.exit(1);
 }
+// Audit 2026-06-07 (L7): access and refresh tokens share the same {userId}/iss/aud shape
+// and differ only by signing secret. If both secrets are identical (an easy copy-paste
+// misconfig), a 30-day refresh token would verify as an access token in authenticate(),
+// defeating the short-lived-access design. Refuse to boot on that misconfiguration.
+if (process.env.JWT_SECRET === process.env.JWT_REFRESH_SECRET) {
+  console.error('[FATAL] JWT_SECRET and JWT_REFRESH_SECRET must differ');
+  process.exit(1);
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
