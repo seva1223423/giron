@@ -551,10 +551,15 @@ router.post('/change-password', authenticate, async (req: AuthRequest, res: Resp
       if (!totpCode) {
         return res.status(400).json({ error: 'Введите код из аутентификатора', code: 'TOTP_REQUIRED' });
       }
+      if (is2faLocked(req.userId!)) {
+        return res.status(429).json({ error: 'Слишком много неверных кодов. Попробуйте через 15 минут.', code: 'TOTP_LOCKED' });
+      }
       const totp = new TOTP({ secret: Secret.fromBase32(user.totpSecret), algorithm: 'SHA1', digits: 6, period: 30 });
       if (totp.validate({ token: totpCode, window: 1 }) === null) {
+        record2faFailure(req.userId!); // M2: per-account lockout on step-up TOTP brute-force
         return res.status(401).json({ error: 'Неверный код 2FA', code: 'INVALID_TOTP' });
       }
+      clear2faFailures(req.userId!);
       if (await isTotpReplay(req.userId!, totpCode)) {
         return res.status(401).json({ error: 'Этот код уже был использован. Дождитесь следующего кода.', code: 'TOTP_REPLAYED' });
       }
@@ -990,10 +995,15 @@ router.post('/2fa/backup-codes', authenticate, async (req: AuthRequest, res: Res
       return res.status(400).json({ error: '2FA не включена', code: 'TOTP_NOT_ENABLED' });
     }
 
+    if (is2faLocked(req.userId!)) {
+      return res.status(429).json({ error: 'Слишком много неверных кодов. Попробуйте через 15 минут.', code: 'TOTP_LOCKED' });
+    }
     const totp = new TOTP({ secret: Secret.fromBase32(user.totpSecret), algorithm: 'SHA1', digits: 6, period: 30 });
     if (totp.validate({ token: code, window: 1 }) === null) {
+      record2faFailure(req.userId!); // M2: per-account lockout on step-up TOTP brute-force
       return res.status(401).json({ error: 'Неверный код', code: 'INVALID_TOTP' });
     }
+    clear2faFailures(req.userId!);
     if (await isTotpReplay(req.userId!, code)) {
       return res.status(401).json({ error: 'Этот код уже был использован. Дождитесь следующего кода.', code: 'TOTP_REPLAYED' });
     }
@@ -1068,10 +1078,15 @@ router.post('/change-email', authenticate, async (req: AuthRequest, res: Respons
       if (!totpCode) {
         return res.status(400).json({ error: 'Введите код из аутентификатора', code: 'TOTP_REQUIRED' });
       }
+      if (is2faLocked(req.userId!)) {
+        return res.status(429).json({ error: 'Слишком много неверных кодов. Попробуйте через 15 минут.', code: 'TOTP_LOCKED' });
+      }
       const totp = new TOTP({ secret: Secret.fromBase32(userFor2fa.totpSecret), algorithm: 'SHA1', digits: 6, period: 30 });
       if (totp.validate({ token: totpCode, window: 1 }) === null) {
+        record2faFailure(req.userId!); // M2: per-account lockout on step-up TOTP brute-force
         return res.status(401).json({ error: 'Неверный код 2FA', code: 'INVALID_TOTP' });
       }
+      clear2faFailures(req.userId!);
       if (await isTotpReplay(req.userId!, totpCode)) {
         return res.status(401).json({ error: 'Этот код уже был использован. Дождитесь следующего кода.', code: 'TOTP_REPLAYED' });
       }
@@ -1225,10 +1240,15 @@ router.post('/change-phone', authenticate, async (req: AuthRequest, res: Respons
       if (!totpCode) {
         return res.status(400).json({ error: 'Введите код из аутентификатора', code: 'TOTP_REQUIRED' });
       }
+      if (is2faLocked(req.userId!)) {
+        return res.status(429).json({ error: 'Слишком много неверных кодов. Попробуйте через 15 минут.', code: 'TOTP_LOCKED' });
+      }
       const totp = new TOTP({ secret: Secret.fromBase32(userFor2fa.totpSecret), algorithm: 'SHA1', digits: 6, period: 30 });
       if (totp.validate({ token: totpCode, window: 1 }) === null) {
+        record2faFailure(req.userId!); // M2: per-account lockout on step-up TOTP brute-force
         return res.status(401).json({ error: 'Неверный код 2FA', code: 'INVALID_TOTP' });
       }
+      clear2faFailures(req.userId!);
       if (await isTotpReplay(req.userId!, totpCode)) {
         return res.status(401).json({ error: 'Этот код уже был использован. Дождитесь следующего кода.', code: 'TOTP_REPLAYED' });
       }
@@ -1357,10 +1377,15 @@ router.post('/linked-accounts/:provider', authenticate, async (req: AuthRequest,
       if (!totpCode) {
         return res.status(400).json({ error: 'Введите код из аутентификатора', code: 'TOTP_REQUIRED' });
       }
+      if (is2faLocked(authUserId)) {
+        return res.status(429).json({ error: 'Слишком много неверных кодов. Попробуйте через 15 минут.', code: 'TOTP_LOCKED' });
+      }
       const totp = new TOTP({ secret: Secret.fromBase32(meStepUp.totpSecret), algorithm: 'SHA1', digits: 6, period: 30 });
       if (totp.validate({ token: totpCode, window: 1 }) === null) {
+        record2faFailure(authUserId); // M2: per-account lockout on step-up TOTP brute-force
         return res.status(401).json({ error: 'Неверный код 2FA', code: 'INVALID_TOTP' });
       }
+      clear2faFailures(authUserId);
       if (await isTotpReplay(authUserId, totpCode)) {
         return res.status(401).json({ error: 'Этот код уже был использован. Дождитесь следующего кода.', code: 'TOTP_REPLAYED' });
       }
@@ -1649,10 +1674,15 @@ router.delete('/account', authenticate, async (req: AuthRequest, res: Response) 
       if (!totpCode) {
         return res.status(400).json({ error: 'Введите код из аутентификатора для подтверждения', code: 'TOTP_REQUIRED' });
       }
+      if (is2faLocked(req.userId!)) {
+        return res.status(429).json({ error: 'Слишком много неверных кодов. Попробуйте через 15 минут.', code: 'TOTP_LOCKED' });
+      }
       const totp = new TOTP({ secret: Secret.fromBase32(user.totpSecret), algorithm: 'SHA1', digits: 6, period: 30 });
       if (totp.validate({ token: totpCode, window: 1 }) === null) {
+        record2faFailure(req.userId!); // M2: per-account lockout on step-up TOTP brute-force
         return res.status(401).json({ error: 'Неверный код 2FA', code: 'INVALID_TOTP' });
       }
+      clear2faFailures(req.userId!);
       if (await isTotpReplay(req.userId!, totpCode)) {
         return res.status(401).json({ error: 'Этот код уже был использован. Дождитесь следующего кода.', code: 'TOTP_REPLAYED' });
       }

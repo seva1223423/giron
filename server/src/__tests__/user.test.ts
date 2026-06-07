@@ -1185,113 +1185,93 @@ describe('POST /api/user/change-password', () => {
 
 // ─── DELETE /api/user/2fa ────────────────────────────────────────────────────
 //
-// 2FA disable accepts EITHER current TOTP code OR password (whichever the
-// user provides). If 2FA is enabled, a stolen access token alone must NOT
-// be enough to disable it. Was untested.
+// SECURITY (audit 2026-06-07 L1): disabling 2FA requires the SECOND factor — a
+// valid TOTP code OR an unused backup code. The password alone must NOT disable
+// it (a leaked password is exactly what 2FA defends against). Success revokes
+// sessions + access tokens; wrong codes feed the per-account lockout.
 //
-// Note: tests below avoid mocking otpauth's TOTP.validate by exercising
-// only the password-based path (the route's `else if (password && ...)`
-// branch). The TOTP branch is covered indirectly via /admin/users/:id/
-// force-disable-2fa tests.
+// Note: the success case uses the BACKUP-CODE path so we don't mock otpauth's
+// time-based TOTP.validate.
 
 describe('DELETE /api/user/2fa', () => {
+  const crypto = require('crypto');
+  const BACKUP_CODE = 'ABCD1234';
+  const backupHash = crypto.createHash('sha256').update(BACKUP_CODE.toUpperCase()).digest('hex');
   const userWith2FA = {
     id: 'u-test',
     totpEnabled: true,
     totpSecret: 'JBSWY3DPEHPK3PXP',
-    passwordHash: 'bcrypt-hash',
+    totpBackupCodes: JSON.stringify([backupHash]),
   };
 
-  beforeEach(() => {
-    const bcrypt = require('bcryptjs');
-    bcrypt.compare.mockResolvedValue(true);
-    bcrypt.default.compare.mockResolvedValue(true);
+  it('401 without token', async () => {
+    const res = await request(app).delete('/api/user/2fa').send({ code: '123456' });
+    expect(res.status).toBe(401);
   });
 
-  it('401 without token', async () => {
-    const res = await request(app).delete('/api/user/2fa').send({ password: 'pw' });
-    expect(res.status).toBe(401);
+  it('SECURITY L1: 400 when only a password is sent (password alone must NOT disable 2FA)', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce(mockUser);
+    const res = await request(app)
+      .delete('/api/user/2fa')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ password: 'correct' }); // no code → rejected before any state change
+    expect(res.status).toBe(400);
+    expect(prisma.user.update).not.toHaveBeenCalled();
   });
 
   it('400 TOTP_NOT_ENABLED when 2FA is currently off', async () => {
     (prisma.user.findUnique as jest.Mock)
       .mockResolvedValueOnce(mockUser)
-      .mockResolvedValueOnce({
-        ...userWith2FA,
-        totpEnabled: false,
-        totpSecret: null,
-      });
+      .mockResolvedValueOnce({ ...userWith2FA, totpEnabled: false, totpSecret: null });
 
     const res = await request(app)
       .delete('/api/user/2fa')
       .set('Authorization', `Bearer ${makeToken()}`)
-      .send({ password: 'pw' });
+      .send({ code: '123456' });
 
     expect(res.status).toBe(400);
     expect(res.body.code).toBe('TOTP_NOT_ENABLED');
   });
 
-  it('401 VERIFICATION_FAILED when password is wrong (no code provided)', async () => {
+  it('401 VERIFICATION_FAILED when code is neither a valid TOTP nor a backup code', async () => {
     (prisma.user.findUnique as jest.Mock)
       .mockResolvedValueOnce(mockUser)
       .mockResolvedValueOnce(userWith2FA);
-    const bcrypt = require('bcryptjs');
-    bcrypt.compare.mockResolvedValueOnce(false);
-    bcrypt.default.compare.mockResolvedValueOnce(false);
 
     const res = await request(app)
       .delete('/api/user/2fa')
       .set('Authorization', `Bearer ${makeToken()}`)
-      .send({ password: 'wrong' });
+      .send({ code: 'wrongcode' }); // not 6 digits, not a backup hash
 
     expect(res.status).toBe(401);
     expect(res.body.code).toBe('VERIFICATION_FAILED');
     expect(prisma.user.update).not.toHaveBeenCalled();
   });
 
-  it('401 VERIFICATION_FAILED when neither code nor password is provided', async () => {
+  it('200 disables 2FA with a valid backup code + writes TOTP_DISABLED event', async () => {
     (prisma.user.findUnique as jest.Mock)
       .mockResolvedValueOnce(mockUser)
       .mockResolvedValueOnce(userWith2FA);
+    (prisma.user.update as jest.Mock).mockResolvedValue({ id: 'u-test' });
 
     const res = await request(app)
       .delete('/api/user/2fa')
       .set('Authorization', `Bearer ${makeToken()}`)
-      .send({});
-
-    expect(res.status).toBe(401);
-    expect(res.body.code).toBe('VERIFICATION_FAILED');
-    expect(prisma.user.update).not.toHaveBeenCalled();
-  });
-
-  it('200 disables 2FA when correct password provided + writes TOTP_DISABLED event', async () => {
-    (prisma.user.findUnique as jest.Mock)
-      .mockResolvedValueOnce(mockUser)
-      .mockResolvedValueOnce(userWith2FA);
-    (prisma.user.update as jest.Mock).mockResolvedValueOnce({ id: 'u-test' });
-
-    const res = await request(app)
-      .delete('/api/user/2fa')
-      .set('Authorization', `Bearer ${makeToken()}`)
-      .send({ password: 'correct' });
+      .send({ code: BACKUP_CODE });
 
     expect(res.status).toBe(200);
 
-    // Verify 2FA state fully wiped
+    // 2FA state fully wiped (there are now two user.update calls — the wipe and the
+    // tokensValidAfter kill-switch; assert the wipe is present among them).
     const updateCalls = (prisma.user.update as jest.Mock).mock.calls;
     const wipeCall = updateCalls.find(
       (c) => c[0]?.where?.id === 'u-test' && c[0]?.data?.totpEnabled === false,
     );
     expect(wipeCall).toBeTruthy();
     expect(wipeCall![0].data).toEqual(
-      expect.objectContaining({
-        totpEnabled: false,
-        totpSecret: null,
-        totpBackupCodes: null,
-      }),
+      expect.objectContaining({ totpEnabled: false, totpSecret: null, totpBackupCodes: null }),
     );
 
-    // SecurityEvent for the user's own audit trail
     const seCalls = (prisma.securityEvent.create as jest.Mock).mock.calls;
     const auditCall = seCalls.find((c) => c[0]?.data?.action === 'TOTP_DISABLED');
     expect(auditCall).toBeTruthy();
