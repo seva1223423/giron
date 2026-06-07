@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, useWindowDimensions } from 'react-native';
-import { useThemeStore } from '../../../../store';
+import { useThemeColors } from '../../../../store';
 import { FadeIn } from '../../../../components';
 import { typography } from '../../../../theme';
 import { spacing, borderRadius } from '../../../../theme/spacing';
@@ -18,7 +18,7 @@ interface Props {
 export const PhotosGrid: React.FC<Props> = ({ photos, selectedId, onSelect, onDelete, delay = 100 }) => {
   const { width: screenWidth } = useWindowDimensions();
   const cellWidth = (screenWidth - spacing.xl * 2 - spacing.md * 2) / 3;
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
 
   if (photos.length === 0) return null;
 

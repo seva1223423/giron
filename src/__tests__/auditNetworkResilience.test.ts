@@ -196,17 +196,21 @@ describe('Network error messages in Russian', () => {
 // ─── Connection banner ──────────────────────────────────────────────────────
 
 describe('Offline banner behavior', () => {
-  test('AppNavigator shows banner when isOnline=false', () => {
-    const f = path.join(SRC, 'navigation/AppNavigator.tsx');
+  // Round 290 + 0cd5a0f7: the banner moved OUT of AppNavigator into a
+  // global <NetworkStatusBar /> (mounted in App.tsx, reads the debounced
+  // isOfflineConfirmed flag). Assertions now target that component.
+  test('NetworkStatusBar shows offline banner from connection store', () => {
+    const f = path.join(SRC, 'components/NetworkStatusBar.tsx');
     expect(fs.existsSync(f)).toBe(true);
     const code = fs.readFileSync(f, 'utf8');
-    expect(code).toContain('isOnline');
+    expect(code).toMatch(/isOfflineConfirmed|isOnline/);
     expect(code).toMatch(/Нет соединения/i);
   });
 
-  test('banner color is warning (amber/orange)', () => {
-    const f = path.join(SRC, 'navigation/AppNavigator.tsx');
+  test('offline banner uses error color, slow uses warning', () => {
+    const f = path.join(SRC, 'components/NetworkStatusBar.tsx');
     const code = fs.readFileSync(f, 'utf8');
+    expect(code).toMatch(/colors\.error/);
     expect(code).toMatch(/colors\.warning/);
   });
 });

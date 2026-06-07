@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
-import { useThemeStore, useNutritionStore, useAuthStore } from '../../store';
+import { useThemeColors, useNutritionStore, useAuthStore } from '../../store';
 import { Card, Button, FadeIn } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -38,7 +38,7 @@ const InputField: React.FC<{ label: string; unit: string; value: string; onChang
 
 export const MacroCalculatorScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { setTargets } = useNutritionStore();
   const { user } = useAuthStore();
 

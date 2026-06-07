@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useHaptic } from '../../../hooks/useHaptic';
-import { useThemeStore, useNutritionStore } from '../../../store';
+import { useThemeColors, useNutritionStore } from '../../../store';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { localDateStr } from '../../../utils/date';
@@ -42,7 +42,7 @@ interface Props {
 
 export const QuickMeals: React.FC<Props> = ({ selectedDate }) => {
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { addMeal, dailyLog } = useNutritionStore();
 
   // ── Persistent user edits ────────────────────────────────────────────

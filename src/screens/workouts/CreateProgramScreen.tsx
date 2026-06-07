@@ -206,7 +206,7 @@ export const CreateProgramScreen: React.FC<{ navigation: any }> = ({ navigation 
     }
     setSaving(true);
     try {
-      await workoutService.createProgram({
+      const result: any = await workoutService.createProgram({
         name: state.name.trim(),
         type: 'custom',
         goal: state.goal ?? undefined,
@@ -222,7 +222,22 @@ export const CreateProgramScreen: React.FC<{ navigation: any }> = ({ navigation 
       // immediately in the Programs tab after we navigate back.
       await fetchPrograms().catch(() => {});
       haptic.success();
-      Alert.alert('Готово', 'Программа сохранена. Заполни дни упражнениями в карточке программы.');
+      // The server reports how many requested days actually persisted. A day
+      // is dropped when its exercises aren't found server-side — surface that
+      // honestly instead of a blanket "Готово" that hides the data loss.
+      const requested: number = result?.daysRequested ?? 0;
+      const created: number = result?.daysCreated ?? 0;
+      if (requested > 0 && created < requested) {
+        Alert.alert(
+          'Сохранено частично',
+          `Программа создана, но дней с упражнениями сохранено ${created} из ${requested}. ` +
+          'Некоторые упражнения не найдены на сервере — добавь их вручную в карточке программы.',
+        );
+      } else if (requested === 0) {
+        Alert.alert('Готово', 'Программа сохранена. Заполни дни упражнениями в карточке программы.');
+      } else {
+        Alert.alert('Готово', 'Программа сохранена.');
+      }
       navigation.goBack();
     } catch (e) {
       haptic.error();

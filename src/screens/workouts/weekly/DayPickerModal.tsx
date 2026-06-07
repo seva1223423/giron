@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView, useWindowDimensions } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
-import { useThemeStore, useWorkoutStore } from '../../../store';
+import { useThemeColors, useWorkoutStore } from '../../../store';
 import { Button } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
@@ -45,7 +45,7 @@ interface Props {
 
 export const DayPickerModal: React.FC<Props> = ({ pickerDay, weekPlan, allExercises, userTemplateEntries, onSelect, onClose }) => {
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { routines } = useWorkoutStore();
   const { height: screenHeight } = useWindowDimensions();
 

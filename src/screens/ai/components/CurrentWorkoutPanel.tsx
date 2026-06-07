@@ -21,13 +21,57 @@
  *    `следующее упражнение` already covers the user need, and keeping
  *    the panel read-only avoids touching the store API.
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useWorkoutStore } from '../../../store';
-import { useThemeStore } from '../../../store/useThemeStore';
+import { useThemeColors } from '../../../store/useThemeStore';
+import { flashBus, flashKey } from '../../../utils/flashBus';
+
+/**
+ * One set chip. Subscribes to the flashBus so that when a chat command
+ * mutates this exact set (e.g. `done`, `+подход 100×6`, `вес 80`), the
+ * chip briefly flashes solid gold — the Direction A "чип вспыхивает
+ * золотом" cue that shows the user WHAT the parser changed.
+ */
+const SetChip: React.FC<{ exIdx: number; setIdx: number; completed: boolean; colors: any }> = ({
+  exIdx,
+  setIdx,
+  completed,
+  colors,
+}) => {
+  const [flash, setFlash] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    const off = flashBus.on(flashKey.set(exIdx, setIdx), () => {
+      setFlash(true);
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => setFlash(false), 900);
+    });
+    return () => {
+      off();
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [exIdx, setIdx]);
+
+  return (
+    <View
+      style={[
+        styles.chip,
+        completed
+          ? { backgroundColor: colors.primary + '33', borderColor: colors.primary }
+          : { backgroundColor: 'transparent', borderColor: colors.border },
+        flash ? { backgroundColor: colors.primary, borderColor: colors.primary } : null,
+      ]}
+    >
+      {completed ? (
+        <Text style={[styles.chipTick, { color: flash ? colors.textInverse : colors.primary }]}>✓</Text>
+      ) : null}
+    </View>
+  );
+};
 
 export const CurrentWorkoutPanel: React.FC = () => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const activeWorkout = useWorkoutStore((s) => s.activeWorkout);
   const [collapsed, setCollapsed] = useState(false);
 
@@ -100,31 +144,18 @@ export const CurrentWorkoutPanel: React.FC = () => {
                   {ex.exercise?.name ?? `Упр. ${exIdx + 1}`}
                 </Text>
                 <View style={styles.chipRow}>
+                  {/* Each chip subscribes to the flashBus so a chat
+                      command targeting it flashes gold. The ✓ is a thin
+                      Unicode tick used as iconography (not an emoji), so
+                      the "no emoji in UI" rule is satisfied. */}
                   {ex.sets.map((s, setIdx) => (
-                    <View
+                    <SetChip
                       key={setIdx}
-                      style={[
-                        styles.chip,
-                        s.completed
-                          ? {
-                              backgroundColor: colors.primary + '33',
-                              borderColor: colors.primary,
-                            }
-                          : {
-                              backgroundColor: 'transparent',
-                              borderColor: colors.border,
-                            },
-                      ]}
-                    >
-                      {s.completed ? (
-                        // Use a thin checkmark glyph — small enough that
-                        // the per-CLAUDE.md "no emoji in UI" rule is fine
-                        // (this is a Unicode tick used as iconography, not
-                        // an emoji ⭐). The Sticker component is overkill
-                        // at 8pt.
-                        <Text style={[styles.chipTick, { color: colors.primary }]}>✓</Text>
-                      ) : null}
-                    </View>
+                      exIdx={exIdx}
+                      setIdx={setIdx}
+                      completed={s.completed}
+                      colors={colors}
+                    />
                   ))}
                 </View>
               </View>

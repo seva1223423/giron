@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, TextInput, FlatList, StyleSheet } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
-import { useThemeStore, useNutritionStore } from '../../../store';
+import { useThemeColors, useNutritionStore } from '../../../store';
 import { Card } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
@@ -18,7 +18,7 @@ interface Props {
 
 export const FoodSearchTab: React.FC<Props> = ({ selectedFood, onSelectFood, weightGrams, onWeightChange, computedNutrition }) => {
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { dailyLog, saveFoodItem, savedFoods } = useNutritionStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [savedConfirm, setSavedConfirm] = useState(false);

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<title>HomeHeader — V1 Current</title>
+<style>
+  :root {
+    --bg: #0E0E0F; --surface: #17171A; --surface-elev: #1E1E22;
+    --primary: #D4B07A;
+    --text: #F4F1EA; --text-secondary: #C9C7C0; --text-tertiary: #8A8780;
+    --border: rgba(255, 255, 255, 0.10);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif; padding: 40px; width: 375px; }
+  .label { color: var(--text-tertiary); font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 12px; }
+
+  .header { display: flex; justify-content: space-between; align-items: flex-start; }
+  .left { flex: 1; margin-right: 14px; }
+  .meta { color: var(--text-tertiary); font-size: 11px; text-transform: uppercase; letter-spacing: 1.3px; font-weight: 600; }
+  .greet { color: var(--text); font-size: 26px; font-weight: 700; margin-top: 4px; letter-spacing: -0.3px; }
+  .bell-wrap { position: relative; }
+  .bell {
+    width: 40px; height: 40px; border-radius: 14px;
+    background: var(--surface-elev); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; color: var(--text);
+  }
+  .dot {
+    position: absolute; top: -2px; right: -2px;
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--primary); border: 2px solid var(--bg);
+  }
+</style>
+</head>
+<body>
+  <div class="label">V1 — Current (production)</div>
+  <div class="header">
+    <div class="left">
+      <div class="meta">ПОНЕДЕЛЬНИК, 27 МАЯ</div>
+      <div class="greet">Привет, Sevka</div>
+    </div>
+    <div class="bell-wrap">
+      <div class="bell">🔔</div>
+      <div class="dot"></div>
+    </div>
+  </div>
+</body>
+</html>

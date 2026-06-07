@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
-import { useThemeStore, useWorkoutStore } from '../../../store';
+import { useThemeColors, useWorkoutStore } from '../../../store';
 import { Card } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
@@ -37,7 +37,7 @@ interface Props {
 
 export const WorkoutCard: React.FC<Props> = ({ workout, isExpanded, onToggle, navigation }) => {
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { activeWorkout, routines, startWorkoutFromRoutine } = useWorkoutStore();
   const [repeating, setRepeating] = useState(false);
   const routineName = workout.routineId ? routines.find((r) => r.id === workout.routineId)?.name : undefined;

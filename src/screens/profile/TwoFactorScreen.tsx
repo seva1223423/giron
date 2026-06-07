@@ -3,7 +3,7 @@ import {
   View, Text, Image, TextInput, TouchableOpacity, ScrollView,
   ActivityIndicator, Alert, StyleSheet,
 } from 'react-native';
-import { useThemeStore } from '../../store';
+import { useThemeColors } from '../../store';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { api } from '../../services/api';
@@ -24,7 +24,7 @@ interface SetupData {
 
 export const TwoFactorScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const safeTop = useSafeTop();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const [status, setStatus] = useState<TwoFAStatus | null>(null);
   const [setupData, setSetupData] = useState<SetupData | null>(null);
   const [loading, setLoading] = useState(true);

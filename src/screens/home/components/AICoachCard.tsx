@@ -7,60 +7,123 @@ import { Icon } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 
+/**
+ * One chip rendered above the hero copy. Use to surface a SINGLE
+ * data signal driving the recommendation (streak count, days since
+ * last workout, last RPE, sleep hours). Keep chips ≤2 — more is
+ * noise.
+ *
+ * `accent: 'primary'` → gold tint (default for workout-day).
+ * `accent: 'sage'`    → green tint (rest-day signals).
+ * `accent: 'muted'`   → neutral border-only (secondary context).
+ */
+export interface AICoachChip {
+  /** Short label shown after the icon. ≤ ~20 chars. */
+  text: string;
+  /** Emoji or 1-glyph symbol. Compact; not an Icon-name to keep the
+   *  component self-contained without pulling the IconName union. */
+  icon: string;
+  accent?: 'primary' | 'sage' | 'muted';
+}
+
 interface Props {
   navigation: any;
-  /** One-line recommendation copy from the AI coach, e.g.
-   *  "Сегодня — грудь и трицепс. Жим штанги на 2.5 кг больше". */
+  /** One-line recommendation copy from the AI coach. */
   recommendation: string;
-  /** Uppercase eyebrow — the "ТРЕНЕР РЕКОМЕНДУЕТ" label. */
+  /** Visual mode. Default `'workout'` matches the existing
+   *  production look. `'rest'` swaps to a sage palette + softer
+   *  CTA, intended when restDayRecommendation has signal. */
+  mode?: 'workout' | 'rest';
+  /** Optional eyebrow override. Defaults vary by mode:
+   *  workout → "Тренер рекомендует", rest → "День восстановления". */
   eyebrow?: string;
-  /** Primary CTA label (gold pill). */
+  /** Optional context chips shown between eyebrow and hero. Show ≤2. */
+  chips?: AICoachChip[];
+  /** Optional sub-text shown below the hero (the WHY paragraph in
+   *  rest mode: "Тяжёлая тренировка + недосып. 24-48 ч..."). */
+  subText?: string;
+  /** Primary CTA label. Defaults per mode. */
   ctaLabel?: string;
   onPressCta: () => void;
-  /** Secondary "regenerate" tap — refreshes the recommendation. */
+  /** Refresh button. Workout-mode only — hidden in rest mode where
+   *  refreshing rest advice would be a weird UX. */
   onPressRefresh?: () => void;
-  /** Active workout in progress — when set, card switches to a "Идёт
-   *  тренировка" state with a Continue CTA instead of the recommendation. */
+  /** Optional secondary action — rest-mode shows "Всё равно
+   *  тренироваться" if provided. Workout-mode ignores it. */
+  onPressSecondary?: () => void;
+  secondaryLabel?: string;
+  /** Active workout in progress — when set, the card overrides mode/rest
+   *  and shows an "Идёт тренировка" state with a Continue CTA. Highest
+   *  priority: a live session is the most actionable thing on the home
+   *  screen. (Merged from master's b69c12e6 active-state design.) */
   activeWorkout?: { name: string } | null;
-  /** Tap-through to the active workout screen (only used in active state). */
+  /** Tap-through to the ActiveWorkout screen (used only in active state). */
   onPressContinue?: () => void;
 }
 
 /**
- * Hero AI coach card — pixel copy of the Direction A home design:
+ * Hero AI coach card — Direction A design.
  *
- *   • Warm graphite → deep-amber 135° linear gradient background
- *   • Soft gold radial glow in the top-right
- *   • Uppercase eyebrow "ТРЕНЕР РЕКОМЕНДУЕТ" with a small gold square icon
- *   • 22pt display recommendation copy, tightly tracked
- *   • Gold pill primary CTA + circular refresh button to the right
+ * Variants (audit R-2026-05-22, /goal-mode design exploration):
+ *   - V1 (production): clean hero, no context. Trust feels assumed.
+ *   - V2 chips: signal-driven context above hero. ← adopted as default
+ *   - V4 rest-day: alt palette + softer CTAs. ← adopted as `mode='rest'`
+ *   - V5 smart-state: one component with conditional branches. ← THIS
  *
- * Data in, UI out — parent decides the recommendation text and wires
- * the CTAs. The SVG gradient/glow keeps things on-brand without pulling
- * in an extra gradient library (we already depend on react-native-svg).
+ * `mode` switches the palette + default copy. `chips` surfaces the
+ * data driving the recommendation (streak / days since / RPE / sleep).
+ *
+ * Backwards-compat: existing call sites that pass only
+ * (recommendation, onPressCta, onPressRefresh) get the V1 look —
+ * no chips, no subtext, gold palette. Adding chips upgrades to V2;
+ * mode='rest' switches to V4.
+ *
+ * Layout reference: docs/design/variants/aiCoachCard/v5-smart-state.png
  */
 export const AICoachCard: React.FC<Props> = ({
   recommendation,
-  eyebrow = 'Сегодня от ИИ',
-  ctaLabel = 'Начать тренировку',
+  mode = 'workout',
+  eyebrow,
+  chips,
+  subText,
+  ctaLabel,
   onPressCta,
   onPressRefresh,
+  onPressSecondary,
+  secondaryLabel,
   activeWorkout,
   onPressContinue,
 }) => {
   const colors = useThemeColors();
   const haptic = useHaptic();
 
-  // Conditional hero: when a workout is in progress, switch the card to
-  // "Идёт тренировка" + Continue CTA. Recommendation copy is irrelevant
-  // while the user is mid-set — they want a way back into the live screen.
+  // Active workout wins over everything — a live session is the single
+  // most actionable card on the home screen. Falls back to rest/workout.
   const isActive = !!activeWorkout;
-  const resolvedEyebrow = isActive ? 'Идёт тренировка' : eyebrow;
-  const resolvedHeadline = isActive
+  const isRest = !isActive && mode === 'rest';
+
+  // Sage accent for rest-day. Matches the V4 mockup palette — chosen
+  // for "recovery" semantics (green = nature/rest in Direction A).
+  const SAGE = '#9AC28C';
+  const accentColor = isRest ? SAGE : colors.primary;
+
+  const eyebrowText = isActive
+    ? 'Идёт тренировка'
+    : eyebrow ?? (isRest ? 'День восстановления' : 'Тренер рекомендует');
+  const heroText = isActive
     ? activeWorkout?.name ?? 'Текущая тренировка'
     : recommendation;
-  const resolvedCtaLabel = isActive ? 'Продолжить' : ctaLabel;
-  const resolvedOnPressCta = isActive ? (onPressContinue ?? onPressCta) : onPressCta;
+  const finalCtaLabel = isActive
+    ? 'Продолжить'
+    : ctaLabel ?? (isRest ? 'Обзор недели' : 'Начать тренировку');
+  const finalOnPressCta = isActive ? (onPressContinue ?? onPressCta) : onPressCta;
+
+  // Gradient stops — warmer for workout, cooler/sage for rest.
+  const gradStops = isRest
+    ? { a: '#14201A', b: '#1A2520', c: '#1E2A22' }
+    : { a: '#1E1810', b: '#2A1F12', c: '#382612' };
+  const glowColor = accentColor;
+  const glowOpacity = isRest ? 0.12 : 0.2;
 
   return (
     <View
@@ -68,13 +131,13 @@ export const AICoachCard: React.FC<Props> = ({
         position: 'relative',
         borderRadius: 28,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: isRest ? SAGE + '2E' /* 18% */ : colors.border,
         marginBottom: spacing.lg,
         overflow: 'hidden',
       }}
     >
-      {/* Background gradient — graphite (#1E1810) → warm brown (#2A1F12) →
-          amber (#382612). Matches the design export exactly. */}
+      {/* Background gradient + corner glow — same SVG strategy as V1;
+          only the colour stops change per mode. */}
       <Svg
         width="100%"
         height="100%"
@@ -82,17 +145,14 @@ export const AICoachCard: React.FC<Props> = ({
         preserveAspectRatio="none"
       >
         <Defs>
-          {/* Direction A brand-warm gradient (hand-tuned, not from token).
-              Three stops form the warm graphite→amber wash that makes this
-              card feel like the only "lit" surface on the home screen. */}
           <LinearGradient id="aiBg" x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0" stopColor="#1E1810" stopOpacity={1} />
-            <Stop offset="0.6" stopColor="#2A1F12" stopOpacity={1} />
-            <Stop offset="1" stopColor="#382612" stopOpacity={1} />
+            <Stop offset="0" stopColor={gradStops.a} stopOpacity={1} />
+            <Stop offset="0.6" stopColor={gradStops.b} stopOpacity={1} />
+            <Stop offset="1" stopColor={gradStops.c} stopOpacity={1} />
           </LinearGradient>
           <RadialGradient id="aiGlow" cx="85%" cy="0%" rx="45%" ry="45%">
-            <Stop offset="0" stopColor={colors.primary} stopOpacity={0.2} />
-            <Stop offset="1" stopColor={colors.primary} stopOpacity={0} />
+            <Stop offset="0" stopColor={glowColor} stopOpacity={glowOpacity} />
+            <Stop offset="1" stopColor={glowColor} stopOpacity={0} />
           </RadialGradient>
         </Defs>
         <Rect width="100%" height="100%" fill="url(#aiBg)" />
@@ -100,35 +160,82 @@ export const AICoachCard: React.FC<Props> = ({
       </Svg>
 
       <View style={{ padding: 22, position: 'relative' }}>
-        {/* Eyebrow: small gold square + uppercase label */}
+        {/* Eyebrow: small gold/sage square + uppercase label */}
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md }}>
           <View
             style={{
               width: 28,
               height: 28,
               borderRadius: 8,
-              backgroundColor: colors.primary,
+              backgroundColor: accentColor,
               alignItems: 'center',
               justifyContent: 'center',
               marginRight: spacing.sm,
             }}
           >
-            <Icon name="spark" size={16} color={colors.textInverse} strokeWidth={2.2} />
+            <Icon
+              name={isActive ? 'play' : isRest ? 'moon' : 'spark'}
+              size={16}
+              color={colors.textInverse}
+              strokeWidth={2.2}
+            />
           </View>
           <Text
-            style={[
-              typography.metaLabel,
-              {
-                color: colors.primary,
-                textTransform: 'uppercase',
-              },
-            ]}
+            style={{
+              color: accentColor,
+              fontSize: 12,
+              fontWeight: '600',
+              letterSpacing: 1.2,
+              textTransform: 'uppercase',
+            }}
           >
-            {resolvedEyebrow}
+            {eyebrowText}
           </Text>
         </View>
 
-        {/* Hero recommendation copy — 22pt display, tight tracking */}
+        {/* Context chips — V2 + V5. Empty array / undefined → no row */}
+        {chips && chips.length > 0 && (
+          <View style={{ flexDirection: 'row', gap: 6, marginBottom: spacing.sm, flexWrap: 'wrap' }}>
+            {chips.slice(0, 3).map((chip, i) => {
+              const isPrimary = (chip.accent ?? (isRest ? 'sage' : 'primary')) === 'primary';
+              const isSage = chip.accent === 'sage';
+              const tintColor = isPrimary ? colors.primary : isSage ? SAGE : colors.textSecondary;
+              const borderTint = isPrimary
+                ? colors.primary + '4D'
+                : isSage
+                  ? SAGE + '4D'
+                  : 'rgba(255,255,255,0.10)';
+              const bgTint = isPrimary
+                ? colors.primary + '1A'
+                : isSage
+                  ? SAGE + '1A'
+                  : 'rgba(255,255,255,0.06)';
+              return (
+                <View
+                  key={i}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 5,
+                    paddingHorizontal: 10,
+                    paddingVertical: 4,
+                    borderRadius: 100,
+                    backgroundColor: bgTint,
+                    borderWidth: 1,
+                    borderColor: borderTint,
+                  }}
+                >
+                  <Text style={{ fontSize: 12 }}>{chip.icon}</Text>
+                  <Text style={{ color: tintColor, fontSize: 11, fontWeight: '600' }}>
+                    {chip.text}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        )}
+
+        {/* Hero recommendation copy */}
         <Text
           style={[
             typography.h3,
@@ -139,36 +246,54 @@ export const AICoachCard: React.FC<Props> = ({
             },
           ]}
         >
-          {resolvedHeadline}
+          {heroText}
         </Text>
 
-        {/* Action row: gold pill CTA + circular refresh */}
+        {/* Optional WHY paragraph — rest-mode usage. */}
+        {subText && (
+          <Text
+            style={{
+              color: colors.textSecondary,
+              fontSize: 13,
+              lineHeight: 18,
+              marginTop: 10,
+              maxWidth: 290,
+            }}
+          >
+            {subText}
+          </Text>
+        )}
+
+        {/* Action row. Layout depends on mode + which secondary is provided. */}
         <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg }}>
           <TouchableOpacity
-            onPress={() => { haptic.medium(); resolvedOnPressCta(); }}
-            accessibilityLabel={resolvedCtaLabel}
+            onPress={() => { haptic.medium(); finalOnPressCta(); }}
+            accessibilityLabel={finalCtaLabel}
             accessibilityRole="button"
             style={{
               flex: 1,
               height: 44,
               borderRadius: borderRadius.lg,
-              backgroundColor: colors.primary,
+              backgroundColor: isRest ? 'transparent' : accentColor,
+              borderWidth: isRest ? 1 : 0,
+              borderColor: isRest ? accentColor : 'transparent',
               alignItems: 'center',
               justifyContent: 'center',
-              // PHILOSOPHY §1 gold halo — the one primary CTA on the
-              // home screen earns the glow.
-              shadowColor: colors.primary,
-              shadowOpacity: 0.35,
-              shadowRadius: 16,
-              shadowOffset: { width: 0, height: 0 },
-              elevation: 8,
             }}
           >
-            <Text style={[typography.smallMedium, { color: colors.textInverse }]}>
-              {resolvedCtaLabel}
+            <Text
+              style={[
+                typography.smallMedium,
+                { color: isRest ? accentColor : colors.textInverse },
+              ]}
+            >
+              {finalCtaLabel}
             </Text>
           </TouchableOpacity>
-          {!isActive && onPressRefresh && (
+
+          {/* Workout-mode: refresh icon. Rest-mode: optional secondary
+              text button ("Всё равно тренироваться"). Active-mode: neither. */}
+          {!isRest && !isActive && onPressRefresh && (
             <TouchableOpacity
               onPress={() => { haptic.selection(); onPressRefresh(); }}
               accessibilityLabel="Обновить рекомендацию"
@@ -177,7 +302,7 @@ export const AICoachCard: React.FC<Props> = ({
                 width: 44,
                 height: 44,
                 borderRadius: borderRadius.lg,
-                backgroundColor: colors.border,
+                backgroundColor: 'rgba(255,255,255,0.08)',
                 borderWidth: 1,
                 borderColor: colors.border,
                 alignItems: 'center',
@@ -185,6 +310,27 @@ export const AICoachCard: React.FC<Props> = ({
               }}
             >
               <Icon name="refresh" size={18} color={colors.text} />
+            </TouchableOpacity>
+          )}
+          {isRest && onPressSecondary && (
+            <TouchableOpacity
+              onPress={() => { haptic.selection(); onPressSecondary(); }}
+              accessibilityLabel={secondaryLabel ?? 'Всё равно тренироваться'}
+              accessibilityRole="button"
+              style={{
+                height: 44,
+                paddingHorizontal: 14,
+                borderRadius: borderRadius.lg,
+                backgroundColor: 'rgba(255,255,255,0.08)',
+                borderWidth: 1,
+                borderColor: colors.border,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Text style={[typography.smallMedium, { color: colors.textSecondary }]}>
+                {secondaryLabel ?? 'Всё равно'}
+              </Text>
             </TouchableOpacity>
           )}
         </View>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Modal, Image, StyleSheet } from 'react-native';
-import { useThemeStore } from '../../../../store';
+import { useThemeColors } from '../../../../store';
 import { Card } from '../../../../components';
 import { typography } from '../../../../theme';
 import { spacing, borderRadius } from '../../../../theme/spacing';
@@ -13,7 +13,7 @@ interface Props {
 }
 
 export const PhotoNoteModal: React.FC<Props> = ({ visible, pendingPhotoUri, onClose, onSave }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const [note, setNote] = useState('');
 
   const handleSave = () => { onSave(note.trim()); setNote(''); };

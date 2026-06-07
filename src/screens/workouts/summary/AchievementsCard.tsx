@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { Card } from '../../../components';
 import { AchievementSticker } from '../../../components/Sticker';
 import { typography } from '../../../theme';
@@ -14,7 +14,7 @@ import type { Achievement } from '../../../utils/achievements';
 interface Props { achievements: Achievement[] }
 
 export const AchievementsCard: React.FC<Props> = ({ achievements }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   if (achievements.length === 0) return null;
 
   return (

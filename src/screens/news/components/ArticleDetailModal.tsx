@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Modal, Share, StyleSheet } from 'react-native';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import type { NewsArticle } from '../../../types';
@@ -35,7 +35,7 @@ interface Props {
 }
 
 export const ArticleDetailModal: React.FC<Props> = ({ article, isSaved, onClose, onToggleSave }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
 
   const handleShare = async () => {
     if (!article) return;

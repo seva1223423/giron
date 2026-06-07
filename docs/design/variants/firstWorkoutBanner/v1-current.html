@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<title>FirstWorkoutBanner — V1 Current (baseline)</title>
+<style>
+  /* Direction A palette — pinned to src/theme/colors.ts */
+  :root {
+    --bg: #0E0E0F;
+    --surface: #17171A;
+    --primary: #D4B07A;
+    --text: #F4F1EA;
+    --text-secondary: #C9C7C0;
+    --text-tertiary: #8A8780;
+    --text-inverse: #0A0A0A;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+    padding: 40px;
+    width: 375px;
+  }
+  .label {
+    color: var(--text-tertiary);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    margin-bottom: 12px;
+  }
+
+  /* Current banner — what's in production now */
+  .banner {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 10px;
+    border-radius: 12px;
+    border: 1px solid rgba(212, 176, 122, 0.25);
+    background: rgba(212, 176, 122, 0.06);
+    padding: 12px;
+  }
+  .icon {
+    width: 20px; height: 20px;
+    flex-shrink: 0;
+    color: var(--primary);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .body {
+    flex: 1;
+    min-width: 0;
+  }
+  .title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--primary);
+    margin: 0 0 2px 0;
+  }
+  .text {
+    font-size: 12px;
+    line-height: 18px;
+    color: var(--text-secondary);
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .actions {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .cta {
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: var(--primary);
+    border: 1px solid var(--primary);
+    color: var(--text-inverse);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .close {
+    padding: 4px;
+    color: var(--text-secondary);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    transform: rotate(45deg);
+  }
+</style>
+</head>
+<body>
+  <div class="label">V1 — Current (baseline)</div>
+  <div class="banner">
+    <div class="icon">🏋</div>
+    <div class="body">
+      <h3 class="title">Время первой тренировки</h3>
+      <p class="text">Ты с нами больше суток — попробуй короткую тренировку. Без неё профиль не оживает.</p>
+    </div>
+    <div class="actions">
+      <button class="cta">Начать</button>
+      <button class="close">+</button>
+    </div>
+  </div>
+</body>
+</html>

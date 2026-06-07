@@ -3,9 +3,9 @@ import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'rea
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
 import { useAchievementCheck } from '../../hooks/useAchievementCheck';
-import { useThemeStore, useNutritionStore } from '../../store';
+import { useThemeColors, useNutritionStore } from '../../store';
 import type { Achievement } from '../../utils/achievements';
-import { Button, Tooltip, Icon } from '../../components';
+import { Button, Icon } from '../../components';
 import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
 import { NutritionItem } from '../../types';
@@ -20,7 +20,7 @@ const todayDate = () => localDateStr(new Date());
 export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const safeTop = useSafeTop();
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const [selectedDate, setSelectedDate] = useState(todayDate);
   const [showGoalsModal, setShowGoalsModal] = useState(false);
   const [showQuickAddModal, setShowQuickAddModal] = useState(false);
@@ -79,8 +79,11 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
           accessibilityLabel="Настроить дневные цели по КБЖУ"
           accessibilityRole="button"
         >
-          <View style={{ backgroundColor: colors.primary + '15', paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: colors.primary + '35' }}>
-            <Text style={[typography.smallMedium, { color: colors.primary }]} numberOfLines={1}>Цели</Text>
+          {/* Redesign 2026-05-31 §3.2: round target-icon button instead of a
+              text pill — one icon language across the screen, less competition
+              with the "Питание" title. */}
+          <View style={[styles.goalsBtn, { backgroundColor: colors.primary + '15', borderColor: colors.primary + '35' }]}>
+            <Icon name="target" size={18} color={colors.primary} strokeWidth={2} />
           </View>
         </TouchableOpacity>
       </View>
@@ -110,9 +113,12 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
 
       <DateNavigator selectedDate={selectedDate} onChange={setSelectedDate} />
       <DailyOverview selectedDate={selectedDate} />
-      <QuickMeals selectedDate={selectedDate} />
-      <Tooltip tipId="nutrition-scan" text="Нажми кнопку ниже для сканирования еды по фото или штрих-коду" />
 
+      {/* Primary daily action FIRST — logging food is why the user opens this
+          screen daily, so the scan CTA sits right under the КБЖУ ring, above
+          the quick-add rows. (Redesign 2026-05-31 §3.1.) The per-launch Tooltip
+          над кнопкой убран — иконка камеры самоочевидна, подсказка добавляла
+          визуальный шум на каждый заход. */}
       <Button
         title="Сканировать еду по фото"
         onPress={handlePhotoScan}
@@ -124,7 +130,10 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
         accessibilityHint="Откроет камеру для AI-анализа продуктов"
       />
 
+      <QuickMeals selectedDate={selectedDate} />
       <SavedFoodsQuickAdd onQuickAdd={handleQuickAdd} />
+
+      {/* Secondary / overview blocks below the fold. */}
       <WaterTracker selectedDate={selectedDate} />
       <WeekStats />
 
@@ -139,6 +148,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { paddingHorizontal: spacing.xl, paddingBottom: spacing.huge },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
+  goalsBtn: { width: 38, height: 38, borderRadius: 19, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   tabsScroller: {
     marginHorizontal: -spacing.xl,
     marginBottom: spacing.md,

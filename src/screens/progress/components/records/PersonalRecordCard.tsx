@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { useThemeStore } from '../../../../store';
+import { useThemeColors } from '../../../../store';
 import { Card, FadeIn } from '../../../../components';
 import { LineChart } from '../LineChart';
 import { typography } from '../../../../theme';
@@ -29,7 +29,7 @@ interface Props {
 }
 
 export const PersonalRecordCard: React.FC<Props> = ({ record, topRM, isSelected, onPress, oneRMHistory, animDelay = 0 }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
 
   return (
     <FadeIn delay={animDelay}>

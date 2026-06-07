@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<title>WeekPlanStrip — V1 Current</title>
+<style>
+  :root {
+    --bg: #0E0E0F; --surface: #17171A;
+    --primary: #D4B07A;
+    --text: #F4F1EA; --text-secondary: #C9C7C0; --text-tertiary: #8A8780;
+    --text-inverse: #0A0A0A;
+    --border: rgba(255, 255, 255, 0.10);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif; padding: 40px; width: 460px; }
+  .label { color: var(--text-tertiary); font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 12px; }
+
+  .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 0 4px; }
+  .title { color: var(--text); font-size: 16px; font-weight: 700; }
+  .all { color: var(--primary); font-size: 12px; font-weight: 600; }
+  .strip { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+  .strip::-webkit-scrollbar { display: none; }
+  .card {
+    min-width: 96px; padding: 14px;
+    border-radius: 18px;
+    background: var(--surface); border: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .card.active {
+    background: var(--primary); border-color: var(--primary);
+  }
+  .card-head {
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .day-letter {
+    font-size: 10px; font-weight: 500; letter-spacing: 1.5px;
+    text-transform: uppercase; color: var(--text-secondary); opacity: 0.5;
+  }
+  .active .day-letter { color: var(--text-inverse); opacity: 0.7; }
+  .check { color: var(--text); font-size: 12px; font-weight: 600; }
+  .active .check { color: var(--text-inverse); }
+  .card-title {
+    margin-top: 10px;
+    font-size: 13px; font-weight: 600; line-height: 16px;
+    color: var(--text);
+  }
+  .active .card-title { color: var(--text-inverse); }
+</style>
+</head>
+<body>
+  <div class="label">V1 — Current (production)</div>
+  <div>
+    <div class="head">
+      <span class="title">План недели</span>
+      <span class="all">Все →</span>
+    </div>
+    <div class="strip">
+      <div class="card">
+        <div class="card-head">
+          <span class="day-letter">ПН</span>
+          <span class="check">✓</span>
+        </div>
+        <div class="card-title">Грудь + трицепс</div>
+      </div>
+      <div class="card active">
+        <div class="card-head">
+          <span class="day-letter">ВТ</span>
+        </div>
+        <div class="card-title">Спина + бицепс</div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <span class="day-letter">СР</span>
+        </div>
+        <div class="card-title">Кардио 30 мин</div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <span class="day-letter">ЧТ</span>
+        </div>
+        <div class="card-title">Ноги</div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <span class="day-letter">ПТ</span>
+        </div>
+        <div class="card-title">Плечи + пресс</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

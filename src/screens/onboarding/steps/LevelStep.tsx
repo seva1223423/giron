@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { FitnessLevel } from '../../../types';
@@ -18,7 +18,7 @@ interface Props {
 }
 
 export const LevelStep: React.FC<Props> = ({ level, onSelect }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   return (
     <View style={styles.container}>
       <Text style={[typography.h2, { color: colors.text, marginBottom: spacing.sm }]}>Уровень подготовки</Text>

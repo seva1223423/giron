@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
-import { useThemeStore } from '../../store';
+import { useThemeColors } from '../../store';
 import { Button, Input } from '../../components';
 import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
 import { authService } from '../../services/authService';
 
 export const ResetPasswordScreen: React.FC<{ route: any; navigation: any }> = ({ route, navigation }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const [token, setToken] = useState(route.params?.token || '');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');

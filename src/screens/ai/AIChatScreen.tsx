@@ -1,29 +1,31 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { ScrollView, KeyboardAvoidingView, Platform, StyleSheet, TouchableOpacity, Text, View } from 'react-native';
+import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, TouchableOpacity, Text, ActivityIndicator, View } from 'react-native';
+import type { ListRenderItemInfo } from 'react-native';
 import * as Speech from 'expo-speech';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useAuthStore, useWorkoutStore, useNutritionStore, useSubscriptionStore, useCardioStore } from '../../store';
 import { useMeasurementsStore } from '../../store/useMeasurementsStore';
 import { useSleepStore } from '../../store/useSleepStore';
 import { useSettingsStore } from '../../store/useSettingsStore';
-import { PaywallModal, Spinner, Icon, type IconName } from '../../components';
-import { useThemeStore } from '../../store/useThemeStore';
+import { PaywallModal, type IconName } from '../../components';
 import { ChatMessage } from '../../types';
 import { aiService, getApiError, AIActionResult, AIMeta, AIStarter, nutritionService, workoutService } from '../../services';
 import { applyAINavigation } from '../../utils/aiNavigation';
 import {
   ChatHeader, MessageBubble, QuickPromptsList, TypingIndicator,
   ActionsBar, CelebrationBar, ChatInputBar, UndoToast, useDynamicPrompts,
-  SuggestionChips, FirstPromptCta,
+  SuggestionChips, FirstPromptCta, ContextStrip, ChatWidgetView,
 } from './components';
-import { typography } from '../../theme';
-import { spacing } from '../../theme/spacing';
+import type { ChatWidget } from './chatWidgets';
 import { localDateStr } from '../../utils/date';
 import { useAIChatCommands } from './useAIChatCommands';
+import { drainChatWidget } from './chatWidgets';
 import { CurrentWorkoutPanel } from './components/CurrentWorkoutPanel';
+import { toast } from '../../components/app-modal/toast';
 
-// Hand-picked icon per prompt by topic — beats a generic glyph because the
-// user can scan icons at a glance to find the kind of help they want.
+// Round 233 + master polish: prompts carry an on-brand SVG IconName
+// instead of a raw emoji glyph (CLAUDE.md bans glyphs in UI).
+// QuickPromptsList renders prompt.iconName directly.
 const FALLBACK_PROMPTS: { iconName: IconName; text: string }[] = [
   { iconName: 'target',   text: 'Составь программу тренировок под мои цели' },
   { iconName: 'apple',    text: 'Рассчитай мне КБЖУ и составь рацион' },
@@ -46,9 +48,9 @@ const FALLBACK_PROMPTS: { iconName: IconName; text: string }[] = [
   { iconName: 'apple',    text: 'Что приготовить под лёгкий ужин до 500 ккал?' },
 ];
 
-// Server starters arrive with an emoji glyph; we don't render those (banned).
 // Map by first character of the emoji to the closest Icon name; everything
-// else falls through to a neutral default.
+// else falls through to a neutral default. Used for server-provided starters
+// which still arrive with an emoji field.
 function starterEmojiToIcon(emoji: string | undefined): IconName {
   if (!emoji) return 'spark';
   const first = Array.from(emoji)[0] ?? '';
@@ -68,16 +70,42 @@ function starterEmojiToIcon(emoji: string | undefined): IconName {
 
 export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const haptic = useHaptic();
-  const colors = useThemeStore((s) => s.colors);
   const { user, fetchProfile } = useAuthStore();
-  const { fetchHistory, fetchPrograms, setWeekPlanDay, weekPlan } = useWorkoutStore();
-  const { setTargets, syncMealsFromServer, defaultTargets, getDayLog, addWater, applyServerTargets } = useNutritionStore();
-  const { getWeekSessions, syncFromServer: syncCardio, addSession: addCardioSession } = useCardioStore();
-  const { getLastEntries: getSleepEntries, syncFromServer: syncSleep } = useSleepStore();
-  const { consumeAiMessage, isPremiumActive, aiMessagesLeft } = useSubscriptionStore();
-  const { setRestTimerDefault, setNotificationsEnabled, setReminderHour, setWaterRemindersEnabled, setWorkoutDurationGoal } = useSettingsStore();
-  const { addEntry: addMeasurementEntry } = useMeasurementsStore();
-  const scrollRef = useRef<ScrollView>(null);
+  // Per-slice selectors — bare destructure pulls every field of every
+  // store (~25 fields across 7 stores). During streaming setMessages
+  // fires 30+ times/sec; any tick of any store re-renders the whole
+  // chat list. Action functions are stable refs so subscribing to them
+  // costs ~nothing.
+  const fetchHistory = useWorkoutStore((s) => s.fetchHistory);
+  const fetchPrograms = useWorkoutStore((s) => s.fetchPrograms);
+  const setWeekPlanDay = useWorkoutStore((s) => s.setWeekPlanDay);
+  const weekPlan = useWorkoutStore((s) => s.weekPlan);
+  const setTargets = useNutritionStore((s) => s.setTargets);
+  const syncMealsFromServer = useNutritionStore((s) => s.syncMealsFromServer);
+  const defaultTargets = useNutritionStore((s) => s.defaultTargets);
+  const getDayLog = useNutritionStore((s) => s.getDayLog);
+  const addWater = useNutritionStore((s) => s.addWater);
+  const applyServerTargets = useNutritionStore((s) => s.applyServerTargets);
+  const getWeekSessions = useCardioStore((s) => s.getWeekSessions);
+  const syncCardio = useCardioStore((s) => s.syncFromServer);
+  const addCardioSession = useCardioStore((s) => s.addSession);
+  const getSleepEntries = useSleepStore((s) => s.getLastEntries);
+  const syncSleep = useSleepStore((s) => s.syncFromServer);
+  const consumeAiMessage = useSubscriptionStore((s) => s.consumeAiMessage);
+  const isPremiumActive = useSubscriptionStore((s) => s.isPremiumActive);
+  const aiMessagesLeft = useSubscriptionStore((s) => s.aiMessagesLeft);
+  const setRestTimerDefault = useSettingsStore((s) => s.setRestTimerDefault);
+  const setNotificationsEnabled = useSettingsStore((s) => s.setNotificationsEnabled);
+  const setReminderHour = useSettingsStore((s) => s.setReminderHour);
+  const setWaterRemindersEnabled = useSettingsStore((s) => s.setWaterRemindersEnabled);
+  const setWorkoutDurationGoal = useSettingsStore((s) => s.setWorkoutDurationGoal);
+  const addMeasurementEntry = useMeasurementsStore((s) => s.addEntry);
+  // Audit R-2026-05-22 (vercel-react / rendering-content-visibility):
+  // FlatList instead of ScrollView so only visible rows render. With
+  // 50+ messages the ScrollView used to lay out every bubble on every
+  // re-render; FlatList virtualises and keeps a sliding window.
+  // scrollToEnd/onContentSizeChange API is identical on both.
+  const scrollRef = useRef<FlatList<ChatMessage>>(null);
   const dynamicPrompts = useDynamicPrompts();
   // Phase A: local command parser hook. Returns tryHandle(text) that short-
   // circuits the server send when a matching command (water/set/complete/
@@ -94,10 +122,10 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     const remaining = aiMessagesLeft();
     const quotaLine = isPremium
       ? ''
-      : `\n\nНа бесплатном тарифе — ${remaining} сообщений сегодня (обновляется каждый день в полночь).`;
+      : `\n\n💬 На бесплатном тарифе — ${remaining} сообщений сегодня (обновляется каждый день в полночь).`;
     return [{
       id: 'welcome', role: 'assistant', createdAt: new Date().toISOString(),
-      content: `Привет${user?.firstName ? `, ${user.firstName}` : ''}! Я Iron Coach — твой персональный ИИ-тренер.${quotaLine}\n\nМоя база знаний основана на 50+ научных исследованиях и работах лучших экспертов мира (Schoenfeld, Helms, Israetel, Nuckols, Aragon и др.).\n\nЯ могу помочь с:\n\n- Программы тренировок (зал, дом, любой уровень)\n- Питание и КБЖУ — расчёт и составление рациона\n- Техника — детальный разбор любого упражнения\n- Наука — физиология мышц, гормоны, биомеханика\n- Кардио — HIIT, LISS, совмещение с силовыми\n- Восстановление — сон, стресс, профилактика травм\n- Добавки — что работает, а что маркетинг\n- Мотивация — привычки, цели, преодоление плато\n\nВажно: мои рекомендации носят информационный характер и не заменяют консультацию врача. При болях, травмах, хронических заболеваниях и перед началом программы — проконсультируйтесь со специалистом.\n\nВыбери вопрос ниже или спроси своё!`,
+      content: `Привет${user?.firstName ? `, ${user.firstName}` : ''}! Я Iron Coach — твой персональный ИИ-тренер.${quotaLine}\n\nМоя база знаний основана на 50+ научных исследованиях и работах лучших экспертов мира (Schoenfeld, Helms, Israetel, Nuckols, Aragon и др.).\n\nЯ могу помочь с:\n\n- Программы тренировок (зал, дом, любой уровень)\n- Питание и КБЖУ — расчёт и составление рациона\n- Техника — детальный разбор любого упражнения\n- Наука — физиология мышц, гормоны, биомеханика\n- Кардио — HIIT, LISS, совмещение с силовыми\n- Восстановление — сон, стресс, профилактика травм\n- Добавки — что работает, а что маркетинг\n- Мотивация — привычки, цели, преодоление плато\n\n⚠️ Важно: мои рекомендации носят информационный характер и не заменяют консультацию врача. При болях, травмах, хронических заболеваниях и перед началом программы — проконсультируйтесь со специалистом.\n\nВыбери вопрос ниже или спроси своё!`,
     }];
   });
   const [input, setInput] = useState('');
@@ -244,13 +272,21 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     // the chat shows what the user typed.
     if (chatCommands.tryHandle(trimmed)) {
       haptic.light();
+      const now = Date.now();
       const userMessage: ChatMessage = {
-        id: `user-${Date.now()}`,
+        id: `user-${now}`,
         role: 'user',
         content: trimmed,
         createdAt: new Date().toISOString(),
       };
-      setMessages((prev) => [...prev, userMessage]);
+      // Block 2: a handler may have attached an inline widget (water/macro/
+      // diff/summary). If so, append an assistant confirmation bubble that
+      // carries it — gives the local command a visual reply, not just a toast.
+      const pending = drainChatWidget();
+      const extra: ChatMessage[] = pending
+        ? [{ id: `ai-${now}`, role: 'assistant', content: pending.text, createdAt: new Date().toISOString(), widget: pending.widget }]
+        : [];
+      setMessages((prev) => [...prev, userMessage, ...extra]);
       setInput('');
       scheduleScroll(true, 100);
       isSendingRef.current = false;
@@ -289,14 +325,39 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           response = { message: '', actions: result.actions, meta: result.meta };
         }, sleepEntries, todayDate, controller.signal);
 
+        // Audit R-2026-05-22 (vercel-react-best-practices): the stream
+        // can fire 30+ chunks/sec — naive setMessages on every chunk
+        // re-maps the whole message array and ScrollView re-layouts
+        // every frame, eating the JS thread. Batch chunks into a 33ms
+        // (~30fps) window so the UI still feels live but the render
+        // pressure drops 10-30×. The final flush after the loop guarantees
+        // the last partial buffer always lands.
+        const FLUSH_INTERVAL_MS = 33;
+        let streamBuffer = '';
+        let lastFlushAt = 0;
+        const flushStream = () => {
+          if (!streamBuffer) return;
+          const toAppend = streamBuffer;
+          streamBuffer = '';
+          setMessages((prev) => prev.map((m) =>
+            m.id === streamMsgId ? { ...m, content: m.content + toAppend } : m
+          ));
+          scheduleScroll(false, 0);
+        };
+
         for await (const chunk of stream) {
           if (!isMountedRef.current) break;
           if (controller.signal.aborted) { userAborted = true; break; }
-          setMessages((prev) => prev.map((m) =>
-            m.id === streamMsgId ? { ...m, content: m.content + chunk } : m
-          ));
-          scheduleScroll(false, 0);
+          streamBuffer += chunk;
+          const now = Date.now();
+          if (now - lastFlushAt >= FLUSH_INTERVAL_MS) {
+            lastFlushAt = now;
+            flushStream();
+          }
         }
+        // Always drain whatever's left so the user sees the full message
+        // even if the last chunk arrived inside the throttle window.
+        flushStream();
       } catch (e: any) {
         if (controller.signal.aborted || e?.name === 'AbortError') {
           userAborted = true;
@@ -486,13 +547,6 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     : FALLBACK_PROMPTS;
   const allPrompts: { iconName: IconName; text: string }[] = [...dynamicPrompts, ...staticPrompts];
 
-  // Identify the live streaming bubble so MessageBubble can render the
-  // gold cursor at its tail. The stream placeholder always has id
-  // `ai-<timestamp>` and is the LAST assistant message while isStreaming.
-  const lastStreamingId = isStreaming
-    ? [...messages].reverse().find((m) => m.role === 'assistant' && m.id.startsWith('ai-'))?.id
-    : undefined;
-
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={90}>
       <ChatHeader lastMeta={lastMeta} />
@@ -504,70 +558,73 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           workout store, the panel re-renders. */}
       <CurrentWorkoutPanel />
 
-      <ScrollView ref={scrollRef} contentContainerStyle={styles.messages} showsVerticalScrollIndicator={false} onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}>
-        {historyPage < historyTotalPages && (
-          <View style={styles.loadOlderContainer}>
-            <TouchableOpacity
-              style={[styles.loadOlderButton, { borderColor: colors.primary }]}
-              onPress={loadOlderMessages}
-              disabled={loadingOlderMessages}
-              accessibilityRole="button"
-              accessibilityLabel="Загрузить старые сообщения"
-              accessibilityState={{ disabled: loadingOlderMessages, busy: loadingOlderMessages }}
-            >
-              {loadingOlderMessages
-                ? <Spinner color={colors.primary} />
-                : <Text style={[typography.smallMedium, { color: colors.primary }]}>Загрузить старые сообщения</Text>}
-            </TouchableOpacity>
-          </View>
+      {/* Live daily stats (КБЖУ / белок / вода / вес / сон) from the Direction A
+          ai-chat-pro design — glanceable context so the coach reads as data-aware. */}
+      <ContextStrip />
+
+      <FlatList
+        ref={scrollRef}
+        data={messages}
+        keyExtractor={(msg) => msg.id}
+        renderItem={({ item, index }: ListRenderItemInfo<ChatMessage>) => (
+          <>
+            <MessageBubble
+              message={item}
+              isLast={index === messages.length - 1}
+              speakingId={speakingId}
+              onSpeak={handleSpeak}
+            />
+            {/* Block 2: inline widget (water/macro/diff/summary) attached to a
+                local-command confirmation bubble. */}
+            {item.widget != null && <ChatWidgetView widget={item.widget as ChatWidget} />}
+          </>
         )}
-        {messages.map((msg, i) => (
-          <MessageBubble
-            key={msg.id}
-            message={msg}
-            isLast={i === messages.length - 1}
-            speakingId={speakingId}
-            onSpeak={handleSpeak}
-            isStreaming={msg.id === lastStreamingId}
-          />
-        ))}
-        {/* Activation CTA (FUNNEL-1). Shown only to users who registered
-            but never sent a single message — `firstChatAt` is null on the
-            User row. Disappears on the next mount once they engage. The
-            prompt is intentionally narrow ("первая программа") because
-            wide-open AI chats with no starting point have a known choice-
-            paralysis problem on first use. */}
-        {messages.length <= 1 && !user?.firstChatAt && (
-          <FirstPromptCta
-            onPress={() => sendMessage('Составь мне первую программу тренировок под мои цели и уровень. Учти мой пол, рост, вес и опыт. Дай готовый план на неделю с упражнениями, подходами и весами.')}
-          />
-        )}
-        {/* Coach hero — premium anchor on empty chat. Without it the screen
-            reads like an exposed message list; with it the user feels they've
-            walked into a coach's office. Gold halo around the spark glyph
-            ties to Direction A's "gold-rich premium" signature. */}
-        {messages.length <= 1 && (
-          <View style={styles.heroBlock}>
-            <View
-              style={[
-                styles.heroBadge,
-                {
-                  backgroundColor: colors.primary + '15',
-                  borderColor: colors.primary + '30',
-                  shadowColor: colors.primary,
-                },
-              ]}
-            >
-              <Icon name="spark" size={32} color={colors.primary} />
+        contentContainerStyle={styles.messages}
+        showsVerticalScrollIndicator={false}
+        onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
+        // Render-window tuning — chat is mostly short bubbles; a window
+        // of ~21 (10 above + visible + 10 below) keeps the user feeling
+        // smooth scroll without rendering 1000-msg history at once.
+        initialNumToRender={15}
+        windowSize={11}
+        maxToRenderPerBatch={10}
+        removeClippedSubviews={Platform.OS === 'android'}
+        ListHeaderComponent={
+          historyPage < historyTotalPages ? (
+            <View style={styles.loadOlderContainer}>
+              <TouchableOpacity
+                style={styles.loadOlderButton}
+                onPress={loadOlderMessages}
+                disabled={loadingOlderMessages}
+                accessibilityRole="button"
+                accessibilityLabel="Загрузить старые сообщения"
+                accessibilityState={{ disabled: loadingOlderMessages, busy: loadingOlderMessages }}
+              >
+                {loadingOlderMessages
+                  ? <ActivityIndicator size="small" color="#D4B07A" />
+                  : <Text style={styles.loadOlderText}>Загрузить старые сообщения</Text>}
+              </TouchableOpacity>
             </View>
-            <Text style={[typography.metaLabel, { color: colors.textSecondary, marginTop: spacing.md }]}>
-              ТРЕНЕР · ВКЛЮЧЁН
-            </Text>
-          </View>
-        )}
-        {messages.length <= 1 && <QuickPromptsList dynamicPrompts={dynamicPrompts} allPrompts={allPrompts} hasServerStarters={serverStarters.length > 0} onSend={sendMessage} />}
-        {isTyping && <TypingIndicator />}
-      </ScrollView>
+          ) : null
+        }
+        ListFooterComponent={
+          <>
+            {/* Activation CTA (FUNNEL-1). Shown only to users who registered
+                but never sent a single message — `firstChatAt` is null on the
+                User row. Disappears on the next mount once they engage. The
+                prompt is intentionally narrow ("первая программа") because
+                wide-open AI chats with no starting point have a known choice-
+                paralysis problem on first use. */}
+            {messages.length <= 1 && !user?.firstChatAt && (
+              <FirstPromptCta
+                onPress={() => sendMessage('Составь мне первую программу тренировок под мои цели и уровень. Учти мой пол, рост, вес и опыт. Дай готовый план на неделю с упражнениями, подходами и весами.')}
+              />
+            )}
+            {messages.length <= 1 && <QuickPromptsList dynamicPrompts={dynamicPrompts} allPrompts={allPrompts} hasServerStarters={serverStarters.length > 0} onSend={sendMessage} />}
+            {isTyping && <TypingIndicator />}
+          </>
+        }
+      />
 
       {/* Compact suggestion chips from the Direction A design (A_AI) —
           horizontal scroll row just above the input bar, always visible
@@ -641,6 +698,14 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           // and append "— остановлено —" to the assistant bubble.
           abortRef.current?.abort();
         }}
+        // Camera → food scanner (cross-stack, same pattern HomeScreen uses).
+        // Design ai-chat-pro input dock; lets the user log a meal by photo
+        // without leaving the coach conversation.
+        onCamera={() => navigation.navigate('NutritionTab', { screen: 'FoodScanner' })}
+        // Voice input — STT service not wired yet (#23). Honest "coming soon"
+        // affordance: the mic button is visible so users know it's planned, but
+        // tapping shows a hint instead of faking a recording.
+        onMic={() => { haptic.light(); toast.info('Голосовой ввод скоро будет доступен'); }}
       />
     </KeyboardAvoidingView>
   );
@@ -648,22 +713,8 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  messages: { padding: spacing.lg, paddingBottom: spacing.sm },
-  loadOlderContainer: { alignItems: 'center', marginBottom: spacing.md },
-  loadOlderButton: { paddingHorizontal: spacing.xl, paddingVertical: spacing.sm, borderRadius: 20, borderWidth: 1, minWidth: 48, alignItems: 'center' },
-  heroBlock: { alignItems: 'center', marginBottom: spacing.xl },
-  heroBadge: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    // Direction A gold halo — soft glow that makes the coach feel like
-    // a lit lamp on a dark desk, not just a flat avatar.
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 6,
-  },
+  messages: { padding: 16, paddingBottom: 8 },
+  loadOlderContainer: { alignItems: 'center', marginBottom: 12 },
+  loadOlderButton: { paddingHorizontal: 20, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#D4B07A', minWidth: 48, alignItems: 'center' },
+  loadOlderText: { color: '#D4B07A', fontSize: 13 },
 });

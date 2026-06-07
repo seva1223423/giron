@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { View, Text, TouchableOpacity, TextInput, StyleSheet, Alert } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
-import { useThemeStore, useNutritionStore } from '../../../store';
+import { useThemeColors, useNutritionStore } from '../../../store';
 import { Card } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
@@ -32,7 +32,7 @@ const formatTime = (isoStr: string): string => {
 
 export const MealSection: React.FC<Props> = ({ mealType, selectedDate, navigation, onPhotoScan }) => {
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { getDayLog, removeMeal, removeMealItem, updateMealItem } = useNutritionStore();
   const dayLog = getDayLog(selectedDate);
   const meals = dayLog.meals.filter((m) => m.type === mealType);

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
-import { useThemeStore, useTrainerStore } from '../../store';
+import { useThemeColors, useTrainerStore } from '../../store';
 import { Card, PaywallModal } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -13,7 +13,7 @@ import { localDateStr } from '../../utils/date';
 export const TrainerDashboardScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const haptic = useHaptic();
   const safeTop = useSafeTop();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { clients, deleteClient, fetchClients } = useTrainerStore();
   const { canAddTrainerClient } = useSubscriptionStore();
   const [showAddModal, setShowAddModal] = useState(false);

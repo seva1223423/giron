@@ -48,7 +48,13 @@ function useConfetti(active: boolean) {
         ]),
       ]);
     });
-    Animated.parallel(anims).start();
+    const burst = Animated.parallel(anims);
+    burst.start();
+    // Stop the burst if the toast unmounts mid-flight (PR fires, user leaves
+    // the workout before the ~700ms animation finishes). Finite + native-
+    // driven so it self-terminates anyway, but stopping is the correct
+    // lifecycle hygiene and avoids setState-on-unmounted edge cases.
+    return () => burst.stop();
   }, [active]);
 
   return particles;

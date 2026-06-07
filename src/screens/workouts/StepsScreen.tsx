@@ -11,7 +11,7 @@ import {
   Alert,
   Linking,
 } from 'react-native';
-import { useThemeStore, useSettingsStore, useAuthStore } from '../../store';
+import { useThemeColors, useSettingsStore, useAuthStore } from '../../store';
 import { useSafeTop } from '../../hooks/useSafeTop';
 import { useHaptic } from '../../hooks/useHaptic';
 import { Icon, Card, FadeIn, ProgressRing, Button } from '../../components';
@@ -57,7 +57,7 @@ function formatKm(km: number): string {
 
 export const StepsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const safeTop = useSafeTop();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const haptic = useHaptic();
   const user = useAuthStore((s) => s.user);
   const stepsDailyGoal = useSettingsStore((s) => s.stepsDailyGoal);

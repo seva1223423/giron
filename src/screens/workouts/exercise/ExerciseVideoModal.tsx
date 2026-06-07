@@ -3,7 +3,7 @@ import {
   View, Text, Modal, TouchableOpacity, StyleSheet, Image,
   Linking, Animated, ScrollView, useWindowDimensions,
 } from 'react-native';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { features } from '../../../config/store';
@@ -78,7 +78,7 @@ export const ExerciseVideoModal: React.FC<Props> = ({
   visible, onClose, exerciseName, inlineVideoSource, inlineVideoPoster, youtubeId, rutubeId,
   primaryMuscles, muscleLabels, description, instructions, tips, commonMistakes,
 }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { width: screenW, height: screenH } = useWindowDimensions();
   const THUMB_H = Math.round((screenW * 9) / 16);
   const safeYoutubeId = features.youtubeVideos && youtubeId && YOUTUBE_ID_RE.test(youtubeId) ? youtubeId : undefined;

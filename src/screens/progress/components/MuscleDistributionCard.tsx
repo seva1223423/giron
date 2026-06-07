@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { Card, FadeIn } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
@@ -19,7 +19,7 @@ interface Props {
 }
 
 export const MuscleDistributionCard: React.FC<Props> = ({ distribution, delay = 400 }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   if (distribution.length === 0) return null;
   const maxSets = Math.max(1, distribution[0].value);
   return (

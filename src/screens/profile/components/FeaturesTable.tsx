@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { Card } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
@@ -17,7 +17,7 @@ const FEATURES = [
 ];
 
 export const FeaturesTable: React.FC = () => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
 
   return (
     <Card style={{ marginTop: spacing.xxl }}>

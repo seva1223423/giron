@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<title>LoginScreen — соцвход на обеих вкладках</title>
+<style>
+  :root {
+    --bg:#0E0E0F; --surface:#17171A; --surfaceHi:#1E1E22;
+    --primary:#D4B07A; --text:#F4F1EA; --textSec:#A8A49C; --textTer:#6B6860;
+    --border:rgba(255,255,255,0.10);
+    --google:#4285F4; --vk:#0077FF; --yandex:#FC3F1D;
+    --good:#9AC28C;
+    --fontH:'PP Neue Montreal','Manrope',-apple-system,sans-serif;
+    --fontB:'Inter',-apple-system,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#000;font-family:var(--fontB);display:flex;gap:32px;padding:40px;flex-wrap:wrap;justify-content:center}
+  .phone{width:360px;background:var(--bg);border-radius:36px;overflow:hidden;border:1px solid var(--border);padding:0 0 28px}
+  .notch{height:36px}
+  .screen{padding:0 22px}
+  .caption{color:var(--textTer);font-size:11px;text-transform:uppercase;letter-spacing:1.4px;text-align:center;margin:6px 0 18px}
+  .header{display:flex;flex-direction:column;align-items:center;margin:14px 0 24px}
+  .logo{width:56px;height:56px;border-radius:16px;background:var(--primary);border:1.5px solid rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;margin-bottom:12px}
+  .logo span{font-size:24px;font-weight:800;color:#0A0A0A}
+  .title{font-size:34px;font-weight:800;color:var(--text);letter-spacing:-1px;font-family:var(--fontH)}
+  .sub{color:var(--textSec);font-size:15px;margin-top:4px}
+  .tabRow{display:flex;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:4px;margin-bottom:22px}
+  .tab{flex:1;text-align:center;padding:10px;border-radius:10px;font-size:13px;font-weight:600;color:var(--textSec);cursor:default}
+  .tab.active{background:var(--primary);color:#0A0A0A}
+  .field-label{font-size:13px;color:var(--textSec);margin:0 0 6px 2px}
+  .input{height:48px;border-radius:12px;border:1px solid var(--border);background:var(--surface);color:var(--textTer);display:flex;align-items:center;padding:0 14px;font-size:14px;margin-bottom:14px}
+  .primaryBtn{height:50px;border-radius:14px;background:var(--primary);color:#0A0A0A;font-weight:700;font-size:15px;display:flex;align-items:center;justify-content:center;margin:6px 0 4px}
+  .linkRow{text-align:center;font-size:13px;color:var(--primary);margin:14px 0}
+  .divider{display:flex;align-items:center;gap:14px;margin:18px 0}
+  .divider .line{flex:1;height:1px;background:var(--border)}
+  .divider span{color:var(--textTer);font-size:12px}
+  .social{height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;gap:10px;font-weight:600;font-size:14px;margin-bottom:10px;border:1px solid var(--border)}
+  .gIcon{width:20px;height:20px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--google);font-size:13px}
+  .social.google{background:var(--surface);color:var(--text)}
+  .social.vk{background:var(--vk);color:#fff;border-color:var(--vk)}
+  .social.yandex{background:var(--yandex);color:#fff;border-color:var(--yandex)}
+  .badge{display:inline-block;font-size:10px;padding:2px 8px;border-radius:6px;font-weight:700;letter-spacing:.5px;vertical-align:middle;margin-left:8px}
+  .badge.bad{background:rgba(224,122,107,.18);color:#E07A6B}
+  .badge.good{background:rgba(154,194,140,.18);color:var(--good)}
+  .tag{text-align:center;font-size:12px;color:var(--textSec);margin-top:10px}
+  h2.col{color:#fff;font-family:var(--fontH);font-size:15px;text-align:center;margin-bottom:10px;font-weight:600}
+</style>
+</head>
+<body>
+
+<!-- ───── СЕЙЧАС (баг): на Email-вкладке соцкнопок нет ───── -->
+<div>
+  <h2 class="col">СЕЙЧАС — вкладка «Email» <span class="badge bad">БАГ</span></h2>
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="screen">
+      <div class="header">
+        <div class="logo"><span>IG</span></div>
+        <div class="title">Giron</div>
+        <div class="sub">Твой персональный AI-тренер</div>
+      </div>
+      <div class="tabRow">
+        <div class="tab active">Email</div>
+        <div class="tab">Телефон</div>
+      </div>
+      <div class="field-label">Email</div>
+      <div class="input">email@example.com</div>
+      <div class="field-label">Пароль</div>
+      <div class="input">••••••••</div>
+      <div class="primaryBtn">Войти</div>
+      <div class="linkRow">Забыли пароль?</div>
+      <!-- соцблока НЕТ — пользователь не видит вход через Google -->
+      <div class="tag" style="color:#E07A6B">↑ соцкнопок нет — Google/VK/Яндекс спрятаны</div>
+    </div>
+  </div>
+</div>
+
+<!-- ───── КАК НАДО: соцвход на Email-вкладке ───── -->
+<div>
+  <h2 class="col">КАК НАДО — вкладка «Email» <span class="badge good">FIX</span></h2>
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="screen">
+      <div class="header">
+        <div class="logo"><span>IG</span></div>
+        <div class="title">Giron</div>
+        <div class="sub">Твой персональный AI-тренер</div>
+      </div>
+      <div class="tabRow">
+        <div class="tab active">Email</div>
+        <div class="tab">Телефон</div>
+      </div>
+      <div class="field-label">Email</div>
+      <div class="input">email@example.com</div>
+      <div class="field-label">Пароль</div>
+      <div class="input">••••••••</div>
+      <div class="primaryBtn">Войти</div>
+      <div class="linkRow">Забыли пароль?</div>
+      <div class="divider"><div class="line"></div><span>или</span><div class="line"></div></div>
+      <div class="social google"><span class="gIcon">G</span>Войти через Google</div>
+      <div class="social vk"><span style="font-weight:800">ВК</span>Войти через VK</div>
+      <div class="social yandex"><span style="font-weight:800">Я</span>Войти через Яндекс</div>
+    </div>
+  </div>
+</div>
+
+<!-- ───── КАК НАДО: соцвход на Телефон-вкладке (как сейчас) ───── -->
+<div>
+  <h2 class="col">Вкладка «Телефон» <span class="badge good">OK</span></h2>
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="screen">
+      <div class="header">
+        <div class="logo"><span>IG</span></div>
+        <div class="title">Giron</div>
+        <div class="sub">Твой персональный AI-тренер</div>
+      </div>
+      <div class="tabRow">
+        <div class="tab">Email</div>
+        <div class="tab active">Телефон</div>
+      </div>
+      <div class="field-label">Номер телефона</div>
+      <div class="input">+7 ___ ___-__-__</div>
+      <div class="primaryBtn">Получить код</div>
+      <div class="divider"><div class="line"></div><span>или</span><div class="line"></div></div>
+      <div class="social google"><span class="gIcon">G</span>Войти через Google</div>
+      <div class="social vk"><span style="font-weight:800">ВК</span>Войти через VK</div>
+      <div class="social yandex"><span style="font-weight:800">Я</span>Войти через Яндекс</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

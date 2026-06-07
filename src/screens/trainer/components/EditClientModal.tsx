@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Modal, ScrollView, StyleSheet, useWindowDimensions } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { Button } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
@@ -33,7 +33,7 @@ interface Props {
 
 export const EditClientModal: React.FC<Props> = ({ visible, client, onClose, onSave }) => {
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { height: screenHeight } = useWindowDimensions();
 
   const [editName, setEditName] = useState('');

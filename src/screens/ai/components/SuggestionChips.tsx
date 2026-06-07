@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { spacing } from '../../../theme/spacing';
 
@@ -25,7 +25,7 @@ interface Props {
  * Accessible as buttons with the prompt in the label.
  */
 export const SuggestionChips: React.FC<Props> = ({ prompts, onSend }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const haptic = useHaptic();
   if (prompts.length === 0) return null;
   return (

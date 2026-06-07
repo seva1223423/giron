@@ -98,6 +98,23 @@ describe('TOTP rate limiter — applied to all 2FA endpoints', () => {
     );
   });
 
+  test('mounted on /api/user/change-password (step-up reauth)', () => {
+    // Audit 2026-05-29 (HIGH): /change-password accepts currentPassword as
+    // step-up. Without this limiter, a stolen access token could brute-force
+    // the password at ~200/min via the generic userRateLimiter → takeover.
+    expect(INDEX_SRC).toMatch(
+      /app\.use\(\s*['"]\/api\/user\/change-password['"]\s*,\s*totpRateLimiter\s*\)/,
+    );
+  });
+
+  test('mounted on /api/user/linked-accounts (step-up reauth on link/unlink)', () => {
+    // Audit 2026-05-29 (HIGH): POST/DELETE /linked-accounts/:provider accept
+    // currentPassword/TOTP step-up — same brute-force surface as change-password.
+    expect(INDEX_SRC).toMatch(
+      /app\.use\(\s*['"]\/api\/user\/linked-accounts['"]\s*,\s*totpRateLimiter\s*\)/,
+    );
+  });
+
   test('NOT mounted only on /api/auth — would let /login/register bypass', () => {
     // Defensive: ensure the prefix isn't accidentally /api/auth (which
     // would apply the strict 5/5min limit to login + register too,

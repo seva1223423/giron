@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Linking } from 'react-native';
 import { useSafeTop } from '../../hooks/useSafeTop';
-import { useThemeStore } from '../../store';
+import { useThemeColors } from '../../store';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { exercises as localExercises } from '../../data/exercises';
@@ -34,7 +34,7 @@ const VERIFIED_ENTRIES = Object.values(manifest as unknown as Record<string, Man
  */
 export const CreditsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const safeTop = useSafeTop();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
 
   // Map ids → human-readable exercise names for the left column.
   const exerciseNames = useMemo(() => {
