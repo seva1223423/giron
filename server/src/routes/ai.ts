@@ -4145,6 +4145,31 @@ const EN_TO_RU_EXERCISES: Record<string, string> = {
  * internals. AI sees: "TOOL_ERROR(create_workout): exercise 'жим лёжа со
  * штангой 200кг' not found in catalog; suggest alternative or ask user."
  */
+/** Per-tool execution timeout in milliseconds.
+ *  Tools should be quick (~100ms typical Prisma query). 5s is generous
+ *  enough for cold-pool reconnects + slow indexes, but firm enough that
+ *  a hung query can't block the whole /chat response indefinitely.
+ *  classifyToolError catches the "timed out" message and tells the AI
+ *  to retry-in-a-moment / suggest alternative — same path as transient
+ *  network errors. */
+export const TOOL_EXECUTION_TIMEOUT_MS = 5_000;
+
+/** Wrap a tool execution promise in a timeout. On expiry, rejects with
+ *  an Error whose message matches classifyToolError's "timeout" regex,
+ *  so downstream classification routes it through the existing transient-
+ *  failure branch (no new error code path needed). */
+export function withToolTimeout<T>(promise: Promise<T>, ms: number, toolName: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`Tool ${toolName} timed out after ${ms}ms`));
+    }, ms);
+    promise.then(
+      (v) => { clearTimeout(timer); resolve(v); },
+      (e) => { clearTimeout(timer); reject(e); },
+    );
+  });
+}
+
 export function classifyToolError(toolName: string, err: unknown): string {
   // Prisma errors have a .code field on PrismaClientKnownRequestError
   if (err && typeof err === 'object' && 'code' in err) {
@@ -14588,11 +14613,26 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
             }
 
             try {
-              const ctxResult = await executeContextTool(tc.name, tc.arguments as Record<string, unknown>, userId, contextPreload);
+              // Round AI-1: per-tool timeout. Without this, a hung Prisma
+              // query (slow index, locked row, dead connection) blocks the
+              // whole tool loop until the LLM-side 60s timeout fires —
+              // user sees a request that hangs ~50s past its useful life.
+              // 5s is generous for normal queries; on expiry the error
+              // matches classifyToolError's "timeout" regex and the AI
+              // gets told "transient, retry-or-alternative".
+              const ctxResult = await withToolTimeout(
+                executeContextTool(tc.name, tc.arguments as Record<string, unknown>, userId, contextPreload),
+                TOOL_EXECUTION_TIMEOUT_MS,
+                tc.name,
+              );
               if (ctxResult !== null) {
                 resultText = ctxResult;
               } else {
-                const toolResult = await executeTool(tc.name, tc.arguments, userId, todayDate);
+                const toolResult = await withToolTimeout(
+                  executeTool(tc.name, tc.arguments, userId, todayDate),
+                  TOOL_EXECUTION_TIMEOUT_MS,
+                  tc.name,
+                );
                 resultText = toolResult.resultText;
                 actionDescription = toolResult.actionDescription;
                 actionData = toolResult.actionData;
