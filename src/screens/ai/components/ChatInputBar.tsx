@@ -15,9 +15,16 @@ interface Props {
   onSend: () => void;
   /** Called when user taps the stop button while streaming. */
   onStop?: () => void;
+  /** Optional — when provided, shows a camera button left of the input that
+   *  opens the food scanner (Direction A ai-chat-pro input dock). */
+  onCamera?: () => void;
+  /** Optional — shows a mic button (voice input). Real STT isn't wired yet
+   *  (needs a speech-to-text service + key), so this is a "coming soon"
+   *  affordance, not a recorder. Hidden when not provided. */
+  onMic?: () => void;
 }
 
-export const ChatInputBar: React.FC<Props> = ({ value, onChange, isStreaming, isTyping, onSend, onStop }) => {
+export const ChatInputBar: React.FC<Props> = ({ value, onChange, isStreaming, isTyping, onSend, onStop, onCamera, onMic }) => {
   const { colors } = useThemeStore();
   // While streaming we want the stop button enabled even without input text —
   // canSend would otherwise lock the button out.
@@ -26,6 +33,16 @@ export const ChatInputBar: React.FC<Props> = ({ value, onChange, isStreaming, is
 
   return (
     <View style={[styles.bar, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+      {onCamera && (
+        <TouchableOpacity
+          onPress={onCamera}
+          style={[styles.cameraBtn, { backgroundColor: colors.inputBackground }]}
+          accessibilityLabel="Сканировать еду по фото"
+          accessibilityRole="button"
+        >
+          <Icon name="camera" size={20} color={colors.primary} />
+        </TouchableOpacity>
+      )}
       <TextInput
         style={[
           styles.input,
@@ -39,6 +56,20 @@ export const ChatInputBar: React.FC<Props> = ({ value, onChange, isStreaming, is
         multiline
         maxLength={2000}
       />
+      {/* Mic — voice input. STT not wired yet (needs a speech service);
+          shows a "скоро" hint on tap rather than faking a recording. Only when
+          the input is empty + not streaming, so it never crowds the send btn. */}
+      {onMic && !value.trim() && !showStop && (
+        <TouchableOpacity
+          onPress={onMic}
+          style={[styles.micBtn, { backgroundColor: colors.inputBackground }]}
+          accessibilityLabel="Голосовой ввод"
+          accessibilityHint="Скоро будет доступен"
+          accessibilityRole="button"
+        >
+          <Icon name="mic" size={20} color={colors.textSecondary} />
+        </TouchableOpacity>
+      )}
       {showStop ? (
         <TouchableOpacity
           onPress={onStop}
@@ -65,5 +96,7 @@ const styles = StyleSheet.create({
   bar: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderTopWidth: 1, paddingBottom: Platform.OS === 'ios' ? 34 : spacing.md },
   input: { flex: 1, minHeight: 40, maxHeight: 120, borderRadius: borderRadius.xl, borderWidth: 1, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, marginRight: spacing.sm },
   sendBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  cameraBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginRight: spacing.sm },
+  micBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginRight: spacing.sm },
   stopSquare: { width: 12, height: 12, borderRadius: 2 },
 });

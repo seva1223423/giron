@@ -166,6 +166,119 @@ describe('useWorkoutStore', () => {
 
       expect(useWorkoutStore.getState().activeWorkout!.workout.exercises[0].sets[0].isPR).toBeUndefined();
     });
+
+    // 2026-05-22 audit (vercel-react-best-practices): completeSet used to
+    // re-scan the full workoutHistory on every set tap (O(W*E*S)). The
+    // perf fix snapshots best-1RMs at startWorkout and updates the
+    // snapshot in-place when a new PR beats it. These tests pin the
+    // snapshot behaviour.
+
+    test('bestRMs snapshot is populated at startWorkout from history', () => {
+      useWorkoutStore.setState({
+        workoutHistory: [mockWorkout('old-1', '2026-04-01', [{
+          id: 'we-old', exerciseId: 'ex-1', exercise: mockExercise, order: 0, restSeconds: 90,
+          sets: [{ id: 's-old', setNumber: 1, type: 'normal', reps: 10, weight: 80, completed: true }],
+        }])],
+      });
+
+      useWorkoutStore.getState().startWorkout({
+        id: 'w-1', name: 'Test', exercises: [{
+          id: 'we-1', exerciseId: 'ex-1', exercise: mockExercise, order: 0, restSeconds: 90,
+          sets: [{ id: 's-1', setNumber: 1, type: 'normal' as const, reps: 0, weight: 0, completed: false }],
+        }],
+      });
+
+      const bestRMs = useWorkoutStore.getState().activeWorkout!.bestRMs;
+      expect(bestRMs).toBeDefined();
+      // Epley: 80 * (1 + 10/30) = 80 * 1.333... = 106.666...
+      expect(bestRMs!['ex-1']).toBeCloseTo(80 * (1 + 10 / 30), 2);
+    });
+
+    test('bestRMs updates in-place when a PR is set, so next set compares against the new high', () => {
+      useWorkoutStore.setState({
+        workoutHistory: [mockWorkout('old-1', '2026-04-01', [{
+          id: 'we-old', exerciseId: 'ex-1', exercise: mockExercise, order: 0, restSeconds: 90,
+          sets: [{ id: 's-old', setNumber: 1, type: 'normal', reps: 10, weight: 80, completed: true }],
+        }])],
+      });
+      useWorkoutStore.getState().startWorkout({
+        id: 'w-1', name: 'Test', exercises: [{
+          id: 'we-1', exerciseId: 'ex-1', exercise: mockExercise, order: 0, restSeconds: 90,
+          sets: [
+            { id: 's-1', setNumber: 1, type: 'normal' as const, reps: 0, weight: 0, completed: false },
+            { id: 's-2', setNumber: 2, type: 'normal' as const, reps: 0, weight: 0, completed: false },
+            { id: 's-3', setNumber: 3, type: 'normal' as const, reps: 0, weight: 0, completed: false },
+          ],
+        }],
+      });
+
+      // Set 1: 100kg × 10 = 133 1RM > 107 baseline → PR
+      useWorkoutStore.getState().completeSet(0, 0, { reps: 10, weight: 100 });
+      expect(useWorkoutStore.getState().activeWorkout!.workout.exercises[0].sets[0].isPR).toBe(true);
+      // Snapshot should now be the new high
+      expect(useWorkoutStore.getState().activeWorkout!.bestRMs!['ex-1']).toBeCloseTo(100 * (1 + 10 / 30), 2);
+
+      // Set 2: 95kg × 10 = 127 1RM < new 133 → NOT PR
+      useWorkoutStore.getState().completeSet(0, 1, { reps: 10, weight: 95 });
+      expect(useWorkoutStore.getState().activeWorkout!.workout.exercises[0].sets[1].isPR).toBe(false);
+
+      // Set 3: 105kg × 10 = 140 1RM > 133 → PR (and updates snapshot again)
+      useWorkoutStore.getState().completeSet(0, 2, { reps: 10, weight: 105 });
+      expect(useWorkoutStore.getState().activeWorkout!.workout.exercises[0].sets[2].isPR).toBe(true);
+      expect(useWorkoutStore.getState().activeWorkout!.bestRMs!['ex-1']).toBeCloseTo(105 * (1 + 10 / 30), 2);
+    });
+
+    test('warmup sets in history are excluded from bestRMs snapshot', () => {
+      useWorkoutStore.setState({
+        workoutHistory: [mockWorkout('old-1', '2026-04-01', [{
+          id: 'we-old', exerciseId: 'ex-1', exercise: mockExercise, order: 0, restSeconds: 90,
+          sets: [
+            // Warmup with high weight — must be ignored
+            { id: 's-old-w', setNumber: 1, type: 'warmup', reps: 5, weight: 200, completed: true },
+            // Working set — should set the baseline
+            { id: 's-old-1', setNumber: 2, type: 'normal', reps: 10, weight: 80, completed: true },
+          ],
+        }])],
+      });
+      useWorkoutStore.getState().startWorkout({
+        id: 'w-1', name: 'Test', exercises: [{
+          id: 'we-1', exerciseId: 'ex-1', exercise: mockExercise, order: 0, restSeconds: 90,
+          sets: [{ id: 's-1', setNumber: 1, type: 'normal' as const, reps: 0, weight: 0, completed: false }],
+        }],
+      });
+
+      const bestRMs = useWorkoutStore.getState().activeWorkout!.bestRMs!;
+      // Must reflect the 80×10 working set, NOT the 200×5 warmup
+      expect(bestRMs['ex-1']).toBeCloseTo(80 * (1 + 10 / 30), 2);
+      expect(bestRMs['ex-1']).toBeLessThan(200);
+    });
+
+    test('falls back to history scan when bestRMs is missing (legacy persisted activeWorkout)', () => {
+      // Simulates a user who started a workout pre-2026-05-22 and persisted
+      // through app restart — their activeWorkout has no bestRMs field.
+      useWorkoutStore.setState({
+        workoutHistory: [mockWorkout('old-1', '2026-04-01', [{
+          id: 'we-old', exerciseId: 'ex-1', exercise: mockExercise, order: 0, restSeconds: 90,
+          sets: [{ id: 's-old', setNumber: 1, type: 'normal', reps: 10, weight: 80, completed: true }],
+        }])],
+        activeWorkout: {
+          workout: {
+            id: 'w-legacy', name: 'Legacy', exercises: [{
+              id: 'we-l', exerciseId: 'ex-1', exercise: mockExercise, order: 0, restSeconds: 90,
+              sets: [{ id: 's-l', setNumber: 1, type: 'normal', reps: 0, weight: 0, completed: false }],
+            }],
+            durationMinutes: 0, totalVolume: 0, startedAt: '2026-05-22T00:00:00.000Z',
+          },
+          startTime: Date.now(), currentExerciseIndex: 0,
+          isRestTimerActive: false, restTimeRemaining: 0,
+          // bestRMs: undefined intentionally — legacy shape
+        },
+      });
+
+      // 100×10 = 133 > 80×10 = 107 → PR even without snapshot
+      useWorkoutStore.getState().completeSet(0, 0, { reps: 10, weight: 100 });
+      expect(useWorkoutStore.getState().activeWorkout!.workout.exercises[0].sets[0].isPR).toBe(true);
+    });
   });
 
   describe('finishWorkout', () => {

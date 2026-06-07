@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
-import { useThemeStore, useWorkoutStore } from '../../store';
+import { useThemeColors, useWorkoutStore } from '../../store';
 import { Button, Card, FadeIn } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -125,7 +125,7 @@ export const RoutineDetailScreen: React.FC<{ route: any; navigation: any }> = ({
   const { routineId } = route.params as { routineId: string };
   const safeTop = useSafeTop();
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { routines, activeWorkout, removeRoutine, updateRoutineName, replaceRoutine, duplicateRoutine, startWorkoutFromRoutine } = useWorkoutStore();
 
   const routine = routines.find((r) => r.id === routineId);

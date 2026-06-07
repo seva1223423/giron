@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, KeyboardAvoidingView, Platform,
   ScrollView, ActivityIndicator, TextInput, TouchableOpacity,
 } from 'react-native';
-import { useThemeStore } from '../../store';
+import { useThemeColors } from '../../store';
 import { Button, Input } from '../../components';
 import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
@@ -25,7 +25,7 @@ function formatPhoneDisplay(digits: string): string {
 }
 
 export const ForgotPasswordScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
 
   const [tab, setTab] = useState<Tab>('email');
 

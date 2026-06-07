@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { useSafeTop } from '../../../hooks/useSafeTop';
-import { useThemeStore, useSubscriptionStore, FREE_LIMITS } from '../../../store';
+import { useThemeColors, useSubscriptionStore, FREE_LIMITS } from '../../../store';
 import { Icon } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
@@ -43,7 +43,7 @@ interface Props {
  */
 export const ChatHeader: React.FC<Props> = ({ lastMeta }) => {
   const safeTop = useSafeTop();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { isPremiumActive, aiMessagesLeft } = useSubscriptionStore();
 
   const quotaText = isPremiumActive()

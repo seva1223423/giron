@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
-import { useThemeStore, useWorkoutStore } from '../../store';
+import { useThemeColors, useWorkoutStore } from '../../store';
 import { Card, Button, FadeIn } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -51,7 +51,7 @@ interface WorkoutCardProps {
 }
 
 function WorkoutCard({ workout, dayIndex, goalColor, isExpanded, onToggle, onStart, completedToday }: WorkoutCardProps) {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const haptic = useHaptic();
   const muscles = useMemo(() => getTopMuscles(workout), [workout]);
 
@@ -192,7 +192,7 @@ export const AIProgramDetailScreen: React.FC<{ route: any; navigation: any }> = 
   const safeTop = useSafeTop();
   const haptic = useHaptic();
   const program: Program = route.params?.program;
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { updateProgram, workoutHistory, setWeekPlanDay } = useWorkoutStore();
   const [expandedIdx, setExpandedIdx] = useState<number | null>(0);
 

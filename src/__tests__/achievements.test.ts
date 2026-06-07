@@ -288,3 +288,73 @@ describe('getNewlyUnlocked', () => {
     expect(newIds).toContain('workouts_5');
   });
 });
+
+// ─── R240 recovery / smartwatch achievements ──────────────────────────────────
+// These read optional watch signals (sleepEntries, watchCardioCount,
+// latestVo2Max). They must degrade gracefully to "locked, no crash" when no
+// watch is paired (all fields undefined) and unlock on the documented
+// thresholds. useAchievementCheck feeds these from the sleep store + health
+// summary; the checks themselves are pinned here.
+describe('recovery achievements', () => {
+  const sleepEntry = (date: string, durationHours: number, quality?: number) => ({ date, durationHours, quality });
+
+  test('all recovery achievements stay locked + do not crash with no watch data', () => {
+    const achievements = computeAchievements(emptyData);
+    const recovery = achievements.filter((a) => a.category === 'recovery');
+    expect(recovery.length).toBe(6);
+    recovery.forEach((a) => expect(a.unlocked).toBe(false));
+  });
+
+  test('sleep_7days_streak unlocks on 7 consecutive 7h+ nights, breaks on a short night', () => {
+    const seven = Array.from({ length: 7 }, (_, i) => sleepEntry(`2026-02-0${i + 1}`, 7.5));
+    const unlocked = computeAchievements({ ...emptyData, sleepEntries: seven })
+      .find((a) => a.id === 'sleep_7days_streak');
+    expect(unlocked?.unlocked).toBe(true);
+
+    // A 6h night at the most-recent position breaks the streak (walk from today).
+    const broken = [sleepEntry('2026-02-08', 6), ...seven];
+    const brokenRes = computeAchievements({ ...emptyData, sleepEntries: broken })
+      .find((a) => a.id === 'sleep_7days_streak');
+    expect(brokenRes?.unlocked).toBe(false);
+  });
+
+  test('sleep_30nights counts total recorded nights', () => {
+    const entries = Array.from({ length: 30 }, (_, i) => sleepEntry(`2026-03-${String(i + 1).padStart(2, '0')}`, 6));
+    const res = computeAchievements({ ...emptyData, sleepEntries: entries })
+      .find((a) => a.id === 'sleep_30nights');
+    expect(res?.unlocked).toBe(true);
+  });
+
+  test('sleep_quality_avg4 needs ≥7 rated nights and avg ≥4', () => {
+    const good = Array.from({ length: 10 }, (_, i) => sleepEntry(`2026-04-${String(i + 1).padStart(2, '0')}`, 8, 5));
+    const goodRes = computeAchievements({ ...emptyData, sleepEntries: good })
+      .find((a) => a.id === 'sleep_quality_avg4');
+    expect(goodRes?.unlocked).toBe(true);
+
+    // Only 5 rated nights → not enough data, stays locked.
+    const sparse = Array.from({ length: 5 }, (_, i) => sleepEntry(`2026-04-${String(i + 1).padStart(2, '0')}`, 8, 5));
+    const sparseRes = computeAchievements({ ...emptyData, sleepEntries: sparse })
+      .find((a) => a.id === 'sleep_quality_avg4');
+    expect(sparseRes?.unlocked).toBe(false);
+  });
+
+  test('watch_synced_first / watch_synced_10 unlock on watch cardio count', () => {
+    const one = computeAchievements({ ...emptyData, watchCardioCount: 1 });
+    expect(one.find((a) => a.id === 'watch_synced_first')?.unlocked).toBe(true);
+    expect(one.find((a) => a.id === 'watch_synced_10')?.unlocked).toBe(false);
+
+    const ten = computeAchievements({ ...emptyData, watchCardioCount: 10 });
+    expect(ten.find((a) => a.id === 'watch_synced_10')?.unlocked).toBe(true);
+  });
+
+  test('vo2max_40 unlocks at 40+ and shows "нет данных" label when absent', () => {
+    const fit = computeAchievements({ ...emptyData, latestVo2Max: 42 })
+      .find((a) => a.id === 'vo2max_40');
+    expect(fit?.unlocked).toBe(true);
+
+    const none = computeAchievements({ ...emptyData, latestVo2Max: null })
+      .find((a) => a.id === 'vo2max_40');
+    expect(none?.unlocked).toBe(false);
+    expect(none?.progressLabel).toBe('нет данных');
+  });
+});

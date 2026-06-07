@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, TextInput, StyleSheet, ScrollView } from 'react-native';
-import { useThemeStore, useNutritionStore, useAuthStore } from '../../../store';
+import { useThemeColors, useNutritionStore, useAuthStore } from '../../../store';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { Card, AnimatedPressable } from '../../../components';
 import { typography } from '../../../theme';
@@ -18,7 +18,7 @@ interface Props {
 }
 
 export const WaterTracker: React.FC<Props> = ({ selectedDate }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const haptic = useHaptic();
   const { getDayLog, addWater, removeWaterEntry } = useNutritionStore();
   const user = useAuthStore((s) => s.user);
@@ -122,7 +122,7 @@ export const WaterTracker: React.FC<Props> = ({ selectedDate }) => {
             if (ml > 0 && ml <= 3000) { handleAddWater(ml); setCustomAmount(''); }
           }}
         >
-          <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 14 }}>+</Text>
+          <Text style={{ color: colors.textInverse, fontWeight: '700', fontSize: 14 }}>+</Text>
         </TouchableOpacity>
       </View>
 

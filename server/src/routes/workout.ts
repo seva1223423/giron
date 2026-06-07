@@ -132,6 +132,13 @@ router.post('/programs', authenticate, async (req: AuthRequest, res: Response) =
     // 3x10 default sets per exercise. Days with unknown exerciseIds (no
     // matching server Exercise row, e.g. local-only string IDs from
     // src/data/exercises.ts) are skipped silently — user can edit later.
+    // Track how many requested (non-empty) days actually persisted. When a
+    // day's exerciseIds don't match any server Exercise row (P2003), that
+    // day is skipped — we report the count back so the client can show an
+    // honest "saved N of M days" message instead of a misleading "Готово".
+    let daysRequested = 0;
+    let daysCreated = 0;
+
     const program = await prisma.$transaction(async (tx) => {
       await tx.program.updateMany({
         where: { userId: req.userId, isActive: true },
@@ -157,6 +164,7 @@ router.post('/programs', authenticate, async (req: AuthRequest, res: Response) =
         for (let i = 0; i < days.length; i++) {
           const day = days[i];
           if (day.exerciseIds.length === 0) continue; // skip empty days
+          daysRequested++;
           try {
             await tx.workout.create({
               data: {
@@ -181,9 +189,11 @@ router.post('/programs', authenticate, async (req: AuthRequest, res: Response) =
                 },
               },
             });
+            daysCreated++;
           } catch (e: any) {
             // P2003 = FK constraint (exerciseId not in server Exercise table).
-            // Skip this day silently — common for local-only IDs in MVP.
+            // Skip this day — common for local-only IDs in MVP — but the
+            // count below lets the client tell the user it was partial.
             if (e?.code === 'P2003') {
               logger.warn(`Skipped program day ${i} — some exerciseIds not found server-side`);
             } else {
@@ -195,7 +205,7 @@ router.post('/programs', authenticate, async (req: AuthRequest, res: Response) =
 
       return created;
     });
-    res.status(201).json(program);
+    res.status(201).json({ ...program, daysRequested, daysCreated });
   } catch (e) {
     logger.error(e);
     res.status(500).json({ error: 'Ошибка создания программы' });

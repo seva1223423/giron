@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { Card, FadeIn } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
@@ -25,7 +25,7 @@ interface Props {
 
 export const StrengthStandardsCard: React.FC<Props> = ({ oneRM, userWeight, userGender, delay = 240 }) => {
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
   const standardsForSelected = useMemo(() => {

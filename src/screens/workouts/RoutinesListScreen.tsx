@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
-import { useThemeStore, useWorkoutStore } from '../../store';
+import { useThemeColors, useWorkoutStore } from '../../store';
 import { Card, FadeIn } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -13,7 +13,7 @@ import { spacing, borderRadius } from '../../theme/spacing';
 export const RoutinesListScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const safeTop = useSafeTop();
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { routines, isLoadingRoutines, fetchRoutines, removeRoutine, workoutHistory, startWorkoutFromRoutine } = useWorkoutStore();
   const [startingId, setStartingId] = useState<string | null>(null);
 

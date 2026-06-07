@@ -1,12 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { FadeIn } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 
 export const TypingIndicator: React.FC = () => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   return (
     <FadeIn delay={0}>
       <View style={[styles.bubble, { backgroundColor: colors.surface }]}>

@@ -371,6 +371,12 @@ app.use('/api/user/2fa', totpRateLimiter);
 app.use('/api/user/account', totpRateLimiter);
 app.use('/api/user/change-email', totpRateLimiter);
 app.use('/api/user/change-phone', totpRateLimiter);
+// Audit 2026-05-29 (HIGH): /change-password and /linked-accounts also accept a
+// password/TOTP step-up guess but were missing the strict limiter — only the
+// generic userRateLimiter (200/min) applied, enough to brute-force a password
+// with a stolen access token. Mount the strict limiter before the generic mount.
+app.use('/api/user/change-password', totpRateLimiter);
+app.use('/api/user/linked-accounts', totpRateLimiter);
 app.use('/api/user', userRateLimiter, userRouter);
 app.use('/api/workouts', userRateLimiter, workoutRouter);
 app.use('/api/nutrition', userRateLimiter, nutritionRouter);
@@ -473,6 +479,8 @@ import {
   runTotpReplayCleanup,
   runOtpCodesCleanup,
   runPasswordResetCleanup,
+  runFoodScanLogCleanup,
+  runHealthSampleCleanup,
 } from './utils/cleanupJobs';
 
 // Cleanup expired/revoked refresh tokens and expired trusted devices every 6 hours
@@ -509,6 +517,26 @@ setInterval(() => {
     await runPasswordResetCleanup(db);
   });
 }, 6 * 60 * 60 * 1000).unref();
+
+// Cleanup stale food-scan log entries (>90d) once a day. The aggregate
+// Meal/MealItem rows live forever; this only drops the per-scan diagnostic
+// blob that has no value past the day the meal was logged.
+setInterval(() => {
+  void trackCron('cleanup-food-scan-log', async () => {
+    const db = (await import('./db')).prisma;
+    await runFoodScanLogCleanup(db);
+  });
+}, 24 * 60 * 60 * 1000).unref();
+
+// Cleanup stale HealthSample rows (>90d) once a day. Raw watch samples
+// (HR/HRV/SpO2) can balloon fast — 1440 HR samples/day/user if a wearable
+// is connected. Dashboards/AI context only read the last 30-60 days.
+setInterval(() => {
+  void trackCron('cleanup-health-sample', async () => {
+    const db = (await import('./db')).prisma;
+    await runHealthSampleCleanup(db);
+  });
+}, 24 * 60 * 60 * 1000).unref();
 
 // Prune expired in-memory cache entries every 10 minutes to prevent memory growth.
 // foodVisionCache (24h TTL, 100 entries, 200KB/entry) was missing from this list —
@@ -642,7 +670,10 @@ setInterval(async () => {
 
 let isShuttingDown = false;
 
-const server = app.listen(PORT, () => {
+// Audit 2026-05-29 (CRITICAL): guard listen behind NODE_ENV so importing this
+// module in tests (supertest) does NOT bind a real TCP port and leak the handle
+// ("worker failed to exit gracefully" / EADDRINUSE on parallel suites).
+const server = process.env.NODE_ENV !== 'test' ? app.listen(PORT, () => {
   logger.info(`Giron API server running on port ${PORT}`);
   startNewsRefreshScheduler();
 
@@ -695,10 +726,11 @@ const server = app.listen(PORT, () => {
       }
     })();
   }
-});
+}) : null;
 
 function gracefulShutdown(signal: string) {
   if (isShuttingDown) return; // idempotent — avoid double-handling SIGTERM+SIGINT
+  if (!server) return; // test env (NODE_ENV=test): no server started, nothing to drain
   isShuttingDown = true;
   logger.info(`[Shutdown] Received ${signal}, draining connections...`);
 

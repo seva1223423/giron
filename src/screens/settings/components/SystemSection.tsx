@@ -3,7 +3,7 @@ import { Text, Switch, Share, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
-import { useThemeStore, useWorkoutStore } from '../../../store';
+import { useThemeColors, useWorkoutStore } from '../../../store';
 import { useSettingsStore } from '../../../store/useSettingsStore';
 import { useNutritionStore } from '../../../store/useNutritionStore';
 import { Card, FadeIn } from '../../../components';
@@ -15,7 +15,7 @@ import { getStorageUsage, StorageUsage } from '../../../utils/storage';
 
 export const SystemSection: React.FC = () => {
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { hapticFeedback, setHapticFeedback } = useSettingsStore();
   const [storageInfo, setStorageInfo] = useState<StorageUsage | null>(null);
 

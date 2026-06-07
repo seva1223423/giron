@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<title>RingStatsCard — V2 Deltas</title>
+<style>
+  :root {
+    --bg: #0E0E0F; --surface: #17171A;
+    --primary: #D4B07A;
+    --text: #F4F1EA; --text-secondary: #C9C7C0; --text-tertiary: #8A8780;
+    --border: rgba(255, 255, 255, 0.10);
+    --calories: #E07A6B; --carbs: #9AC28C;
+    --success: #9AC28C; --danger: #E07A6B;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif; padding: 40px; width: 375px; }
+  .label { color: var(--text-tertiary); font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 12px; }
+
+  /* V2 — same layout but with delta vs yesterday next to each value.
+     "+5%" / "-12%" tiny chip with semantic colour. */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 24px; padding: 20px; }
+  .row { display: flex; align-items: center; gap: 20px; }
+  .ring-wrap { width: 110px; height: 110px; display: flex; align-items: center; justify-content: center; position: relative; }
+  .ring-svg { width: 110px; height: 110px; transform: rotate(-90deg); }
+  .ring-track { fill: none; stroke: var(--border); stroke-width: 8; }
+  .ring-progress { fill: none; stroke: var(--primary); stroke-width: 8; stroke-linecap: round; stroke-dasharray: 320.44; stroke-dashoffset: 102.54; }
+  .ring-center { text-align: center; position: absolute; }
+  .ring-pct { color: var(--text); font-size: 26px; font-weight: 700; line-height: 28px; }
+  .ring-label { color: var(--text-secondary); font-size: 10px; text-transform: uppercase; letter-spacing: 1.3px; margin-top: -2px; }
+  .stats { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+  .stat-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+  .stat-label { color: var(--text-secondary); font-size: 12px; }
+  .stat-right { display: flex; gap: 6px; align-items: baseline; }
+  .stat-value { color: var(--text); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .delta { font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 4px; }
+  .delta.up { color: var(--success); background: rgba(154, 194, 140, 0.12); }
+  .delta.down { color: var(--danger); background: rgba(224, 122, 107, 0.12); }
+  .delta.flat { color: var(--text-tertiary); background: rgba(255, 255, 255, 0.04); }
+  .bar-track { height: 4px; background: var(--border); border-radius: 999px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 999px; }
+</style>
+</head>
+<body>
+  <div class="label">V2 — Delta chips (vs вчера, semantic colour)</div>
+  <div class="card">
+    <div class="row">
+      <div class="ring-wrap">
+        <svg class="ring-svg" viewBox="0 0 110 110">
+          <circle class="ring-track" cx="55" cy="55" r="51"></circle>
+          <circle class="ring-progress" cx="55" cy="55" r="51"></circle>
+        </svg>
+        <div class="ring-center">
+          <div class="ring-pct">68%</div>
+          <div class="ring-label">день</div>
+        </div>
+      </div>
+      <div class="stats">
+        <div>
+          <div class="stat-head">
+            <span class="stat-label">Калории</span>
+            <span class="stat-right">
+              <span class="stat-value">1 640 / 2 400</span>
+              <span class="delta up">+5%</span>
+            </span>
+          </div>
+          <div class="bar-track"><div class="bar-fill" style="width: 68%; background: var(--calories);"></div></div>
+        </div>
+        <div>
+          <div class="stat-head">
+            <span class="stat-label">Белок</span>
+            <span class="stat-right">
+              <span class="stat-value">98 / 160 г</span>
+              <span class="delta down">-12%</span>
+            </span>
+          </div>
+          <div class="bar-track"><div class="bar-fill" style="width: 61%; background: var(--primary);"></div></div>
+        </div>
+        <div>
+          <div class="stat-head">
+            <span class="stat-label">Тренировки/нед.</span>
+            <span class="stat-right">
+              <span class="stat-value">3 / 4</span>
+              <span class="delta flat">=</span>
+            </span>
+          </div>
+          <div class="bar-track"><div class="bar-fill" style="width: 75%; background: var(--carbs);"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

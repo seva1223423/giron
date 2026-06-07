@@ -19,7 +19,7 @@
  */
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { useThemeStore } from '../store/useThemeStore';
+import { useThemeColors } from '../store/useThemeStore';
 import type { Colors } from '../theme/colors';
 
 export type PillVariant = 'default' | 'success' | 'danger' | 'muted';
@@ -30,8 +30,8 @@ interface PillProps {
   size?: 'sm' | 'md';
 }
 
-export const Pill: React.FC<PillProps> = ({ text, variant = 'default', size = 'md' }) => {
-  const { colors } = useThemeStore();
+const PillImpl: React.FC<PillProps> = ({ text, variant = 'default', size = 'md' }) => {
+  const colors = useThemeColors();
 
   const tint = pickTint(variant, colors);
   const fontSize = size === 'sm' ? 10 : 12;
@@ -92,6 +92,11 @@ function pickTint(variant: PillVariant, colors: Colors) {
       };
   }
 }
+
+// React.memo: Pills appear inline in chat messages (potentially dozens
+// per turn during a long AI conversation). Default shallow equality on
+// {text, variant, size} is enough.
+export const Pill = React.memo(PillImpl);
 
 const styles = StyleSheet.create({
   box: {

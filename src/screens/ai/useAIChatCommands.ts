@@ -35,6 +35,8 @@ import {
   type MeasurementField,
   type MealType,
 } from './parseChatCommand';
+import { flashBus, flashKey } from '../../utils/flashBus';
+import { emitChatWidget } from './chatWidgets';
 
 export interface AIChatCommandHandler {
   tryHandle: (text: string) => boolean;
@@ -109,12 +111,30 @@ export function executeCommand(cmd: ParsedCommand): void {
   }
 }
 
+/**
+ * Flash a set chip gold in CurrentWorkoutPanel (Direction A "чип
+ * вспыхивает золотом" cue). Deferred a tick so a just-added chip has
+ * mounted + subscribed before we emit — flashBus is best-effort with
+ * no buffering, so emitting synchronously would miss a brand-new chip.
+ */
+function flashSet(exIdx: number, setIdx: number): void {
+  setTimeout(() => flashBus.emit(flashKey.set(exIdx, setIdx)), 0);
+}
+
 // ─── Phase A handlers ───────────────────────────────────────────────────────
 
 function handleAddWater(ml: number): void {
   const today = localDateStr(new Date());
-  useNutritionStore.getState().addWater(today, ml);
+  const ns = useNutritionStore.getState();
+  ns.addWater(today, ml);
   toast.success(`+${ml} мл воды`);
+  // Block 2: confirm with a water-progress widget on the chat bubble.
+  const log = ns.getDayLog(today);
+  emitChatWidget(`Записал +${ml} мл воды.`, {
+    kind: 'water',
+    got: log.waterMl ?? 0,
+    target: log.waterTargetMl ?? 2500,
+  });
 }
 
 function handleAddSet(weight: number, reps: number): void {
@@ -127,6 +147,7 @@ function handleAddSet(weight: number, reps: number): void {
   if (!updated) return;
   const newSetIdx = updated.workout.exercises[exIdx].sets.length - 1;
   state.updateSetData(exIdx, newSetIdx, { weight, reps });
+  flashSet(exIdx, newSetIdx);
   toast.success(`+ подход ${weight}×${reps}`);
 }
 
@@ -140,6 +161,7 @@ function handleCompleteSet(): void {
   if (nextPendingIdx === -1) { toast.info('Все подходы уже выполнены'); return; }
   const set = sets[nextPendingIdx];
   state.completeSet(exIdx, nextPendingIdx, { weight: set.weight, reps: set.reps });
+  flashSet(exIdx, nextPendingIdx);
   toast.success('Подход засчитан');
 }
 
@@ -154,6 +176,7 @@ function handleAdjustWeight(delta: number): void {
     if (!set.completed && set.weight != null) {
       const next = Math.max(0, set.weight + delta);
       useWorkoutStore.getState().updateSetData(exIdx, i, { weight: next });
+      flashSet(exIdx, i);
       changed++;
     }
   });
@@ -188,6 +211,7 @@ function handleRepeatLast(): void {
   if (!updated) return;
   const newSetIdx = updated.workout.exercises[exIdx].sets.length - 1;
   state.updateSetData(exIdx, newSetIdx, { weight: lastDone.weight, reps: lastDone.reps });
+  flashSet(exIdx, newSetIdx);
   toast.success(`Повтор ${lastDone.weight}×${lastDone.reps}`);
 }
 
@@ -232,8 +256,18 @@ function handleSetWeight(weight: number): void {
   const sets = aw.workout.exercises[exIdx]?.sets ?? [];
   const firstPending = sets.findIndex((s) => !s.completed);
   if (firstPending === -1) { toast.info('Нет невыполненных подходов'); return; }
+  const before = sets[firstPending]?.weight ?? 0;
   state.updateSetData(exIdx, firstPending, { weight });
+  flashSet(exIdx, firstPending);
   toast.success(`Вес: ${weight} кг`);
+  // Block 2: before → after diff widget for the changed set.
+  if (before !== weight) {
+    const exName = aw.workout.exercises[exIdx]?.exercise?.name ?? 'Упражнение';
+    emitChatWidget(`Поменял вес в подходе #${firstPending + 1}.`, {
+      kind: 'diff', title: exName, label: `Подход ${firstPending + 1}`,
+      before, after: weight, unit: ' кг',
+    });
+  }
 }
 
 function handleSetReps(reps: number): void {
@@ -245,6 +279,7 @@ function handleSetReps(reps: number): void {
   const firstPending = sets.findIndex((s) => !s.completed);
   if (firstPending === -1) { toast.info('Нет невыполненных подходов'); return; }
   state.updateSetData(exIdx, firstPending, { reps });
+  flashSet(exIdx, firstPending);
   toast.success(`Повторов: ${reps}`);
 }
 
@@ -445,6 +480,10 @@ function handleStatsMeal(): void {
   toast.info(
     `Калории: ${totalKcal} / ${targetKcal} ккал · Белок: ${totalProtein} г · Приёмов: ${meals.length}`,
   );
+  // Block 2: protein-progress widget.
+  emitChatWidget(`Калории: ${totalKcal} / ${targetKcal} ккал · приёмов: ${meals.length}.`, {
+    kind: 'macro', protein: totalProtein, target: dayLog.targetProtein ?? 160,
+  });
 }
 
 function handleStatsProgress(): void {
@@ -453,6 +492,20 @@ function handleStatsProgress(): void {
   const totalVolume = history.reduce((sum, w) => sum + (w.totalVolume ?? 0), 0);
   const totalTons = Math.round(totalVolume / 100) / 10;
   toast.info(`Тренировок: ${completed} · Общий объём: ${totalTons} т`);
+  // Block 2: day-summary widget (today's water / protein / sets done).
+  const today = localDateStr(new Date());
+  const log = useNutritionStore.getState().getDayLog(today);
+  const proteinToday = Math.round((log.meals ?? []).reduce((s, m) => s + (m.totalProtein ?? 0), 0));
+  const aw = useWorkoutStore.getState().activeWorkout;
+  const setsDone = aw
+    ? aw.workout.exercises.reduce((a, e) => a + e.sets.filter((s) => s.completed).length, 0)
+    : 0;
+  emitChatWidget('Итог дня:', {
+    kind: 'summary',
+    water: { got: log.waterMl ?? 0, target: log.waterTargetMl ?? 2500 },
+    protein: { got: proteinToday, target: log.targetProtein ?? 160 },
+    setsDone,
+  });
 }
 
 function handleStatsLastWorkout(): void {

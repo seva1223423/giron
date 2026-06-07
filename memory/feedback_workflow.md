@@ -20,7 +20,12 @@ Why: user lost memory once when VS Code switched working directories; duplicatin
 2. `<repo>/memory/` (repo-local mirror — **NOT** `<repo>/.claude/memory/`)
 `MEMORY.md` in each is only an index — never stores content.
 
-**Repo mirror path is `memory/`, not `.claude/memory/`.** Claude Code hard-codes every file under `<repo>/.claude/` as a sensitive path and prompts for approval on every edit — there's no settings escape hatch. The memory files were moved out of `.claude/` in 2026-04 specifically to stop those prompts. Do not move them back.
+**Repo mirror path is `memory/`, not `.claude/memory/`.** Claude Code hard-codes every file under `<repo>/.claude/` as a sensitive path and prompts for approval on every edit/read — there's no settings escape hatch. The memory files were moved out of `.claude/` in 2026-04 specifically to stop those prompts. Do not move them back.
+
+**Same rule applies to agent-skills.** Do NOT install or mirror skills into `<repo>/.claude/skills/` — same approval-prompt problem. Agent skills live only in:
+1. Shared source: `C:/Users/sevka/agent-skills/` (canonical, 9 skills + manifests)
+2. Global Cloud AI dir: `~/.claude/skills/` (user-mirrored from shared source via `cp -an /c/Users/sevka/agent-skills/. /c/Users/sevka/.claude/skills/`)
+Never project-level. This breaks `npx shadcn@latest add skill` default behavior (it targets `<repo>/.claude/skills/`) — install shadcn-ui globally instead by copying the SKILL.md from the shared dir.
 
 **Response style: minimal, no recap.**
 Say "сделал" + next step, one sentence. Don't summarize what the diff already shows.
@@ -48,3 +53,6 @@ Name functions `getBlock{NNNN}` with 4-digit zero-padded number. Add in batches 
 - Don't add types/docstrings/comments to code that didn't ask for them.
 - Don't refactor code adjacent to the task — stay scoped.
 - Don't change logic during a pure structural refactor.
+
+**APK builds (`eas build`) require EXPLICIT permission each time.**
+User said 2026-05-12: "без моего разрешения не делай апк". Treat every `eas build --profile rustore/play/appstore` invocation as needing a per-build OK. A general "do it all" / "сам сделай" / "делай" does NOT cover APK builds — they cost build minutes, generate a new versionCode that bumps the install monotonicity ceiling, and require the user to manually install. OTA pushes (`eas update`) are separately authorized and not covered by this rule. When the task naturally ends with "now we need a new APK", say so and stop — don't run `eas build` until the user types something specific like "собирай апк", "запусти билд", "ты сделай" *after* I asked about it.

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { Card, FadeIn } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
@@ -13,7 +13,7 @@ interface Props {
 }
 
 export const PercentageTableCard: React.FC<Props> = ({ avg, delay = 160 }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
 
   const rows = PERCENTAGES.map((pct) => ({
     pct,

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { Card, FadeIn } from '../../../components';
 import { AchievementSticker } from '../../../components/Sticker';
 import { typography } from '../../../theme';
@@ -15,7 +15,7 @@ interface Props {
 
 export const AchievementsCard: React.FC<Props> = ({ achievements, delay = 180 }) => {
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const [showAll, setShowAll] = useState(false);
 
   const unlocked = achievements.filter((a) => a.unlocked);

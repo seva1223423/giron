@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { Card, FadeIn } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
@@ -41,7 +41,7 @@ function workoutMatchesMuscle(workout: Workout, muscleKey: string): boolean {
 }
 
 export const WorkoutHistoryList: React.FC<Props> = ({ workouts, delay = 600, navigation }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const [search, setSearch] = useState('');
   const [muscleFilter, setMuscleFilter] = useState<MuscleKey>(null);
   const [showAll, setShowAll] = useState(false);

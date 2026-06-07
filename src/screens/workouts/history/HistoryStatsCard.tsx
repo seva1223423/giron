@@ -1,13 +1,13 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { Card, FadeIn } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import type { Workout } from '../../../types';
 
 const VolumeTrendChart: React.FC<{ data: { label: string; value: number }[] }> = ({ data }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   if (data.length < 2) return null;
   const maxVal = Math.max(1, ...data.map((d) => d.value));
   const barH = 48;
@@ -37,7 +37,7 @@ interface Props {
 }
 
 export const HistoryStatsCard: React.FC<Props> = ({ workoutHistory }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const totalVolumeTons = Math.round(workoutHistory.reduce((s, w) => s + (w.totalVolume || 0), 0) / 1000);
   const totalHours = Math.round(workoutHistory.reduce((s, w) => s + (w.durationMinutes || 0), 0) / 60);
   const avgDuration = workoutHistory.length > 0

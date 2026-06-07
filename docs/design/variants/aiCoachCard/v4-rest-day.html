@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<title>AICoachCard — V4 Rest day state</title>
+<style>
+  :root {
+    --bg: #0E0E0F; --surface: #17171A;
+    --primary: #D4B07A; --primary-deep: #B08A4E;
+    --text: #F4F1EA; --text-secondary: #C9C7C0; --text-tertiary: #8A8780;
+    --text-inverse: #0A0A0A;
+    --border: rgba(255, 255, 255, 0.10);
+    --sage: #9AC28C;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif; padding: 40px; width: 375px; }
+  .label { color: var(--text-tertiary); font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 12px; }
+
+  /* V4 — alternative state for "rest day". Different palette (sage
+     instead of gold-hot), no aggressive CTA — secondary "обзор недели"
+     instead. Tells the user "today's not for grinding, here's why". */
+  .card {
+    position: relative;
+    border-radius: 28px;
+    border: 1px solid rgba(154, 194, 140, 0.18);
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 85% 0%, rgba(154, 194, 140, 0.12) 0%, transparent 45%),
+      linear-gradient(135deg, #14201A 0%, #1A2520 60%, #1E2A22 100%);
+    padding: 22px;
+  }
+  .eyebrow {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+  }
+  .icon-square {
+    width: 28px; height: 28px; border-radius: 8px;
+    background: var(--sage); color: var(--text-inverse);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  .eyebrow-text {
+    color: var(--sage); font-size: 12px; font-weight: 600;
+    letter-spacing: 1.2px; text-transform: uppercase;
+  }
+  .hero {
+    color: var(--text); font-size: 22px; font-weight: 600;
+    line-height: 26px; max-width: 280px; margin: 0;
+  }
+  .why {
+    color: var(--text-secondary); font-size: 13px;
+    line-height: 18px; margin: 10px 0 0 0; max-width: 290px;
+  }
+  .actions {
+    display: flex; gap: 8px; margin-top: 18px;
+  }
+  .cta {
+    flex: 1; height: 44px; border-radius: 16px;
+    background: transparent; border: 1px solid var(--sage);
+    color: var(--sage); font-size: 13px; font-weight: 600;
+    cursor: pointer;
+  }
+  .skip {
+    height: 44px; padding: 0 16px; border-radius: 16px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border); color: var(--text-secondary);
+    font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+</style>
+</head>
+<body>
+  <div class="label">V4 — Rest day state (sage palette, no hard CTA)</div>
+  <div class="card">
+    <div class="eyebrow">
+      <div class="icon-square">🌿</div>
+      <span class="eyebrow-text">День восстановления</span>
+    </div>
+    <h3 class="hero">Сегодня отдых — мышцы растут не в зале</h3>
+    <p class="why">Последняя тренировка была тяжёлой (RPE 8.5). Дай телу 24-48 часов на восстановление — следующая будет сильнее.</p>
+    <div class="actions">
+      <button class="cta">Обзор недели</button>
+      <button class="skip">Всё равно тренироваться</button>
+    </div>
+  </div>
+</body>
+</html>

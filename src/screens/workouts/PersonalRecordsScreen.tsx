@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
-import { useThemeStore, useWorkoutStore } from '../../store';
+import { useThemeColors, useWorkoutStore } from '../../store';
 import { useSafeTop } from '../../hooks/useSafeTop';
 import { FadeIn } from '../../components';
 import { typography } from '../../theme';
@@ -12,7 +12,7 @@ import { localDateStr } from '../../utils/date';
 
 export const PersonalRecordsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const safeTop = useSafeTop();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { workoutHistory, customExercises } = useWorkoutStore();
   const allExercises = useMemo(() => [...customExercises, ...localExercises], [customExercises]);
   const [search, setSearch] = useState('');

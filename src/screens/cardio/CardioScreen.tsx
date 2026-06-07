@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
-import { useThemeStore, useCardioStore } from '../../store';
+import { useThemeColors, useCardioStore } from '../../store';
 import { Card, Button, FadeIn } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -39,7 +39,7 @@ function formatDate(dateStr: string) {
 }
 
 const SessionCard: React.FC<{ session: CardioSession; onDelete: () => void }> = ({ session, onDelete }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const meta = TYPE_META[session.type];
 
   return (
@@ -71,7 +71,7 @@ const SessionCard: React.FC<{ session: CardioSession; onDelete: () => void }> = 
 export const CardioScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const safeTop = useSafeTop();
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { sessions, removeSession, getWeekSessions, syncFromServer } = useCardioStore();
 
   useEffect(() => { syncFromServer(); }, []);
