@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs';
 import { TOTP, Secret } from 'otpauth';
 import { prisma } from '../db';
 import { authenticate, requireAdmin, requireStaff, AuthRequest } from '../middleware/auth';
+import { is2faLocked, record2faFailure, clear2faFailures } from '../utils/twofaLockout';
 import { getActiveUsersCount, getActiveUserIds } from '../utils/activityTracker';
 import { getAIMetrics } from '../utils/aiMetrics';
 import { logger } from '../utils/logger';
@@ -84,10 +85,17 @@ async function requireAdminStepUp(req: AuthRequest, res: Response): Promise<Resp
     if (!adminTotpCode) {
       return res.status(400).json({ error: 'Введите код 2FA администратора', code: 'ADMIN_TOTP_REQUIRED' });
     }
+    // M3 (audit 2026-06-07): per-account lockout so admin step-up TOTP can't be
+    // brute-forced by rotating IPs past the per-IP limiter on the most destructive ops.
+    if (is2faLocked(req.userId!)) {
+      return res.status(429).json({ error: 'Слишком много неверных кодов. Попробуйте через 15 минут.', code: 'TOTP_LOCKED' });
+    }
     const totp = new TOTP({ secret: Secret.fromBase32(me.totpSecret), algorithm: 'SHA1', digits: 6, period: 30 });
     if (totp.validate({ token: adminTotpCode, window: 1 }) === null) {
+      record2faFailure(req.userId!);
       return res.status(401).json({ error: 'Неверный код 2FA администратора', code: 'INVALID_ADMIN_TOTP' });
     }
+    clear2faFailures(req.userId!);
   }
   return null;
 }

@@ -52,6 +52,11 @@ model User {
   // Login lockout (brute-force protection)
   loginAttempts Int       @default(0)
   lockedUntil   DateTime?
+  // Access-token kill-switch (audit 2026-06-07 M1): set to now() on logout-all /
+  // password change+reset / 2FA disable / email+phone change. authenticate() rejects any
+  // access token whose iat predates this, so those actions immediately cut off
+  // already-issued (still-unexpired) access tokens, not just refresh tokens.
+  tokensValidAfter DateTime?
 
   // Retention/activation tracking. firstChatAt is set the very first time
   // the AI chat handler accepts a successful user message — used by the

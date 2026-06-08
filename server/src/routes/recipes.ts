@@ -6,6 +6,7 @@ import { logger } from '../utils/logger';
 import { sanitizeForPrompt } from '../utils/inputSanitizer';
 import { chat as llmChat } from '../services/llm/router';
 import { foodVisionCache } from '../utils/memCache';
+import { overPerUserAiRate } from '../utils/perUserRate';
 
 /**
  * Round 247: drop the user's foodVisionCache entries when their recipe
@@ -292,6 +293,11 @@ function extractJsonBlock(text: string): string | null {
 
 router.post('/ai-generate', authenticate, async (req: AuthRequest, res: Response) => {
   try {
+    // L5 (audit 2026-06-07): per-user per-minute cap (Mistral ~1500 tokens/call); the
+    // per-IP 20/h limiter alone is bypassable across accounts/IPs.
+    if (overPerUserAiRate(req.userId!, 5)) {
+      return res.status(429).json({ error: 'Слишком много запросов на генерацию. Подождите минуту.', code: 'RATE_LIMITED' });
+    }
     const parsed = aiGenerateSchema.parse(req.body);
     const safeQuery = sanitizeForPrompt(parsed.query, 500);
 
