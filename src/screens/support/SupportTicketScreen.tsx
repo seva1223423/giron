@@ -7,6 +7,7 @@ import { useRoute, useNavigation } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import { useSupportStore } from '../../store/useSupportStore';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useSafeBottom } from '../../hooks/useSafeBottom';
 import type { SupportMessage, TicketStatus } from '../../types';
 
 type RouteParams = { ticketId: string };
@@ -47,6 +48,7 @@ export default function SupportTicketScreen() {
 
   const { activeTicket, loading, sending, fetchTicket, sendMessage, closeTicket } = useSupportStore();
   const userId = useAuthStore((s) => s.user?.id);
+  const safeBottom = useSafeBottom();
   const flatRef = useRef<FlatList>(null);
   const [text, setText] = useState('');
 
@@ -149,13 +151,13 @@ export default function SupportTicketScreen() {
           </TouchableOpacity>
         </View>
       ) : (
-        <View style={styles.closedBanner}>
+        <View style={[styles.closedBanner, { paddingBottom: safeBottom + 16 }]}>
           <Text style={styles.closedText}>Обращение закрыто</Text>
         </View>
       )}
 
       {!isClosed && (
-        <TouchableOpacity style={styles.closeBtn} onPress={handleClose}>
+        <TouchableOpacity style={[styles.closeBtn, { paddingBottom: safeBottom + 12 }]} onPress={handleClose}>
           <Text style={styles.closeBtnText}>Закрыть обращение</Text>
         </TouchableOpacity>
       )}

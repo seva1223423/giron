@@ -6,6 +6,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSupportStore } from '../../store/useSupportStore';
+import { useSafeBottom } from '../../hooks/useSafeBottom';
 import type { SupportTicket, TicketStatus } from '../../types';
 
 type RootStackParamList = {
@@ -56,6 +57,7 @@ function TicketCard({ ticket, onPress }: { ticket: SupportTicket; onPress: () =>
 
 export default function SupportScreen() {
   const navigation = useNavigation<Nav>();
+  const safeBottom = useSafeBottom();
   const { tickets, loading, fetchMyTickets } = useSupportStore();
 
   useEffect(() => { fetchMyTickets(); }, []);
@@ -89,7 +91,7 @@ export default function SupportScreen() {
       )}
 
       <TouchableOpacity
-        style={styles.fab}
+        style={[styles.fab, { bottom: safeBottom + 24 }]}
         onPress={() => navigation.navigate('CreateTicketScreen')}
         activeOpacity={0.8}
       >
@@ -122,7 +124,6 @@ const styles = StyleSheet.create({
   cardDate: { fontSize: 11, color: '#6B7280' },
   fab: {
     position: 'absolute',
-    bottom: 32,
     left: 16,
     right: 16,
     backgroundColor: '#D4B07A',

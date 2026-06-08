@@ -2,10 +2,11 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, RefreshControl, ActivityIndicator, TextInput, Animated as RNAnimated } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
+import { useResponsive } from '../../hooks/useResponsive';
 import { useThemeColors } from '../../store';
 import { Card } from '../../components';
 import { typography } from '../../theme';
-import { spacing, borderRadius } from '../../theme/spacing';
+import { spacing, borderRadius, contentMaxWidth } from '../../theme/spacing';
 import type { NewsArticle, NewsCategory } from '../../types';
 import { newsService } from '../../services';
 import { ArticleDetailModal, NewsArticleCard } from './components';
@@ -22,6 +23,7 @@ const CATEGORIES: { key: NewsCategory | 'all'; label: string }[] = [
 
 export const NewsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const safeTop = useSafeTop();
+  const r = useResponsive();
   const haptic = useHaptic();
   const colors = useThemeColors();
   const [tab, setTab] = useState<'feed' | 'saved'>('feed');
@@ -215,7 +217,7 @@ export const NewsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       />
 
       <ScrollView
-        contentContainerStyle={styles.newsList}
+        contentContainerStyle={[styles.newsList, { width: '100%', maxWidth: r.pick(contentMaxWidth), alignSelf: 'center' }]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
       >

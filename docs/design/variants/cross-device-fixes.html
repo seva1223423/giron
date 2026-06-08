@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Кросс-девайс фиксы — было / стало</title>
+<style>
+  :root{
+    --bg:#0E0E0F; --surface:#17171A; --elev:#1E1E22; --gold:#D4B07A;
+    --text:#F4F1EA; --text2:#9A968C; --border:#2A2A2E; --bad:#E07A6B; --good:#9AC28C;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,Segoe UI,Roboto,sans-serif}
+  body{background:var(--bg);color:var(--text);padding:28px;line-height:1.4}
+  h1{font-size:22px;font-weight:800;margin-bottom:4px}
+  .sub{color:var(--text2);font-size:13px;margin-bottom:24px}
+  .block{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:20px;margin-bottom:22px}
+  .block h2{font-size:15px;font-weight:700;margin-bottom:2px;color:var(--gold)}
+  .block .desc{color:var(--text2);font-size:12.5px;margin-bottom:16px}
+  .pair{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start}
+  .col{flex:1;min-width:260px}
+  .tag{display:inline-block;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;margin-bottom:9px}
+  .tag.b{background:rgba(224,122,107,.16);color:var(--bad);border:1px solid rgba(224,122,107,.35)}
+  .tag.a{background:rgba(154,194,140,.16);color:var(--good);border:1px solid rgba(154,194,140,.35)}
+
+  /* device frames */
+  .ipad{border:2px solid var(--border);border-radius:14px;background:var(--bg);height:230px;overflow:hidden;position:relative}
+  .ipad .topbar{padding:10px 0;text-align:center;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border)}
+  .card{background:var(--elev);border:1px solid var(--border);border-radius:10px;padding:11px;margin:9px}
+  .card .t{font-size:12px;font-weight:600}
+  .card .m{font-size:10px;color:var(--text2);margin-top:4px}
+  /* after-tablet: centered column with visible side margins */
+  .centered{max-width:62%;margin:0 auto;position:relative}
+  .guide{position:absolute;top:34px;bottom:8px;width:1px;background:repeating-linear-gradient(var(--gold) 0 4px,transparent 4px 8px);opacity:.5}
+
+  .phone{border:2px solid var(--border);border-radius:20px;background:var(--bg);width:150px;height:250px;overflow:hidden;position:relative;margin-top:4px}
+  .phone .label{font-size:10px;color:var(--text2);text-align:center;padding:8px 4px 4px}
+  .homebar{position:absolute;left:0;right:0;bottom:0;height:24px;display:flex;align-items:center;justify-content:center}
+  .homebar::after{content:"";width:64px;height:4px;border-radius:3px;background:rgba(244,241,234,.45)}
+  .gbtn{position:absolute;left:14px;right:14px;background:var(--gold);color:#17171A;font-size:11px;font-weight:700;text-align:center;padding:9px;border-radius:11px}
+
+  /* OTP boxes */
+  .otpwrap{padding:14px;display:flex;flex-direction:column;align-items:center;gap:8px}
+  .otpbox{border:2px solid var(--gold);border-radius:14px;height:54px;display:flex;align-items:center;justify-content:center;letter-spacing:11px;font-size:27px;font-weight:700;color:var(--text);overflow:hidden;white-space:nowrap}
+  .otpbox.bad{width:118px;justify-content:flex-start;padding-left:10px}     /* clipped: content wider than box */
+  .otpbox.good{width:100%;max-width:160px}
+  .fineprint{font-size:9.5px;color:var(--text2);text-align:center}
+  .legend{margin-top:6px;font-size:11px;color:var(--text2)}
+  .legend b{color:var(--text)}
+</style>
+</head>
+<body>
+  <h1>Кросс-девайс фиксы — было / стало</h1>
+  <div class="sub">6 реальных багов на разных устройствах (MEDIUM). Макет Direction A · проверено tsc + 5499 тестов.</div>
+
+  <!-- 1. TABLET MAX-WIDTH -->
+  <div class="block">
+    <h2>1 · Планшет / раскрытый складной — растяжение во всю ширину</h2>
+    <div class="desc">Экраны «Здоровье» и «Новости» (а раньше — и весь список) тянулись от края до края на iPad (744–1024pt). Теперь контент в центрированной колонке (токен contentMaxWidth: планшет 720, desktop 920).</div>
+    <div class="pair">
+      <div class="col">
+        <span class="tag b">БЫЛО · iPad 768pt</span>
+        <div class="ipad">
+          <div class="topbar">Новости</div>
+          <div class="card"><div class="t">Как считать белок без весов</div><div class="m">Питание · 4 мин — строка тянется на всю ширину, читать тяжело</div></div>
+          <div class="card"><div class="t">5 ошибок в приседе</div><div class="m">Фитнес · 6 мин — карточка во весь экран, выглядит «сломанно»</div></div>
+        </div>
+      </div>
+      <div class="col">
+        <span class="tag a">СТАЛО · iPad 768pt</span>
+        <div class="ipad">
+          <div class="topbar">Новости</div>
+          <div class="centered">
+            <div class="guide" style="left:-14px"></div><div class="guide" style="right:-14px"></div>
+            <div class="card"><div class="t">Как считать белок без весов</div><div class="m">Питание · 4 мин</div></div>
+            <div class="card"><div class="t">5 ошибок в приседе</div><div class="m">Фитнес · 6 мин</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. OTP FONT SCALING -->
+  <div class="block">
+    <h2>2 · SMS-код обрезается при крупном системном шрифте</h2>
+    <div class="desc">Поле ввода кода (фикс. ширина 240, шрифт 32) масштабировалось вместе с Dynamic Type → последние цифры уезжали за рамку. Добавлен allowFontScaling={false} + ширина теперь '100%' / maxWidth 240 (не вылезает на узких экранах ~280pt).</div>
+    <div class="pair">
+      <div class="col">
+        <span class="tag b">БЫЛО · крупный шрифт (AX5)</span>
+        <div class="otpwrap">
+          <div class="otpbox bad">1234</div>
+          <div class="fineprint">цифры 5 и 6 обрезаны рамкой</div>
+        </div>
+      </div>
+      <div class="col">
+        <span class="tag a">СТАЛО · крупный шрифт (AX5)</span>
+        <div class="otpwrap">
+          <div class="otpbox good">123456</div>
+          <div class="fineprint">все 6 цифр помещаются, поле не растёт</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. SAFE AREA -->
+  <div class="block">
+    <h2>3 · Кнопки под «домашней полоской» (home-indicator)</h2>
+    <div class="desc">Поддержка: кнопка «+ Новое обращение», строка ввода и «Закрыть обращение» прижимались к низу и налезали на жест-полоску iPhone X+. Теперь поднимаются на safe-area inset (useSafeBottom).</div>
+    <div class="pair">
+      <div class="col">
+        <span class="tag b">БЫЛО</span>
+        <div style="display:flex;gap:14px">
+          <div class="phone">
+            <div class="label">Поддержка</div>
+            <div class="gbtn" style="bottom:8px">+ Новое обращение</div>
+            <div class="homebar"></div>
+          </div>
+          <div class="legend">Кнопка на<br><b style="color:var(--bad)">высоте 32pt</b> —<br>перекрывает<br>жест-полоску.</div>
+        </div>
+      </div>
+      <div class="col">
+        <span class="tag a">СТАЛО</span>
+        <div style="display:flex;gap:14px">
+          <div class="phone">
+            <div class="label">Поддержка</div>
+            <div class="gbtn" style="bottom:34px">+ Новое обращение</div>
+            <div class="homebar"></div>
+          </div>
+          <div class="legend">Кнопка<br><b style="color:var(--good)">над inset'ом</b><br>(safeBottom+24)<br>— чистый отступ.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. TIME PICKER -->
+  <div class="block">
+    <h2>4 · Пикер времени напоминания обрезался снизу</h2>
+    <div class="desc">14 строк часов рендерились без прокрутки → на низком экране / крупном шрифте ранние часы (6:00, 7:00) уходили за верх листа. Обёрнуто в ScrollView (maxHeight 50% экрана).</div>
+    <div class="legend">Было: список фиксированной высоты, часть строк недоступна. &nbsp;→&nbsp; Стало: <b style="color:var(--good)">прокручиваемый список</b>, влезает на любой экран.</div>
+  </div>
+</body>
+</html>

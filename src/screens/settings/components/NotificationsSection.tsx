@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Text, View, TouchableOpacity, Switch, Modal, Alert, StyleSheet } from 'react-native';
+import { Text, View, TouchableOpacity, Switch, Modal, Alert, StyleSheet, ScrollView, Dimensions } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useThemeColors } from '../../../store';
 import { useSettingsStore } from '../../../store/useSettingsStore';
@@ -90,12 +90,14 @@ export const NotificationsSection: React.FC = () => {
         <View style={styles.overlay}>
           <View style={[styles.sheet, { backgroundColor: colors.surface }]}>
             <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.lg }]}>Время напоминания</Text>
-            {[6, 7, 8, 9, 10, 12, 14, 16, 17, 18, 19, 20, 21, 22].map((h) => (
-              <TouchableOpacity key={h} onPress={() => handleChangeReminderTime(h)} style={[styles.pickerRow, { borderBottomColor: colors.divider }]}>
-                <Text style={[typography.body, { color: h === reminderHour ? colors.primary : colors.text }]}>{h}:00</Text>
-                {h === reminderHour && <Text style={{ color: colors.primary }}>✓</Text>}
-              </TouchableOpacity>
-            ))}
+            <ScrollView style={{ maxHeight: Dimensions.get('window').height * 0.5 }} showsVerticalScrollIndicator={false}>
+              {[6, 7, 8, 9, 10, 12, 14, 16, 17, 18, 19, 20, 21, 22].map((h) => (
+                <TouchableOpacity key={h} onPress={() => handleChangeReminderTime(h)} style={[styles.pickerRow, { borderBottomColor: colors.divider }]}>
+                  <Text style={[typography.body, { color: h === reminderHour ? colors.primary : colors.text }]}>{h}:00</Text>
+                  {h === reminderHour && <Text style={{ color: colors.primary }}>✓</Text>}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
             <TouchableOpacity onPress={() => setShowTimePicker(false)} style={{ marginTop: spacing.lg, alignItems: 'center' }}>
               <Text style={[typography.smallMedium, { color: colors.textSecondary }]}>Отмена</Text>
             </TouchableOpacity>

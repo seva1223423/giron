@@ -294,6 +294,7 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
 
           <TextInput
             style={[styles.otpInput, { backgroundColor: colors.surface, borderColor: otpCode.length === 6 ? colors.primary : colors.border, color: colors.text }]}
+            allowFontScaling={false}
             value={otpCode}
             onChangeText={(t) => { setOtpCode(t.replace(/\D/g, '').slice(0, 6)); clearErrors(); }}
             keyboardType="number-pad"
@@ -550,7 +551,7 @@ const styles = StyleSheet.create({
   otpInput: {
     fontSize: 32, fontWeight: '700', letterSpacing: 12, textAlign: 'center',
     borderWidth: 2, borderRadius: 16, paddingHorizontal: spacing.xl, paddingVertical: spacing.lg,
-    marginVertical: spacing.xl, alignSelf: 'center', width: 240,
+    marginVertical: spacing.xl, alignSelf: 'center', width: '100%', maxWidth: 240,
   },
   socialBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',

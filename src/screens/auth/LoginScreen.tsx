@@ -499,6 +499,7 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
             <TextInput
               style={[styles.otpInput, { backgroundColor: colors.surface, borderColor: otpCode.length === 6 ? colors.primary : colors.border, color: colors.text }]}
+              allowFontScaling={false}
               value={otpCode}
               onChangeText={(t) => {
                 const clean = t.replace(/\D/g, '').slice(0, 6);
@@ -641,7 +642,7 @@ const styles = StyleSheet.create({
   otpInput: {
     fontSize: 32, fontWeight: '700', letterSpacing: 12, textAlign: 'center',
     borderWidth: 2, borderRadius: 16, paddingHorizontal: spacing.xl, paddingVertical: spacing.lg,
-    marginVertical: spacing.xl, alignSelf: 'center', width: 240,
+    marginVertical: spacing.xl, alignSelf: 'center', width: '100%', maxWidth: 240,
   },
   divider: { flexDirection: 'row', alignItems: 'center', marginVertical: spacing.xl },
   dividerLine: { flex: 1, height: 1 },

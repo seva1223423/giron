@@ -8,12 +8,13 @@ import { formatDistanceToNow } from 'date-fns';
 import { ru } from 'date-fns/locale';
 
 import { useSafeTop } from '../../hooks/useSafeTop';
+import { useResponsive } from '../../hooks/useResponsive';
 import { useThemeColors } from '../../store';
 import { useHealthStore } from '../../store/useHealthStore';
 import { Card, Button, Icon, HitTarget, FadeIn, type IconName } from '../../components';
 import { toast } from '../../components/app-modal/toast';
 import { typography } from '../../theme';
-import { spacing, borderRadius } from '../../theme/spacing';
+import { spacing, borderRadius, contentMaxWidth } from '../../theme/spacing';
 import { healthSyncService, bleDirectService, type ConnectedDevice } from '../../services/health';
 import { StageBar } from './components/StageBar';
 
@@ -55,6 +56,7 @@ function formatKpi(v: number | null | undefined, opts?: { digits?: number }): st
 export default function HealthScreen() {
   const navigation = useNavigation<any>();
   const safeTop = useSafeTop();
+  const r = useResponsive();
   const colors = useThemeColors();
 
   const {
@@ -286,7 +288,7 @@ export default function HealthScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { width: '100%', maxWidth: r.pick(contentMaxWidth), alignSelf: 'center' }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
