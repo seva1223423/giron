@@ -17,13 +17,13 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
   }
 
   const token = authHeader.split(' ')[1];
-  let payload: { userId: string };
+  let payload: { userId: string; iat?: number };
   try {
     const raw = jwt.verify(token, process.env.JWT_SECRET!, {
       issuer: 'giron-api',
       audience: 'giron-app',
       algorithms: ['HS256'],
-    }) as { userId: string; phase?: string };
+    }) as { userId: string; phase?: string; iat?: number };
     // Reject intermediate tokens (e.g. TOTP-pending) — they must not grant full API access
     if (raw.phase || !raw.userId) {
       return res.status(401).json({ error: 'Недействительный токен' });
@@ -48,14 +48,14 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
   // and dev paths use the cache normally.
   const useCache = process.env.NODE_ENV !== 'test';
   try {
-    let user: { isBanned: boolean; role: string; lockedUntil: Date | null } | null;
+    let user: { isBanned: boolean; role: string; lockedUntil: Date | null; tokensValidAfter?: Date | null } | null;
     const cached = useCache ? authUserCache.get(payload.userId) : undefined;
     if (cached) {
       user = cached;
     } else {
       const fresh = await prisma.user.findUnique({
         where: { id: payload.userId },
-        select: { isBanned: true, role: true, lockedUntil: true },
+        select: { isBanned: true, role: true, lockedUntil: true, tokensValidAfter: true },
       });
       if (fresh && useCache) authUserCache.set(payload.userId, fresh, AUTH_CACHE_TTL_MS);
       user = fresh;
@@ -68,6 +68,15 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
     if (user.lockedUntil && user.lockedUntil > new Date()) {
       const minutesLeft = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000);
       return res.status(429).json({ error: `Аккаунт временно заблокирован. Попробуйте через ${minutesLeft} мин.`, code: 'ACCOUNT_LOCKED' });
+    }
+    // Access-token kill-switch (audit 2026-06-07 M1): reject any access token issued
+    // before a revoke-all event. logout-all / password change+reset / 2FA disable /
+    // email+phone change set User.tokensValidAfter = now(). payload.iat is seconds since
+    // epoch; tokensValidAfter is a Date. The 1s slack absorbs same-second issue/verify
+    // rounding so a token minted in the same second as the revoke isn't killed by it.
+    if (user.tokensValidAfter && typeof payload.iat === 'number'
+        && payload.iat * 1000 < user.tokensValidAfter.getTime() - 1000) {
+      return res.status(401).json({ error: 'Сессия завершена, войдите снова', code: 'TOKEN_REVOKED' });
     }
     req.userId = payload.userId;
     req.userRole = user.role;

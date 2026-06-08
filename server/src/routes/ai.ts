@@ -14,6 +14,7 @@ import { persistChatMessage } from '../ai/chatPersist';
 import { logger } from '../utils/logger';
 import { recordAIRequest, recordToolExecution } from '../utils/aiMetrics';
 import { foodVisionCache, aiUserContextCache, AI_USER_CONTEXT_TTL_MS } from '../utils/memCache';
+import { overPerUserAiRate } from '../utils/perUserRate';
 import { parseFoodResponse, validateFoodItems, flagSanity, type FoodItem as FoodVisionItem } from '../utils/foodVision';
 import { sanitizeInput, sanitizeForPrompt } from '../utils/inputSanitizer';
 import { detectInjection } from '../utils/promptInjectionDetector';
@@ -7923,7 +7924,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       cardioContext = `\n## КАРДИО (последние 7 дней)\n`;
       cardioContext += `Сессий: ${weekCardio.length}, суммарно: ${totalMin} мин${totalKm > 0 ? `, ${totalKm.toFixed(1)} км` : ''}${totalCal > 0 ? `, ${totalCal} ккал` : ''}\n`;
       weekCardio.slice(0, 5).forEach((s) => {
-        cardioContext += `- ${new Date(s.date).toLocaleDateString('ru-RU')}: ${TYPE_LABELS[s.type] || s.type}, ${s.durationMinutes} мин`;
+        cardioContext += `- ${new Date(s.date).toLocaleDateString('ru-RU')}: ${TYPE_LABELS[s.type] || sanitizeForPrompt(s.type, 40)}, ${s.durationMinutes} мин`;
         if (s.distanceKm) cardioContext += `, ${s.distanceKm} км`;
         if (s.caloriesBurned) cardioContext += `, ${s.caloriesBurned} ккал`;
         if (s.avgHeartRate) cardioContext += `, пульс ${s.avgHeartRate}`;
@@ -19744,6 +19745,11 @@ router.get('/history', authenticate, async (req: AuthRequest, res: Response) => 
 router.post('/workout-insights', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId!;
+    // L4 (audit 2026-06-07): this paid-Mistral endpoint had NO per-user control — a free
+    // user could burn the budget at 60/min/IP. Cap per-account per-minute.
+    if (overPerUserAiRate(userId, 20)) {
+      return res.status(429).json({ error: 'Слишком много запросов. Подождите минуту.', code: 'RATE_LIMITED' });
+    }
     const bodyParsed = z.object({
       workout: z.object({
         name: z.string().min(1).max(200),
@@ -19825,6 +19831,12 @@ ${exerciseSummaries}
 router.post('/voice', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId!;
+
+    // L3 (audit 2026-06-07): per-user per-minute cap on the paid STT endpoint (Yandex
+    // bills per call) — complements the per-IP limiter against IP rotation / botnets.
+    if (overPerUserAiRate(userId, 10)) {
+      return res.status(429).json({ error: 'Слишком много голосовых запросов. Подождите минуту.', code: 'RATE_LIMITED' });
+    }
 
     // ── Subscription gate ───────────────────────────────────────────────
     // Voice STT calls Yandex SpeechKit which costs real money (~6 коп

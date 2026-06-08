@@ -31,6 +31,15 @@ const AUTH_SRC = fs.readFileSync(
   'utf8',
 );
 
+// The per-account 2FA lockout helpers were extracted to a shared util (audit
+// 2026-06-07) so every step-up surface (totp-verify, user change-*/2fa-disable/
+// linked-accounts/account-delete, admin step-up) shares one counter. The
+// definitions now live in the util; the /totp-verify usage stays in auth.ts.
+const TWOFA_SRC = fs.readFileSync(
+  path.resolve(__dirname, '..', 'utils', 'twofaLockout.ts'),
+  'utf8',
+);
+
 // ─── Rate limiter config ─────────────────────────────────────────────────────
 
 describe('TOTP rate limiter — config pin', () => {
@@ -133,12 +142,12 @@ describe('TOTP rate limiter — applied to all 2FA endpoints', () => {
 // future edit that drops the per-account guard is caught.
 
 describe('per-account 2FA lockout — config pin', () => {
-  test('auth.ts defines a per-user failure counter with a lockout window', () => {
-    expect(AUTH_SRC).toMatch(/TFA_MAX_FAILURES\s*=\s*5\b/);
-    expect(AUTH_SRC).toMatch(/TFA_LOCKOUT_MS\s*=\s*15\s*\*\s*60\s*\*\s*1000/);
-    expect(AUTH_SRC).toMatch(/function\s+is2faLocked/);
-    expect(AUTH_SRC).toMatch(/function\s+record2faFailure/);
-    expect(AUTH_SRC).toMatch(/function\s+clear2faFailures/);
+  test('twofaLockout util defines a per-user failure counter with a lockout window', () => {
+    expect(TWOFA_SRC).toMatch(/TFA_MAX_FAILURES\s*=\s*5\b/);
+    expect(TWOFA_SRC).toMatch(/TFA_LOCKOUT_MS\s*=\s*15\s*\*\s*60\s*\*\s*1000/);
+    expect(TWOFA_SRC).toMatch(/function\s+is2faLocked/);
+    expect(TWOFA_SRC).toMatch(/function\s+record2faFailure/);
+    expect(TWOFA_SRC).toMatch(/function\s+clear2faFailures/);
   });
 
   test('/totp-verify checks the lock before validation and returns TOTP_LOCKED', () => {

@@ -44,44 +44,11 @@ async function isTotpReplay(userId: string, code: string): Promise<boolean> {
   return false;
 }
 
-// ─── Per-account 2FA brute-force lockout (audit 2026-06, finding H1) ──────────
-// /totp-verify is reached only AFTER a correct password (the realistic 2FA
-// threat: a phished/leaked password). The IP-based totpRateLimiter alone is
-// bypassable by an attacker rotating IPs to brute the 6-digit code or a
-// backup code. This adds a PER-USER counter so N failures lock the account's
-// 2FA step regardless of source IP. In-memory (mirrors the per-user AI rate
-// buckets pattern); resets on dyno restart, which an attacker can't force.
-const TFA_MAX_FAILURES = 5;
-const TFA_LOCKOUT_MS = 15 * 60 * 1000;
-interface TfaFailRecord { count: number; lockedUntil: number }
-const tfaFailures = new Map<string, TfaFailRecord>();
-
-function is2faLocked(userId: string): boolean {
-  const rec = tfaFailures.get(userId);
-  return !!rec && rec.lockedUntil > Date.now();
-}
-function record2faFailure(userId: string): void {
-  const now = Date.now();
-  const rec = tfaFailures.get(userId);
-  if (!rec || rec.lockedUntil <= now) {
-    // Fresh window (no record, or a prior lock already expired).
-    tfaFailures.set(userId, { count: 1, lockedUntil: 0 });
-    return;
-  }
-  rec.count++;
-  if (rec.count >= TFA_MAX_FAILURES) rec.lockedUntil = now + TFA_LOCKOUT_MS;
-}
-function clear2faFailures(userId: string): void {
-  tfaFailures.delete(userId);
-}
-// Prune stale records hourly. .unref() so it never keeps the process alive in tests.
-setInterval(() => {
-  const now = Date.now();
-  for (const [uid, rec] of tfaFailures) {
-    if (rec.lockedUntil < now && rec.count < TFA_MAX_FAILURES) tfaFailures.delete(uid);
-    else if (rec.lockedUntil && rec.lockedUntil < now - TFA_LOCKOUT_MS) tfaFailures.delete(uid);
-  }
-}, 60 * 60 * 1000).unref();
+// Per-account 2FA brute-force lockout — extracted to a shared util (audit 2026-06-07)
+// so EVERY step-up surface shares one per-user counter (not just /totp-verify): user.ts
+// change-*/2fa-disable/backup-codes/linked-accounts/account-delete and admin step-up.
+import { is2faLocked, record2faFailure, clear2faFailures } from '../utils/twofaLockout';
+import { invalidateAccessTokens } from '../utils/sessionRevocation';
 
 const GOOGLE_CLIENT_IDS = [
   process.env.GOOGLE_CLIENT_ID_WEB,
@@ -1532,6 +1499,7 @@ router.post('/logout', async (req: Request, res: Response) => {
             algorithms: ['HS256'],
           }) as { userId: string };
           await prisma.refreshToken.updateMany({ where: { userId: payload.userId, revoked: false }, data: { revoked: true } });
+          await invalidateAccessTokens(payload.userId); // M1: "logout all devices" also kills live access tokens
         } catch {
           // Token invalid/expired — fall back to revoking only this token.
           // Stored as SHA-256 hash; lookup by hash. Sec audit 2026-04: HIGH-5.
@@ -1650,6 +1618,9 @@ router.post('/reset-password', async (req: Request, res: Response) => {
       prisma.trustedDevice.deleteMany({ where: { userId: resetToken.userId } }),
       prisma.refreshToken.updateMany({ where: { userId: resetToken.userId, revoked: false }, data: { revoked: true } }),
     ]);
+    // M1 (audit 2026-06-07): also kill already-issued access tokens — a password reset
+    // after a leak must cut off an attacker holding a live access token, not just refresh.
+    await invalidateAccessTokens(resetToken.userId);
     await recordPasswordHistory(resetToken.userId, passwordHash);
     await logSecurityEvent('PASSWORD_CHANGE', resetToken.userId, req, 'method=email_reset');
 
@@ -1825,6 +1796,7 @@ router.post('/reset-password-by-phone', async (req: Request, res: Response) => {
       prisma.refreshToken.updateMany({ where: { userId: user.id, revoked: false }, data: { revoked: true } }),
       prisma.trustedDevice.deleteMany({ where: { userId: user.id } }),
     ]);
+    await invalidateAccessTokens(user.id); // M1: kill live access tokens on phone-reset too
     await recordPasswordHistory(user.id, passwordHash);
 
     await logSecurityEvent('PASSWORD_CHANGE', user.id, req, 'method=phone_reset');

@@ -50,3 +50,6 @@ android-keystore.jks
 credentials.json
 .ffmpeg_path
 render_log.txt
+
+# Personal memory mirror — keep out of the app repo (audit 2026-06-07 L11)
+memory/

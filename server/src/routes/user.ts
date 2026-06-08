@@ -7,6 +7,8 @@ import * as QRCode from 'qrcode';
 import crypto from 'crypto';
 import { OAuth2Client } from 'google-auth-library';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { is2faLocked, record2faFailure, clear2faFailures } from '../utils/twofaLockout';
+import { invalidateAccessTokens } from '../utils/sessionRevocation';
 import { prisma } from '../db';
 import { logger } from '../utils/logger';
 import { getSubStatus } from '../utils/subscriptionCheck';
@@ -549,10 +551,15 @@ router.post('/change-password', authenticate, async (req: AuthRequest, res: Resp
       if (!totpCode) {
         return res.status(400).json({ error: 'Введите код из аутентификатора', code: 'TOTP_REQUIRED' });
       }
+      if (is2faLocked(req.userId!)) {
+        return res.status(429).json({ error: 'Слишком много неверных кодов. Попробуйте через 15 минут.', code: 'TOTP_LOCKED' });
+      }
       const totp = new TOTP({ secret: Secret.fromBase32(user.totpSecret), algorithm: 'SHA1', digits: 6, period: 30 });
       if (totp.validate({ token: totpCode, window: 1 }) === null) {
+        record2faFailure(req.userId!); // M2: per-account lockout on step-up TOTP brute-force
         return res.status(401).json({ error: 'Неверный код 2FA', code: 'INVALID_TOTP' });
       }
+      clear2faFailures(req.userId!);
       if (await isTotpReplay(req.userId!, totpCode)) {
         return res.status(401).json({ error: 'Этот код уже был использован. Дождитесь следующего кода.', code: 'TOTP_REPLAYED' });
       }
@@ -572,6 +579,7 @@ router.post('/change-password', authenticate, async (req: AuthRequest, res: Resp
       prisma.refreshToken.updateMany({ where: { userId: req.userId!, revoked: false }, data: { revoked: true } }),
       prisma.trustedDevice.deleteMany({ where: { userId: req.userId! } }),
     ]);
+    await invalidateAccessTokens(req.userId!); // M1: cut off live access tokens after password change
 
     await prisma.securityEvent.create({ data: { userId: req.userId!, action: 'PASSWORD_CHANGE', details: 'method=change_password' } });
 
@@ -725,6 +733,7 @@ router.delete('/sessions/:id', authenticate, async (req: AuthRequest, res: Respo
 router.delete('/sessions', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     await prisma.refreshToken.updateMany({ where: { userId: req.userId!, revoked: false }, data: { revoked: true } });
+    await invalidateAccessTokens(req.userId!); // M1: "logout everywhere" also kills live access tokens
     await prisma.securityEvent.create({ data: { userId: req.userId!, action: 'TOKEN_REVOKED', details: 'all_sessions' } });
     res.json({ ok: true });
   } catch (e) {
@@ -913,40 +922,57 @@ router.post('/2fa/enable', authenticate, async (req: AuthRequest, res: Response)
   }
 });
 
-/** DELETE /user/2fa — disable 2FA (requires current TOTP code or password for social-only) */
+/** DELETE /user/2fa — disable 2FA.
+ *  SECURITY (audit 2026-06-07 L1): disabling the second factor REQUIRES the second factor —
+ *  a valid current TOTP code OR an unused backup code. The account password alone must NOT
+ *  remove 2FA (its whole purpose is to survive a leaked/phished password). Per-account
+ *  lockout (M2) throttles code guessing across IPs; all sessions + access tokens are
+ *  revoked on success (a 2FA change is security-sensitive). */
 router.delete('/2fa', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const { code, password } = z.object({
-      code: z.string().length(6).optional(),
-      password: z.string().optional(),
+    if (is2faLocked(req.userId!)) {
+      return res.status(429).json({ error: 'Слишком много неверных кодов. Попробуйте через 15 минут.', code: 'TOTP_LOCKED' });
+    }
+    const { code } = z.object({
+      code: z.string().min(6).max(20),
     }).parse(req.body);
 
     const user = await prisma.user.findUnique({
       where: { id: req.userId! },
-      select: { totpSecret: true, totpEnabled: true, passwordHash: true },
+      select: { totpSecret: true, totpEnabled: true, totpBackupCodes: true },
     });
     if (!user?.totpEnabled) {
       return res.status(400).json({ error: '2FA не включена', code: 'TOTP_NOT_ENABLED' });
     }
 
-    // Verify via TOTP code OR password (whichever is provided)
+    // Verify the SECOND factor: a 6-digit TOTP code, or an unused backup code.
     let verified = false;
-    if (code && user.totpSecret) {
+    if (user.totpSecret && /^\d{6}$/.test(code)) {
       const totp = new TOTP({ secret: Secret.fromBase32(user.totpSecret), algorithm: 'SHA1', digits: 6, period: 30 });
       verified = totp.validate({ token: code, window: 1 }) !== null;
       if (verified && await isTotpReplay(req.userId!, code)) {
         return res.status(401).json({ error: 'Этот код уже был использован. Дождитесь следующего кода.', code: 'TOTP_REPLAYED' });
       }
-    } else if (password && user.passwordHash) {
-      verified = await bcrypt.compare(password, user.passwordHash);
+    }
+    if (!verified && user.totpBackupCodes) {
+      const provided = crypto.createHash('sha256').update(code.toUpperCase()).digest('hex');
+      try {
+        const codes: string[] = JSON.parse(user.totpBackupCodes);
+        verified = Array.isArray(codes) && codes.includes(provided);
+      } catch { /* malformed backup-code blob — treat as no match */ }
     }
 
     if (!verified) {
-      return res.status(401).json({ error: 'Неверный код или пароль', code: 'VERIFICATION_FAILED' });
+      record2faFailure(req.userId!);
+      return res.status(401).json({ error: 'Неверный код подтверждения', code: 'VERIFICATION_FAILED' });
     }
+    clear2faFailures(req.userId!);
 
     await prisma.user.update({ where: { id: req.userId! }, data: { totpEnabled: false, totpSecret: null, totpBackupCodes: null } });
     await prisma.securityEvent.create({ data: { userId: req.userId!, action: 'TOTP_DISABLED' } });
+    // A 2FA change is security-sensitive → revoke all sessions AND already-issued access tokens.
+    await prisma.refreshToken.updateMany({ where: { userId: req.userId!, revoked: false }, data: { revoked: true } });
+    await invalidateAccessTokens(req.userId!);
 
     res.json({ ok: true });
   } catch (e: any) {
@@ -969,10 +995,15 @@ router.post('/2fa/backup-codes', authenticate, async (req: AuthRequest, res: Res
       return res.status(400).json({ error: '2FA не включена', code: 'TOTP_NOT_ENABLED' });
     }
 
+    if (is2faLocked(req.userId!)) {
+      return res.status(429).json({ error: 'Слишком много неверных кодов. Попробуйте через 15 минут.', code: 'TOTP_LOCKED' });
+    }
     const totp = new TOTP({ secret: Secret.fromBase32(user.totpSecret), algorithm: 'SHA1', digits: 6, period: 30 });
     if (totp.validate({ token: code, window: 1 }) === null) {
+      record2faFailure(req.userId!); // M2: per-account lockout on step-up TOTP brute-force
       return res.status(401).json({ error: 'Неверный код', code: 'INVALID_TOTP' });
     }
+    clear2faFailures(req.userId!);
     if (await isTotpReplay(req.userId!, code)) {
       return res.status(401).json({ error: 'Этот код уже был использован. Дождитесь следующего кода.', code: 'TOTP_REPLAYED' });
     }
@@ -1047,10 +1078,15 @@ router.post('/change-email', authenticate, async (req: AuthRequest, res: Respons
       if (!totpCode) {
         return res.status(400).json({ error: 'Введите код из аутентификатора', code: 'TOTP_REQUIRED' });
       }
+      if (is2faLocked(req.userId!)) {
+        return res.status(429).json({ error: 'Слишком много неверных кодов. Попробуйте через 15 минут.', code: 'TOTP_LOCKED' });
+      }
       const totp = new TOTP({ secret: Secret.fromBase32(userFor2fa.totpSecret), algorithm: 'SHA1', digits: 6, period: 30 });
       if (totp.validate({ token: totpCode, window: 1 }) === null) {
+        record2faFailure(req.userId!); // M2: per-account lockout on step-up TOTP brute-force
         return res.status(401).json({ error: 'Неверный код 2FA', code: 'INVALID_TOTP' });
       }
+      clear2faFailures(req.userId!);
       if (await isTotpReplay(req.userId!, totpCode)) {
         return res.status(401).json({ error: 'Этот код уже был использован. Дождитесь следующего кода.', code: 'TOTP_REPLAYED' });
       }
@@ -1124,6 +1160,7 @@ router.post('/change-email', authenticate, async (req: AuthRequest, res: Respons
       prisma.refreshToken.updateMany({ where: { userId: req.userId!, revoked: false }, data: { revoked: true } }),
       prisma.trustedDevice.deleteMany({ where: { userId: req.userId! } }),
     ]);
+    await invalidateAccessTokens(req.userId!); // M1: kill old access tokens; reissueTokens below mints a fresh one for this device
     const { token: newToken, refreshToken: newRefreshToken } = await reissueTokens(req.userId!, req);
 
     const ip = (req as any).ip ?? null;
@@ -1203,10 +1240,15 @@ router.post('/change-phone', authenticate, async (req: AuthRequest, res: Respons
       if (!totpCode) {
         return res.status(400).json({ error: 'Введите код из аутентификатора', code: 'TOTP_REQUIRED' });
       }
+      if (is2faLocked(req.userId!)) {
+        return res.status(429).json({ error: 'Слишком много неверных кодов. Попробуйте через 15 минут.', code: 'TOTP_LOCKED' });
+      }
       const totp = new TOTP({ secret: Secret.fromBase32(userFor2fa.totpSecret), algorithm: 'SHA1', digits: 6, period: 30 });
       if (totp.validate({ token: totpCode, window: 1 }) === null) {
+        record2faFailure(req.userId!); // M2: per-account lockout on step-up TOTP brute-force
         return res.status(401).json({ error: 'Неверный код 2FA', code: 'INVALID_TOTP' });
       }
+      clear2faFailures(req.userId!);
       if (await isTotpReplay(req.userId!, totpCode)) {
         return res.status(401).json({ error: 'Этот код уже был использован. Дождитесь следующего кода.', code: 'TOTP_REPLAYED' });
       }
@@ -1262,6 +1304,7 @@ router.post('/change-phone', authenticate, async (req: AuthRequest, res: Respons
       prisma.refreshToken.updateMany({ where: { userId: req.userId!, revoked: false }, data: { revoked: true } }),
       prisma.trustedDevice.deleteMany({ where: { userId: req.userId! } }),
     ]);
+    await invalidateAccessTokens(req.userId!); // M1: kill old access tokens; reissueTokens below mints a fresh one for this device
     const { token: newToken, refreshToken: newRefreshToken } = await reissueTokens(req.userId!, req);
 
     const ip = (req as any).ip ?? null;
@@ -1334,10 +1377,15 @@ router.post('/linked-accounts/:provider', authenticate, async (req: AuthRequest,
       if (!totpCode) {
         return res.status(400).json({ error: 'Введите код из аутентификатора', code: 'TOTP_REQUIRED' });
       }
+      if (is2faLocked(authUserId)) {
+        return res.status(429).json({ error: 'Слишком много неверных кодов. Попробуйте через 15 минут.', code: 'TOTP_LOCKED' });
+      }
       const totp = new TOTP({ secret: Secret.fromBase32(meStepUp.totpSecret), algorithm: 'SHA1', digits: 6, period: 30 });
       if (totp.validate({ token: totpCode, window: 1 }) === null) {
+        record2faFailure(authUserId); // M2: per-account lockout on step-up TOTP brute-force
         return res.status(401).json({ error: 'Неверный код 2FA', code: 'INVALID_TOTP' });
       }
+      clear2faFailures(authUserId);
       if (await isTotpReplay(authUserId, totpCode)) {
         return res.status(401).json({ error: 'Этот код уже был использован. Дождитесь следующего кода.', code: 'TOTP_REPLAYED' });
       }
@@ -1626,10 +1674,15 @@ router.delete('/account', authenticate, async (req: AuthRequest, res: Response) 
       if (!totpCode) {
         return res.status(400).json({ error: 'Введите код из аутентификатора для подтверждения', code: 'TOTP_REQUIRED' });
       }
+      if (is2faLocked(req.userId!)) {
+        return res.status(429).json({ error: 'Слишком много неверных кодов. Попробуйте через 15 минут.', code: 'TOTP_LOCKED' });
+      }
       const totp = new TOTP({ secret: Secret.fromBase32(user.totpSecret), algorithm: 'SHA1', digits: 6, period: 30 });
       if (totp.validate({ token: totpCode, window: 1 }) === null) {
+        record2faFailure(req.userId!); // M2: per-account lockout on step-up TOTP brute-force
         return res.status(401).json({ error: 'Неверный код 2FA', code: 'INVALID_TOTP' });
       }
+      clear2faFailures(req.userId!);
       if (await isTotpReplay(req.userId!, totpCode)) {
         return res.status(401).json({ error: 'Этот код уже был использован. Дождитесь следующего кода.', code: 'TOTP_REPLAYED' });
       }
