@@ -437,7 +437,7 @@ export default function HealthScreen() {
                   </View>
                   <Text
                     style={[typography.caption, { color: colors.textSecondary, marginTop: spacing.md }]}
-                    numberOfLines={1}
+                    numberOfLines={2}
                   >
                     {kpi.label}
                   </Text>

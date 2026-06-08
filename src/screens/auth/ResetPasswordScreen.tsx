@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, KeyboardAvoidingView, Platform } from 'react-na
 import { useThemeColors } from '../../store';
 import { Button, Input } from '../../components';
 import { typography } from '../../theme';
-import { spacing } from '../../theme/spacing';
+import { spacing, contentMaxWidth } from '../../theme/spacing';
 import { authService } from '../../services/authService';
 
 export const ResetPasswordScreen: React.FC<{ route: any; navigation: any }> = ({ route, navigation }) => {
@@ -125,6 +125,6 @@ export const ResetPasswordScreen: React.FC<{ route: any; navigation: any }> = ({
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { flex: 1, justifyContent: 'center', paddingHorizontal: spacing.xxl },
+  content: { flex: 1, justifyContent: 'center', paddingHorizontal: spacing.xxl, width: '100%', maxWidth: contentMaxWidth.tablet, alignSelf: 'center' },
   header: { alignItems: 'center', marginBottom: spacing.huge },
 });

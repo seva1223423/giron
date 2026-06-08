@@ -5,7 +5,7 @@ import { useSafeTop } from '../../hooks/useSafeTop';
 import { useThemeColors, useTrainerStore } from '../../store';
 import { Card, PaywallModal } from '../../components';
 import { typography } from '../../theme';
-import { spacing, borderRadius } from '../../theme/spacing';
+import { spacing, borderRadius, contentMaxWidth } from '../../theme/spacing';
 import { AddClientModal, ClientCard } from './components';
 import { useSubscriptionStore, FREE_LIMITS } from '../../store/useSubscriptionStore';
 import { localDateStr } from '../../utils/date';
@@ -64,7 +64,7 @@ export const TrainerDashboardScreen: React.FC<{ navigation: any }> = ({ navigati
             { value: totalWorkoutsAll, label: 'всего трен.', color: colors.accent },
           ].map(({ value, label, color }, i) => (
             <Card key={label} style={[styles.statCard, { flex: 1, marginHorizontal: i === 1 ? spacing.sm : 0 }]}>
-              <Text style={[typography.number, { color, fontSize: 28 }]}>{value}</Text>
+              <Text style={[typography.number, { color, fontSize: 28 }]} adjustsFontSizeToFit numberOfLines={1}>{value}</Text>
               <Text style={[typography.caption, { color: colors.textSecondary }]}>{label}</Text>
             </Card>
           ))}
@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: spacing.md, paddingHorizontal: spacing.xl, borderBottomWidth: 1 },
   addBtn: { paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: borderRadius.md },
-  content: { padding: spacing.xl, paddingBottom: spacing.huge },
+  content: { padding: spacing.xl, paddingBottom: spacing.huge, width: '100%', maxWidth: contentMaxWidth.tablet, alignSelf: 'center' },
   statsRow: { flexDirection: 'row', marginBottom: spacing.lg },
   statCard: { alignItems: 'center', paddingVertical: spacing.md },
   searchContainer: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: borderRadius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, marginBottom: spacing.lg },

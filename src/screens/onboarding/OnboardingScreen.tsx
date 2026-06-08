@@ -5,7 +5,7 @@ import { useThemeColors, useAuthStore, useNutritionStore, useWorkoutStore } from
 import { useSafeTop } from '../../hooks/useSafeTop';
 import { Button, Icon } from '../../components';
 import { typography } from '../../theme';
-import { spacing } from '../../theme/spacing';
+import { spacing, contentMaxWidth } from '../../theme/spacing';
 import { TrainingGoal, FitnessLevel, Gender } from '../../types';
 import { GenderStep, BodyStep, GoalStep, LevelStep, DaysStep } from './steps';
 import { localDateStr } from '../../utils/date';
@@ -204,7 +204,7 @@ export const OnboardingScreen: React.FC<{ navigation: any }> = () => {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ flexGrow: 1, paddingBottom: 140 }}
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: 140, width: '100%', maxWidth: contentMaxWidth.tablet, alignSelf: 'center' }}
       >
         {renderStep()}
       </ScrollView>

@@ -8,6 +8,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSupportStore } from '../../store/useSupportStore';
 import { useSafeBottom } from '../../hooks/useSafeBottom';
 import type { SupportTicket, TicketStatus } from '../../types';
+import { contentMaxWidth } from '../../theme/spacing';
 
 type RootStackParamList = {
   SupportScreen: undefined;
@@ -104,7 +105,7 @@ export default function SupportScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0F0F0F' },
   center: { flex: 1, justifyContent: 'center' },
-  list: { padding: 16, paddingBottom: 100 },
+  list: { padding: 16, paddingBottom: 100, width: '100%', maxWidth: contentMaxWidth.tablet, alignSelf: 'center' },
   empty: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
   emptyContent: { alignItems: 'center' },
   emptyIcon: { fontSize: 48, marginBottom: 16 },

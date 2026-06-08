@@ -8,7 +8,7 @@ import { makeRedirectUri } from 'expo-auth-session';
 import { useThemeColors, useAuthStore } from '../../store';
 import { Button, Input, GoogleAuthButton } from '../../components';
 import { typography } from '../../theme';
-import { spacing } from '../../theme/spacing';
+import { spacing, contentMaxWidth } from '../../theme/spacing';
 import { authService } from '../../services/authService';
 import { features } from '../../config/store';
 
@@ -540,7 +540,7 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: spacing.xxl, paddingVertical: spacing.huge },
+  content: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: spacing.xxl, paddingVertical: spacing.huge, width: '100%', maxWidth: contentMaxWidth.tablet, alignSelf: 'center' },
   header: { alignItems: 'center', marginBottom: spacing.xxxl },
   row: { flexDirection: 'row', flexWrap: 'wrap' },
   phoneRow: {

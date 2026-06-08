@@ -93,6 +93,7 @@ export const NewsArticleCard: React.FC<Props> = ({ article, isSaved, onPress, on
             ]}
           >
             <Text
+              numberOfLines={1}
               style={{
                 color: colors.primary,
                 fontSize: 10,
@@ -179,6 +180,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   categoryChip: {
+    flexShrink: 1,
     paddingVertical: 3,
     paddingHorizontal: 10,
     borderRadius: 999,

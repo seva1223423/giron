@@ -24,9 +24,9 @@ export const FeaturesTable: React.FC = () => {
       <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.lg }]}>Что входит в Pro</Text>
       <View style={[styles.row, { borderBottomWidth: 2, borderBottomColor: colors.border, paddingBottom: spacing.sm }]}>
         <View style={{ flex: 1 }} />
-        <Text style={[typography.captionMedium, { color: colors.textSecondary, width: 60, textAlign: 'center' }]} numberOfLines={1}>Бесплатно</Text>
+        <Text style={[typography.captionMedium, { color: colors.textSecondary, width: 60, textAlign: 'center' }]} numberOfLines={1} allowFontScaling={false}>Бесплатно</Text>
         <View style={[styles.proHeader, { backgroundColor: colors.accent }]}>
-          <Text style={[typography.captionMedium, { color: '#fff', width: 52, textAlign: 'center' }]}>Pro</Text>
+          <Text style={[typography.captionMedium, { color: '#fff', width: 52, textAlign: 'center' }]} allowFontScaling={false}>Pro</Text>
         </View>
       </View>
       {FEATURES.map((f, i) => (
@@ -35,8 +35,8 @@ export const FeaturesTable: React.FC = () => {
             <Text style={{ fontSize: 14, fontWeight: '700', color: colors.primary }}>{f.icon}</Text>
             <Text style={[typography.small, { color: colors.text, flex: 1 }]} numberOfLines={2}>{f.title}</Text>
           </View>
-          <Text style={[typography.small, { color: colors.textTertiary, width: 60, textAlign: 'center', fontSize: 10 }]} numberOfLines={2}>{f.free}</Text>
-          <Text style={[typography.small, { color: colors.accent, width: 52, textAlign: 'center', fontWeight: '700', fontSize: 10 }]} numberOfLines={1}>{f.pro}</Text>
+          <Text style={[typography.small, { color: colors.textTertiary, width: 60, textAlign: 'center', fontSize: 10 }]} numberOfLines={2} adjustsFontSizeToFit>{f.free}</Text>
+          <Text style={[typography.small, { color: colors.accent, width: 52, textAlign: 'center', fontWeight: '700', fontSize: 10 }]} numberOfLines={2} adjustsFontSizeToFit>{f.pro}</Text>
         </View>
       ))}
     </Card>

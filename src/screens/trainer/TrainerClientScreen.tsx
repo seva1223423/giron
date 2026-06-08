@@ -6,7 +6,7 @@ import { useThemeColors, useTrainerStore } from '../../store';
 import { TrainerClient } from '../../store';
 import { Card, Button } from '../../components';
 import { typography } from '../../theme';
-import { spacing, borderRadius } from '../../theme/spacing';
+import { spacing, borderRadius, contentMaxWidth } from '../../theme/spacing';
 import { ProgramPickerModal, EditClientModal, ClientNotesCard } from './components';
 import { localDateStr } from '../../utils/date';
 
@@ -323,7 +323,7 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: spacing.md, paddingHorizontal: spacing.xl, borderBottomWidth: 1 },
-  content: { padding: spacing.xl, paddingBottom: spacing.huge },
+  content: { padding: spacing.xl, paddingBottom: spacing.huge, width: '100%', maxWidth: contentMaxWidth.tablet, alignSelf: 'center' },
   avatar: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center' },
   tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   tag: { paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: borderRadius.sm },

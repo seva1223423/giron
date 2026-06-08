@@ -6,7 +6,7 @@ import {
 import { useThemeColors } from '../../store';
 import { Button, Input } from '../../components';
 import { typography } from '../../theme';
-import { spacing } from '../../theme/spacing';
+import { spacing, contentMaxWidth } from '../../theme/spacing';
 import { authService } from '../../services/authService';
 
 type Tab = 'email' | 'phone';
@@ -360,7 +360,7 @@ export const ForgotPasswordScreen: React.FC<{ navigation: any }> = ({ navigation
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: spacing.xxl, paddingVertical: spacing.xxl },
+  content: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: spacing.xxl, paddingVertical: spacing.xxl, width: '100%', maxWidth: contentMaxWidth.tablet, alignSelf: 'center' },
   header: { alignItems: 'center', marginBottom: spacing.xxl },
   tabRow: {
     flexDirection: 'row', borderRadius: 12, borderWidth: 1,
