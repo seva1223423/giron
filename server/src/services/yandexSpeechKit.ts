@@ -73,9 +73,11 @@ export async function yandexTranscribe(opts: TranscribeOptions): Promise<Transcr
         'Authorization': `Api-Key ${apiKey}`,
         'Content-Type': 'application/octet-stream',
       },
-      // Node fetch types don't list Buffer/Uint8Array in BodyInit yet,
-      // even though both work at runtime. Cast keeps TS happy.
-      body: opts.audio as unknown as BodyInit,
+      // Node's fetch accepts a Buffer/Uint8Array body at runtime, but the global
+      // `BodyInit` type isn't present in every @types/node patch (CI floats ^22.x and
+      // a newer patch dropped it — TS2304). Cast to `any` so the build is independent
+      // of that floating global; the runtime behaviour is unchanged.
+      body: opts.audio as any,
       // Yandex docs: short utterance recognition is sync, < 30s of audio
       // → 1 MB payload max, ~5s round-trip. Cap our timeout above their
       // worst-case so VPN / cold-net latency doesn't kill genuine slow runs.
