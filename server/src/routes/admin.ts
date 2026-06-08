@@ -6,6 +6,7 @@ import { TOTP, Secret } from 'otpauth';
 import { prisma } from '../db';
 import { authenticate, requireAdmin, requireStaff, AuthRequest } from '../middleware/auth';
 import { is2faLocked, record2faFailure, clear2faFailures } from '../utils/twofaLockout';
+import { decryptSecret } from '../utils/secretCrypto';
 import { getActiveUsersCount, getActiveUserIds } from '../utils/activityTracker';
 import { getAIMetrics } from '../utils/aiMetrics';
 import { logger } from '../utils/logger';
@@ -90,7 +91,7 @@ async function requireAdminStepUp(req: AuthRequest, res: Response): Promise<Resp
     if (is2faLocked(req.userId!)) {
       return res.status(429).json({ error: 'Слишком много неверных кодов. Попробуйте через 15 минут.', code: 'TOTP_LOCKED' });
     }
-    const totp = new TOTP({ secret: Secret.fromBase32(me.totpSecret), algorithm: 'SHA1', digits: 6, period: 30 });
+    const totp = new TOTP({ secret: Secret.fromBase32(decryptSecret(me.totpSecret)), algorithm: 'SHA1', digits: 6, period: 30 });
     if (totp.validate({ token: adminTotpCode, window: 1 }) === null) {
       record2faFailure(req.userId!);
       return res.status(401).json({ error: 'Неверный код 2FA администратора', code: 'INVALID_ADMIN_TOTP' });

@@ -9,6 +9,7 @@ import { OAuth2Client } from 'google-auth-library';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { is2faLocked, record2faFailure, clear2faFailures } from '../utils/twofaLockout';
 import { invalidateAccessTokens } from '../utils/sessionRevocation';
+import { encryptSecret, decryptSecret } from '../utils/secretCrypto';
 import { prisma } from '../db';
 import { logger } from '../utils/logger';
 import { getSubStatus } from '../utils/subscriptionCheck';
@@ -554,7 +555,7 @@ router.post('/change-password', authenticate, async (req: AuthRequest, res: Resp
       if (is2faLocked(req.userId!)) {
         return res.status(429).json({ error: 'Слишком много неверных кодов. Попробуйте через 15 минут.', code: 'TOTP_LOCKED' });
       }
-      const totp = new TOTP({ secret: Secret.fromBase32(user.totpSecret), algorithm: 'SHA1', digits: 6, period: 30 });
+      const totp = new TOTP({ secret: Secret.fromBase32(decryptSecret(user.totpSecret)), algorithm: 'SHA1', digits: 6, period: 30 });
       if (totp.validate({ token: totpCode, window: 1 }) === null) {
         record2faFailure(req.userId!); // M2: per-account lockout on step-up TOTP brute-force
         return res.status(401).json({ error: 'Неверный код 2FA', code: 'INVALID_TOTP' });
@@ -852,7 +853,7 @@ router.post('/2fa/setup', authenticate, async (req: AuthRequest, res: Response) 
     // Store secret (unconfirmed — not enabled yet)
     await prisma.user.update({
       where: { id: req.userId! },
-      data: { totpSecret: secret.base32, totpEnabled: false },
+      data: { totpSecret: encryptSecret(secret.base32), totpEnabled: false }, // L8: encrypt TOTP seed at rest
     });
 
     res.json({
@@ -883,7 +884,7 @@ router.post('/2fa/enable', authenticate, async (req: AuthRequest, res: Response)
       return res.status(400).json({ error: 'Двухфакторная аутентификация уже включена', code: 'TOTP_ALREADY_ENABLED' });
     }
 
-    const totp = new TOTP({ secret: Secret.fromBase32(user.totpSecret), algorithm: 'SHA1', digits: 6, period: 30 });
+    const totp = new TOTP({ secret: Secret.fromBase32(decryptSecret(user.totpSecret)), algorithm: 'SHA1', digits: 6, period: 30 });
     const delta = totp.validate({ token: code, window: 1 });
     if (delta === null) {
       return res.status(400).json({ error: 'Неверный код. Проверьте время на устройстве.', code: 'INVALID_TOTP' });
@@ -894,7 +895,7 @@ router.post('/2fa/enable', authenticate, async (req: AuthRequest, res: Response)
 
     // Generate 8 single-use backup codes
     const plainCodes: string[] = Array.from({ length: 8 }, () =>
-      crypto.randomBytes(6).toString('hex').toUpperCase(), // 12-char hex codes — 48 bits entropy
+      crypto.randomBytes(10).toString('hex').toUpperCase(), // L9: 20-char hex codes — 80 bits entropy (offline brute-force of a leaked hash now infeasible)
     );
     const backupCodeEntries = plainCodes.map((code) => ({
       hash: crypto.createHash('sha256').update(code).digest('hex'),
@@ -948,7 +949,7 @@ router.delete('/2fa', authenticate, async (req: AuthRequest, res: Response) => {
     // Verify the SECOND factor: a 6-digit TOTP code, or an unused backup code.
     let verified = false;
     if (user.totpSecret && /^\d{6}$/.test(code)) {
-      const totp = new TOTP({ secret: Secret.fromBase32(user.totpSecret), algorithm: 'SHA1', digits: 6, period: 30 });
+      const totp = new TOTP({ secret: Secret.fromBase32(decryptSecret(user.totpSecret)), algorithm: 'SHA1', digits: 6, period: 30 });
       verified = totp.validate({ token: code, window: 1 }) !== null;
       if (verified && await isTotpReplay(req.userId!, code)) {
         return res.status(401).json({ error: 'Этот код уже был использован. Дождитесь следующего кода.', code: 'TOTP_REPLAYED' });
@@ -998,7 +999,7 @@ router.post('/2fa/backup-codes', authenticate, async (req: AuthRequest, res: Res
     if (is2faLocked(req.userId!)) {
       return res.status(429).json({ error: 'Слишком много неверных кодов. Попробуйте через 15 минут.', code: 'TOTP_LOCKED' });
     }
-    const totp = new TOTP({ secret: Secret.fromBase32(user.totpSecret), algorithm: 'SHA1', digits: 6, period: 30 });
+    const totp = new TOTP({ secret: Secret.fromBase32(decryptSecret(user.totpSecret)), algorithm: 'SHA1', digits: 6, period: 30 });
     if (totp.validate({ token: code, window: 1 }) === null) {
       record2faFailure(req.userId!); // M2: per-account lockout on step-up TOTP brute-force
       return res.status(401).json({ error: 'Неверный код', code: 'INVALID_TOTP' });
@@ -1009,7 +1010,7 @@ router.post('/2fa/backup-codes', authenticate, async (req: AuthRequest, res: Res
     }
 
     const plainCodes: string[] = Array.from({ length: 8 }, () =>
-      crypto.randomBytes(6).toString('hex').toUpperCase(),
+      crypto.randomBytes(10).toString('hex').toUpperCase(),
     );
     const backupCodeEntries = plainCodes.map((c) => ({
       hash: crypto.createHash('sha256').update(c).digest('hex'),
@@ -1081,7 +1082,7 @@ router.post('/change-email', authenticate, async (req: AuthRequest, res: Respons
       if (is2faLocked(req.userId!)) {
         return res.status(429).json({ error: 'Слишком много неверных кодов. Попробуйте через 15 минут.', code: 'TOTP_LOCKED' });
       }
-      const totp = new TOTP({ secret: Secret.fromBase32(userFor2fa.totpSecret), algorithm: 'SHA1', digits: 6, period: 30 });
+      const totp = new TOTP({ secret: Secret.fromBase32(decryptSecret(userFor2fa.totpSecret)), algorithm: 'SHA1', digits: 6, period: 30 });
       if (totp.validate({ token: totpCode, window: 1 }) === null) {
         record2faFailure(req.userId!); // M2: per-account lockout on step-up TOTP brute-force
         return res.status(401).json({ error: 'Неверный код 2FA', code: 'INVALID_TOTP' });
@@ -1243,7 +1244,7 @@ router.post('/change-phone', authenticate, async (req: AuthRequest, res: Respons
       if (is2faLocked(req.userId!)) {
         return res.status(429).json({ error: 'Слишком много неверных кодов. Попробуйте через 15 минут.', code: 'TOTP_LOCKED' });
       }
-      const totp = new TOTP({ secret: Secret.fromBase32(userFor2fa.totpSecret), algorithm: 'SHA1', digits: 6, period: 30 });
+      const totp = new TOTP({ secret: Secret.fromBase32(decryptSecret(userFor2fa.totpSecret)), algorithm: 'SHA1', digits: 6, period: 30 });
       if (totp.validate({ token: totpCode, window: 1 }) === null) {
         record2faFailure(req.userId!); // M2: per-account lockout on step-up TOTP brute-force
         return res.status(401).json({ error: 'Неверный код 2FA', code: 'INVALID_TOTP' });
@@ -1380,7 +1381,7 @@ router.post('/linked-accounts/:provider', authenticate, async (req: AuthRequest,
       if (is2faLocked(authUserId)) {
         return res.status(429).json({ error: 'Слишком много неверных кодов. Попробуйте через 15 минут.', code: 'TOTP_LOCKED' });
       }
-      const totp = new TOTP({ secret: Secret.fromBase32(meStepUp.totpSecret), algorithm: 'SHA1', digits: 6, period: 30 });
+      const totp = new TOTP({ secret: Secret.fromBase32(decryptSecret(meStepUp.totpSecret)), algorithm: 'SHA1', digits: 6, period: 30 });
       if (totp.validate({ token: totpCode, window: 1 }) === null) {
         record2faFailure(authUserId); // M2: per-account lockout on step-up TOTP brute-force
         return res.status(401).json({ error: 'Неверный код 2FA', code: 'INVALID_TOTP' });
@@ -1677,7 +1678,7 @@ router.delete('/account', authenticate, async (req: AuthRequest, res: Response) 
       if (is2faLocked(req.userId!)) {
         return res.status(429).json({ error: 'Слишком много неверных кодов. Попробуйте через 15 минут.', code: 'TOTP_LOCKED' });
       }
-      const totp = new TOTP({ secret: Secret.fromBase32(user.totpSecret), algorithm: 'SHA1', digits: 6, period: 30 });
+      const totp = new TOTP({ secret: Secret.fromBase32(decryptSecret(user.totpSecret)), algorithm: 'SHA1', digits: 6, period: 30 });
       if (totp.validate({ token: totpCode, window: 1 }) === null) {
         record2faFailure(req.userId!); // M2: per-account lockout on step-up TOTP brute-force
         return res.status(401).json({ error: 'Неверный код 2FA', code: 'INVALID_TOTP' });
