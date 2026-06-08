@@ -49,6 +49,7 @@ async function isTotpReplay(userId: string, code: string): Promise<boolean> {
 // change-*/2fa-disable/backup-codes/linked-accounts/account-delete and admin step-up.
 import { is2faLocked, record2faFailure, clear2faFailures } from '../utils/twofaLockout';
 import { invalidateAccessTokens } from '../utils/sessionRevocation';
+import { decryptSecret } from '../utils/secretCrypto';
 
 const GOOGLE_CLIENT_IDS = [
   process.env.GOOGLE_CLIENT_ID_WEB,
@@ -618,7 +619,7 @@ router.post('/totp-verify', async (req: Request, res: Response) => {
     } else {
       // TOTP code flow
       const totp = new TOTP({
-        secret: Secret.fromBase32((user as any).totpSecret),
+        secret: Secret.fromBase32(decryptSecret((user as any).totpSecret)),
         algorithm: 'SHA1',
         digits: 6,
         period: 30,
