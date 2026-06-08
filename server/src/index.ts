@@ -89,6 +89,9 @@ app.use(helmet({
     },
   },
   crossOriginEmbedderPolicy: false, // mobile clients don't need CORP/COEP negotiation
+  // Headers hardening (audit 2026-06-07): explicit 1-year HSTS + preload (stronger than
+  // helmet's ~180d default) so any browser / web-preview access is pinned to HTTPS.
+  hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
 }));
 
 // Restrict CORS — allow Expo Go, production app, and local dev only
