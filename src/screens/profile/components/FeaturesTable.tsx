@@ -26,7 +26,7 @@ export const FeaturesTable: React.FC = () => {
         <View style={{ flex: 1 }} />
         <Text style={[typography.captionMedium, { color: colors.textSecondary, width: 60, textAlign: 'center' }]} numberOfLines={1} allowFontScaling={false}>Бесплатно</Text>
         <View style={[styles.proHeader, { backgroundColor: colors.accent }]}>
-          <Text style={[typography.captionMedium, { color: '#fff', width: 52, textAlign: 'center' }]} allowFontScaling={false}>Pro</Text>
+          <Text style={[typography.captionMedium, { color: colors.textInverse, width: 52, textAlign: 'center' }]} allowFontScaling={false}>Pro</Text>
         </View>
       </View>
       {FEATURES.map((f, i) => (

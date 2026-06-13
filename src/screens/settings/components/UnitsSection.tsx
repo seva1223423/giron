@@ -23,7 +23,7 @@ export const UnitsSection: React.FC = () => {
               onPress={() => { haptic.selection(); setUnits(u); }}
               style={[styles.segment, { backgroundColor: units === u ? colors.primary : colors.surface, borderColor: units === u ? colors.primary : colors.border }]}
             >
-              <Text style={[typography.captionMedium, { color: units === u ? '#FFF' : colors.text, fontSize: 11 }]} numberOfLines={1}>
+              <Text style={[typography.captionMedium, { color: units === u ? colors.textInverse : colors.text, fontSize: 11 }]} numberOfLines={1}>
                 {u === 'metric' ? 'кг / см' : 'фунты / дюймы'}
               </Text>
             </TouchableOpacity>

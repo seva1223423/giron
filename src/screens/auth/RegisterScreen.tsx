@@ -35,7 +35,6 @@ function passwordStrength(p: string): number {
 }
 
 const STRENGTH_LABELS = ['', 'Слабый', 'Средний', 'Хороший', 'Отличный'];
-const STRENGTH_COLORS = ['', '#EF4444', '#FF9F0A', '#34C759', '#D4B07A'];
 
 // Round 237 — current consent version, must match docs/privacy.html and
 // docs/terms.html "Last updated" date plus the server's CURRENT_CONSENT_VERSION.
@@ -57,6 +56,7 @@ function formatPhone(digits: string): string {
 
 export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const colors = useThemeColors();
+  const STRENGTH_COLORS = ['', colors.error, colors.warning, colors.success, colors.primary];
   const { register, loginWithYandex, isLoading, error, clearError } = useAuthStore();
 
   const [firstName, setFirstName] = useState('');
@@ -401,7 +401,7 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
               { ok: /[a-z]/.test(password), label: 'Строчная буква (a–z)' },
               { ok: /[0-9]/.test(password), label: 'Цифра (0–9)' },
             ].map(({ ok, label }) => (
-              <Text key={label} style={[typography.caption, { color: ok ? '#34C759' : colors.textTertiary }]}>
+              <Text key={label} style={[typography.caption, { color: ok ? colors.success : colors.textTertiary }]}>
                 {ok ? '✓' : '·'} {label}
               </Text>
             ))}
@@ -452,7 +452,7 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
             }}
           >
             {acceptedTerms ? (
-              <Text style={{ color: '#1A1208', fontSize: 14, fontWeight: '900', lineHeight: 16 }}>✓</Text>
+              <Text style={{ color: colors.textInverse, fontSize: 14, fontWeight: '900', lineHeight: 16 }}>✓</Text>
             ) : null}
           </View>
           <Text style={[typography.small, { color: colors.textSecondary, flex: 1, lineHeight: 19 }]}>

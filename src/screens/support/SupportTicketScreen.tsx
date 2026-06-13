@@ -7,6 +7,7 @@ import { useRoute, useNavigation } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import { useSupportStore } from '../../store/useSupportStore';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useThemeColors } from '../../store';
 import { useSafeBottom } from '../../hooks/useSafeBottom';
 import type { SupportMessage, TicketStatus } from '../../types';
 
@@ -18,23 +19,18 @@ const STATUS_LABEL: Record<TicketStatus, string> = {
   resolved: 'Решено',
   closed: 'Закрыто',
 };
-const STATUS_COLOR: Record<TicketStatus, string> = {
-  open: '#EF4444',
-  in_progress: '#F59E0B',
-  resolved: '#10B981',
-  closed: '#6B7280',
-};
 
 function MessageBubble({ msg, isMe }: { msg: SupportMessage; isMe: boolean }) {
+  const colors = useThemeColors();
   return (
-    <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleStaff]}>
+    <View style={[styles.bubble, isMe ? [styles.bubbleMe, { backgroundColor: colors.primary }] : [styles.bubbleStaff, { backgroundColor: colors.surface }]]}>
       {!isMe && (
-        <Text style={styles.bubbleAuthor}>
+        <Text style={[styles.bubbleAuthor, { color: colors.textSecondary }]}>
           {msg.isStaff ? '🎧 Поддержка' : msg.author.firstName}
         </Text>
       )}
-      <Text style={styles.bubbleText}>{msg.content}</Text>
-      <Text style={styles.bubbleTime}>
+      <Text style={[styles.bubbleText, { color: isMe ? colors.textInverse : colors.text }]}>{msg.content}</Text>
+      <Text style={[styles.bubbleTime, { color: colors.textSecondary }]}>
         {new Date(msg.createdAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
       </Text>
     </View>
@@ -44,7 +40,15 @@ function MessageBubble({ msg, isMe }: { msg: SupportMessage; isMe: boolean }) {
 export default function SupportTicketScreen() {
   const route = useRoute<RouteProp<{ SupportTicketScreen: RouteParams }, 'SupportTicketScreen'>>();
   const navigation = useNavigation();
+  const colors = useThemeColors();
   const { ticketId } = route.params ?? {};
+
+  const STATUS_COLOR: Record<TicketStatus, string> = {
+    open: colors.primary,
+    in_progress: colors.warning,
+    resolved: colors.success,
+    closed: colors.textTertiary,
+  };
 
   const { activeTicket, loading, sending, fetchTicket, sendMessage, closeTicket } = useSupportStore();
   const userId = useAuthStore((s) => s.user?.id);
@@ -92,13 +96,13 @@ export default function SupportTicketScreen() {
   }, [ticketId]);
 
   if (loading && !activeTicket) {
-    return <ActivityIndicator style={styles.center} color="#D4B07A" size="large" />;
+    return <ActivityIndicator style={styles.center} color={colors.primary} size="large" />;
   }
 
   if (!activeTicket) {
     return (
       <View style={styles.center}>
-        <Text style={{ color: '#9CA3AF' }}>Обращение не найдено</Text>
+        <Text style={{ color: colors.textSecondary }}>Обращение не найдено</Text>
       </View>
     );
   }
@@ -106,10 +110,10 @@ export default function SupportTicketScreen() {
   const isClosed = activeTicket.status === 'closed' || activeTicket.status === 'resolved';
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
+    <KeyboardAvoidingView style={[styles.container, { backgroundColor: colors.background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
       {/* Header info */}
-      <View style={styles.ticketInfo}>
-        <Text style={styles.ticketSubject} numberOfLines={2}>{activeTicket.subject}</Text>
+      <View style={[styles.ticketInfo, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <Text style={[styles.ticketSubject, { color: colors.text }]} numberOfLines={2}>{activeTicket.subject}</Text>
         <View style={[styles.badge, { backgroundColor: STATUS_COLOR[activeTicket.status] + '22' }]}>
           <Text style={[styles.badgeText, { color: STATUS_COLOR[activeTicket.status] }]}>
             {STATUS_LABEL[activeTicket.status]}
@@ -128,37 +132,37 @@ export default function SupportTicketScreen() {
       />
 
       {!isClosed ? (
-        <View style={styles.inputRow}>
+        <View style={[styles.inputRow, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.border, color: colors.text }]}
             placeholder="Написать сообщение..."
-            placeholderTextColor="#6B7280"
+            placeholderTextColor={colors.textTertiary}
             value={text}
             onChangeText={setText}
             multiline
             maxLength={2000}
           />
           <TouchableOpacity
-            style={[styles.sendBtn, (!text.trim() || sending) && styles.sendBtnDisabled]}
+            style={[styles.sendBtn, { backgroundColor: colors.primary }, (!text.trim() || sending) && styles.sendBtnDisabled]}
             onPress={handleSend}
             disabled={!text.trim() || sending}
             activeOpacity={0.7}
           >
             {sending
-              ? <ActivityIndicator color="#FFFFFF" size="small" />
-              : <Text style={styles.sendIcon}>↑</Text>
+              ? <ActivityIndicator color={colors.textInverse} size="small" />
+              : <Text style={[styles.sendIcon, { color: colors.textInverse }]}>↑</Text>
             }
           </TouchableOpacity>
         </View>
       ) : (
-        <View style={[styles.closedBanner, { paddingBottom: safeBottom + 16 }]}>
-          <Text style={styles.closedText}>Обращение закрыто</Text>
+        <View style={[styles.closedBanner, { backgroundColor: colors.surface, borderTopColor: colors.border, paddingBottom: safeBottom + 16 }]}>
+          <Text style={[styles.closedText, { color: colors.textTertiary }]}>Обращение закрыто</Text>
         </View>
       )}
 
       {!isClosed && (
         <TouchableOpacity style={[styles.closeBtn, { paddingBottom: safeBottom + 12 }]} onPress={handleClose}>
-          <Text style={styles.closeBtnText}>Закрыть обращение</Text>
+          <Text style={[styles.closeBtnText, { color: colors.error }]}>Закрыть обращение</Text>
         </TouchableOpacity>
       )}
     </KeyboardAvoidingView>
@@ -166,19 +170,17 @@ export default function SupportTicketScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0F0F0F' },
+  container: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   ticketInfo: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#1C1C1E',
     borderBottomWidth: 1,
-    borderBottomColor: '#2C2C2E',
     gap: 12,
   },
-  ticketSubject: { flex: 1, fontSize: 15, fontWeight: '600', color: '#FFFFFF' },
+  ticketSubject: { flex: 1, fontSize: 15, fontWeight: '600' },
   badge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
   badgeText: { fontSize: 11, fontWeight: '600' },
   messages: { padding: 16, paddingBottom: 8, gap: 8 },
@@ -188,48 +190,41 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 4,
   },
-  bubbleMe: { alignSelf: 'flex-end', backgroundColor: '#D4B07A' },
-  bubbleStaff: { alignSelf: 'flex-start', backgroundColor: '#1C1C1E' },
-  bubbleAuthor: { fontSize: 11, fontWeight: '600', color: '#9CA3AF', marginBottom: 4 },
-  bubbleText: { fontSize: 15, color: '#FFFFFF', lineHeight: 20 },
-  bubbleTime: { fontSize: 10, color: 'rgba(255,255,255,0.5)', textAlign: 'right', marginTop: 4 },
+  bubbleMe: { alignSelf: 'flex-end' },
+  bubbleStaff: { alignSelf: 'flex-start' },
+  bubbleAuthor: { fontSize: 11, fontWeight: '600', marginBottom: 4 },
+  bubbleText: { fontSize: 15, lineHeight: 20 },
+  bubbleTime: { fontSize: 10, textAlign: 'right', marginTop: 4 },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     padding: 12,
     gap: 8,
-    backgroundColor: '#1C1C1E',
     borderTopWidth: 1,
-    borderTopColor: '#2C2C2E',
   },
   input: {
     flex: 1,
-    backgroundColor: '#2C2C2E',
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 10,
     fontSize: 15,
-    color: '#FFFFFF',
     maxHeight: 100,
   },
   sendBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#D4B07A',
     justifyContent: 'center',
     alignItems: 'center',
   },
   sendBtnDisabled: { opacity: 0.5 },
-  sendIcon: { color: '#FFFFFF', fontSize: 20, fontWeight: '700' },
+  sendIcon: { fontSize: 20, fontWeight: '700' },
   closedBanner: {
     padding: 16,
-    backgroundColor: '#1C1C1E',
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: '#2C2C2E',
   },
-  closedText: { color: '#6B7280', fontSize: 14 },
+  closedText: { fontSize: 14 },
   closeBtn: { padding: 12, alignItems: 'center' },
-  closeBtnText: { color: '#EF4444', fontSize: 13 },
+  closeBtnText: { fontSize: 13 },
 });

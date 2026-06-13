@@ -136,7 +136,7 @@ export const NewsArticleCard: React.FC<Props> = ({ article, isSaved, onPress, on
           heart/comment glyphs from the design are placeholders there —
           we drop them here since the feed doesn't have real engagement
           counts. */}
-      <View style={styles.actionRow}>
+      <View style={[styles.actionRow, { borderTopColor: colors.border }]}>
         {article.content ? (
           <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '600' }}>
             Читать →
@@ -193,6 +193,5 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.06)',
   },
 });

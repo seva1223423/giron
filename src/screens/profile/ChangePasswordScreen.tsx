@@ -21,11 +21,11 @@ function passwordStrength(p: string): number {
   return Math.min(4, score);
 }
 
-const STRENGTH_COLORS = ['', '#EF4444', '#FF9F0A', '#34C759', '#D4B07A'];
 const STRENGTH_LABELS = ['', 'Слабый', 'Средний', 'Хороший', 'Отличный'];
 
 export const ChangePasswordScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const colors = useThemeColors();
+  const STRENGTH_COLORS = ['', colors.error, colors.warning, colors.success, colors.primary];
   // isSocialOnly is determined server-side — we ask the /has-password endpoint
   const [isSocialOnly, setIsSocialOnly] = useState<boolean | null>(null); // null = loading
   const [hasTwoFactor, setHasTwoFactor] = useState(false);
