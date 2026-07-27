@@ -5,6 +5,7 @@ import { createThrottledStorage } from '../utils/throttledStorage';
 import { Workout, WorkoutExercise, WorkoutSet, Program, Exercise, Routine } from '../types';
 import { workoutService } from '../services';
 import { userService } from '../services/userService';
+import { estimateOneRepMax } from '../utils/oneRepMax';
 
 interface ActiveWorkout {
   workout: Workout;
@@ -54,7 +55,7 @@ function computeBestRMsFromHistory(
       const exId = ex.exerciseId;
       for (const st of ex.sets) {
         if (!st.completed || !st.weight || !st.reps || st.type === 'warmup') continue;
-        const rm = st.weight * (1 + st.reps / 30);
+        const rm = estimateOneRepMax(st.weight, st.reps);
         const prev = best[exId] ?? -1;
         if (rm > prev) best[exId] = rm;
       }
@@ -446,7 +447,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
         const { weight, reps } = completedSet;
         let nextBestRMs = s.activeWorkout.bestRMs;
         if (weight && reps && weight > 0 && reps > 0 && completedSet.type !== 'warmup') {
-          const newRM = weight * (1 + reps / 30);
+          const newRM = estimateOneRepMax(weight, reps);
           const exerciseId = exercise.exerciseId;
           let historyBest: number;
           if (s.activeWorkout.bestRMs) {
@@ -461,7 +462,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
                 if (ex.exerciseId !== exerciseId) continue;
                 for (const st of ex.sets) {
                   if (!st.completed || !st.weight || !st.reps || st.type === 'warmup') continue;
-                  const rm = st.weight * (1 + st.reps / 30);
+                  const rm = estimateOneRepMax(st.weight, st.reps);
                   if (rm > historyBest) historyBest = rm;
                 }
               }

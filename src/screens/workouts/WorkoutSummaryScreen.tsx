@@ -12,6 +12,7 @@ import { computeAchievements, getNewlyUnlocked } from '../../utils/achievements'
 import { computeStreak } from '../../utils/date';
 import { scheduleStreakRiskNotification } from '../../services/notificationService';
 import { workoutService } from '../../services';
+import { estimateOneRepMax } from '../../utils/oneRepMax';
 import {
   PRCelebration,
   PRsCard,
@@ -51,7 +52,7 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
       if (w.id === workout.id) return;
       w.exercises.forEach((ex) => {
         ex.sets.filter((s) => s.completed && s.weight && s.reps).forEach((s) => {
-          const est1rm = (s.weight || 0) * (1 + (s.reps || 0) / 30);
+          const est1rm = estimateOneRepMax(s.weight || 0, s.reps || 0);
           if (!prevBests[ex.exerciseId] || est1rm > prevBests[ex.exerciseId]) {
             prevBests[ex.exerciseId] = est1rm;
           }
@@ -64,7 +65,7 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
       let bestWeight = 0;
       let bestReps = 0;
       ex.sets.filter((s: any) => s.completed && s.weight && s.reps).forEach((s: any) => {
-        const est1rm = (s.weight || 0) * (1 + (s.reps || 0) / 30);
+        const est1rm = estimateOneRepMax(s.weight || 0, s.reps || 0);
         if (est1rm > best1rm) { best1rm = est1rm; bestWeight = s.weight || 0; bestReps = s.reps || 0; }
       });
       if (best1rm > 0 && (!prevBests[ex.exerciseId] || best1rm > prevBests[ex.exerciseId])) {

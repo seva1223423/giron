@@ -9,6 +9,7 @@ import { Workout } from '../../../types';
 import { PersonalRecordCard, StrengthStandardsCard, ClubLeaderboard } from './records';
 import { ACHIEVEMENT_DEFINITIONS, Achievement } from '../../../utils/achievements';
 import { localDateStr } from '../../../utils/date';
+import { estimateOneRepMax } from '../../../utils/oneRepMax';
 
 interface RecordsTabProps {
   colors: any;
@@ -29,7 +30,7 @@ export const RecordsTab: React.FC<RecordsTabProps> = ({ colors, workoutHistory, 
       workout.exercises.forEach((ex) => {
         ex.sets.filter((s) => s.completed && s.weight && s.reps).forEach((set) => {
           const key = ex.exerciseId;
-          const estimated1RM = (set.weight || 0) * (1 + (set.reps || 0) / 30);
+          const estimated1RM = estimateOneRepMax(set.weight || 0, set.reps || 0);
           if (!records[key] || estimated1RM > records[key].estimated1RM) {
             records[key] = { exerciseId: ex.exerciseId, name: ex.exercise?.name ?? '', maxWeight: set.weight || 0, maxReps: set.reps || 0, estimated1RM: Math.round(estimated1RM) };
           }
@@ -46,7 +47,7 @@ export const RecordsTab: React.FC<RecordsTabProps> = ({ colors, workoutHistory, 
       workout.exercises.filter((ex) => ex.exerciseId === selectedExerciseId).forEach((ex) => {
         ex.sets.filter((s) => s.completed && s.weight && s.reps).forEach((set) => {
           const date = localDateStr(new Date(workout.completedAt!));
-          const est1rm = Math.round((set.weight || 0) * (1 + (set.reps || 0) / 30));
+          const est1rm = Math.round(estimateOneRepMax(set.weight || 0, set.reps || 0));
           if (!byDate.has(date) || est1rm > byDate.get(date)!) byDate.set(date, est1rm);
         });
       });

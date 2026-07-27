@@ -8,7 +8,7 @@ import { spacing, borderRadius } from '../../theme/spacing';
 import { OneRMResultCard, PercentageTableCard, StrengthStandardsCard } from './onerm';
 import { isFemale } from '../../utils/gender';
 
-function epley(w: number, r: number) { return r === 1 ? w : Math.round(w * (1 + r / 30)); }
+import { estimateOneRepMaxRounded as epley } from '../../utils/oneRepMax';
 function brzycki(w: number, r: number) { return r === 1 ? w : Math.round(w * (36 / (37 - r))); }
 function lander(w: number, r: number) { return r === 1 ? w : Math.round((100 * w) / (101.3 - 2.67123 * r)); }
 function oconner(w: number, r: number) { return r === 1 ? w : Math.round(w * (1 + r / 40)); }

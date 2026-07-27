@@ -10,6 +10,7 @@ import { scheduleRestEndNotification, cancelRestEndNotification, scheduleStreakR
 import { Button, Tooltip } from '../../components';
 import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
+import { estimateOneRepMax } from '../../utils/oneRepMax';
 import {
   WorkoutHeader, RestTimerOverlay, ExerciseNavBar, SetsSection, PRToast,
 } from './components';
@@ -30,7 +31,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     workoutHistory.forEach((w) => {
       w.exercises.forEach((ex) => {
         ex.sets.filter((s) => s.completed && s.weight && s.reps).forEach((s) => {
-          const rm = (s.weight || 0) * (1 + (s.reps || 0) / 30);
+          const rm = estimateOneRepMax(s.weight || 0, s.reps || 0);
           if (!map[ex.exerciseId] || rm > map[ex.exerciseId]) map[ex.exerciseId] = rm;
         });
       });
@@ -340,7 +341,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     // the old historical best and show the *previous* RM on the toast instead of the
     // just-set session RM.
     if (weight > 0 && reps > 0) {
-      const newRM = weight * (1 + reps / 30);
+      const newRM = estimateOneRepMax(weight, reps);
       const historicalBest = bestRMs[currentExercise.exerciseId] ?? 0;
       const sessionBest = sessionBestRef.current[currentExercise.exerciseId] ?? 0;
       const prevBest = Math.max(historicalBest, sessionBest);

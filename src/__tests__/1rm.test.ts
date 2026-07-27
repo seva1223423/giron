@@ -1,46 +1,59 @@
 /**
  * Tests for 1RM formulas used throughout Giron:
- *  - Epley   (achievements.ts, SetRow, ExerciseProgressionModal, RecordsTab)
+ *  - Epley   (utils/oneRepMax — the shared implementation)
  *  - Brzycki (OneRMCalculatorTab)
  *  - Lander  (OneRMCalculatorTab)
  *  - Average (OneRMCalculatorTab)
  *  - ONE_RM_PERCENTAGES training load table (OneRMCalculatorTab)
  */
 
+import { estimateOneRepMax, estimateOneRepMaxRounded } from '../utils/oneRepMax';
+
 // ─── Epley ────────────────────────────────────────────────────────────────────
-// Formula: weight * (1 + reps / 30)
-// Used in achievements.ts, RecordsTab, SetRow, ExerciseProgressionModal
+// The real shared implementation is imported, not re-typed. The previous
+// version of this file declared its own copy — and pinned the bug: it asserted
+// that a 100kg single estimates to 103, which is exactly what made the PR
+// notification disagree with the calculator screen (audit R36, R51).
 
-describe('1RM Epley formula', () => {
-  // The calc1RM variant used in achievements uses Math.round
-  const calc1RM = (weight: number, reps: number) => Math.round(weight * (1 + reps / 30));
-
-  test('1 rep = weight * 1.033', () => {
-    expect(calc1RM(100, 1)).toBe(103); // 100 * 1.033
+describe('1RM Epley formula (shared implementation)', () => {
+  test('a single rep IS the max — returned unchanged, not inflated', () => {
+    expect(estimateOneRepMaxRounded(100, 1)).toBe(100);
+    expect(estimateOneRepMaxRounded(200, 1)).toBe(200);
   });
 
   test('10 reps at 80kg', () => {
-    expect(calc1RM(80, 10)).toBe(107); // 80 * 1.333
+    expect(estimateOneRepMaxRounded(80, 10)).toBe(107); // 80 * 1.333
   });
 
   test('5 reps at 100kg', () => {
-    expect(calc1RM(100, 5)).toBe(117); // 100 * 1.167
+    expect(estimateOneRepMaxRounded(100, 5)).toBe(117); // 100 * 1.167
   });
 
   test('0 weight returns 0', () => {
-    expect(calc1RM(0, 10)).toBe(0);
+    expect(estimateOneRepMaxRounded(0, 10)).toBe(0);
   });
 
-  test('0 reps returns weight', () => {
-    expect(calc1RM(100, 0)).toBe(100);
+  test('0 reps carries no information — returns 0, never the raw weight', () => {
+    // The old copy returned the weight here, so an unlogged set counted as a
+    // full 1RM and could register a phantom personal record.
+    expect(estimateOneRepMaxRounded(100, 0)).toBe(0);
   });
 
-  test('heavy single at 200kg', () => {
-    expect(calc1RM(200, 1)).toBe(207);
+  test('negative and non-finite input is rejected', () => {
+    expect(estimateOneRepMax(-100, 5)).toBe(0);
+    expect(estimateOneRepMax(100, -5)).toBe(0);
+    expect(estimateOneRepMax(Number.NaN, 5)).toBe(0);
+    expect(estimateOneRepMax(100, Number.POSITIVE_INFINITY)).toBe(0);
   });
 
   test('high reps at low weight', () => {
-    expect(calc1RM(40, 20)).toBe(67); // 40 * 1.667
+    expect(estimateOneRepMaxRounded(40, 20)).toBe(67); // 40 * 1.667
+  });
+
+  test('a heavy single always outranks a lighter multi-rep estimate of it', () => {
+    // 150x1 must beat 120x5 (=140) — the inflation bug made the true single
+    // compete at 155 and, in the reverse direction, let lighter sets win.
+    expect(estimateOneRepMax(150, 1)).toBeGreaterThan(estimateOneRepMax(120, 5));
   });
 });
 

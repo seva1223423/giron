@@ -8,6 +8,7 @@ import { useHaptic } from '../../../hooks/useHaptic';
 import { AnimatedPressable, Icon } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
+import { estimateOneRepMaxRounded as estimate1RM } from '../../../utils/oneRepMax';
 
 const SET_TYPES = ['normal', 'warmup', 'dropset'] as const;
 /** Set-type chip config — colors resolved per-call from theme so chips
@@ -44,12 +45,6 @@ interface Props {
   onTypeChange?: (type: string) => void;
   onOpenPlates?: (weight: number) => void;
   colors: any;
-}
-
-function estimate1RM(weight: number, reps: number): number {
-  if (reps <= 0 || weight <= 0) return 0;
-  if (reps === 1) return weight;
-  return Math.round(weight * (1 + reps / 30));
 }
 
 // Animated complete button with spring pop + burst on completion.

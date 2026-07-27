@@ -9,7 +9,16 @@
  */
 
 export type ActivityKey = 'sedentary' | 'light' | 'moderate' | 'high' | 'extreme';
-export type GoalKey = 'weight_loss_fast' | 'weight_loss' | 'recomp' | 'muscle_gain' | 'mass';
+export type GoalKey =
+  | 'weight_loss_fast'
+  | 'weight_loss'
+  | 'recomp'
+  | 'muscle_gain'
+  | 'mass'
+  // Training-oriented goals, previously computed by the nutrition GoalsModal
+  // with its own copy of the formulas (audit R37).
+  | 'strength'
+  | 'endurance';
 
 export const ACTIVITY_MULTIPLIERS: Record<ActivityKey, number> = {
   sedentary: 1.2,
@@ -25,6 +34,8 @@ export const GOAL_CAL_DELTAS: Record<GoalKey, number> = {
   recomp: 0,
   muscle_gain: 400,
   mass: 700,
+  strength: 200,
+  endurance: 100,
 };
 
 /** Protein multiplier (g per kg bodyweight) for each goal. */
@@ -34,7 +45,32 @@ export const GOAL_PROTEIN_PER_KG: Record<GoalKey, number> = {
   recomp: 2.0,
   muscle_gain: 2.2,
   mass: 2.2,
+  strength: 2.0,
+  endurance: 1.6,
 };
+
+/**
+ * Activity level assumed by screens that have no activity picker (onboarding,
+ * the nutrition goals modal). Both used to hardcode the raw 1.55 multiplier
+ * alongside their own copy of the BMR formula.
+ */
+export const DEFAULT_ACTIVITY: ActivityKey = 'moderate';
+
+/**
+ * The profile's TrainingGoal (types/index.ts) mapped onto a nutrition goal.
+ * Keeps onboarding, the goals modal and the macro calculator on one set of
+ * numbers — previously the same person got different calorie and protein
+ * targets depending on which screen computed them (audit R37).
+ */
+export const TRAINING_GOAL_TO_MACRO_GOAL = {
+  weight_loss: 'weight_loss',
+  muscle_gain: 'muscle_gain',
+  strength: 'strength',
+  endurance: 'endurance',
+  flexibility: 'recomp',
+  general_fitness: 'recomp',
+  maintenance: 'recomp',
+} as const satisfies Record<string, GoalKey>;
 
 /** Mifflin-St Jeor BMR (kcal/day). */
 export function calcBMR(weightKg: number, heightCm: number, ageYears: number, isFemale: boolean): number {

@@ -3,6 +3,10 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface SettingsStore {
+  /** NOT WIRED UP. Nothing converts weights or lengths anywhere in the app, so
+   *  this only ever stored a value. The settings toggle that exposed it was
+   *  removed in audit R38 — do not surface it again without implementing real
+   *  conversion on entry, history, records and measurements. */
   units: 'metric' | 'imperial';
   restTimerDefault: number; // seconds
   hapticFeedback: boolean;

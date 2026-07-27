@@ -9,6 +9,7 @@ import { spacing, borderRadius } from '../../theme/spacing';
 import { exercises as localExercises } from '../../data/exercises';
 import { ExerciseVideoCard, ExerciseStatsCard } from './exercise';
 import { exerciseVideoSource, exerciseThumbSource } from '../../config/store';
+import { estimateOneRepMax } from '../../utils/oneRepMax';
 
 const MUSCLE_LABELS: Record<string, string> = {
   chest: 'Грудь', back: 'Спина', shoulders: 'Плечи', biceps: 'Бицепс',
@@ -76,7 +77,7 @@ export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = (
     workoutHistory.forEach((w) => {
       w.exercises.filter((e) => e.exerciseId === exerciseId).forEach((e) => {
         e.sets.filter((s) => s.completed && s.weight && s.reps).forEach((s) => {
-          const rm = (s.weight || 0) * (1 + (s.reps || 0) / 30);
+          const rm = estimateOneRepMax(s.weight || 0, s.reps || 0);
           if (rm > best) best = rm;
         });
       });
@@ -93,7 +94,7 @@ export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = (
         label: sessions.length <= 10 || i % Math.ceil(sessions.length / 10) === 0
           ? validDate ? d!.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }).replace(' ', '') : ''
           : '',
-        value: Math.round(h.bestWeight * (1 + h.bestReps / 30)),
+        value: Math.round(estimateOneRepMax(h.bestWeight, h.bestReps)),
       };
     });
   }, [exerciseHistory]);
@@ -297,7 +298,7 @@ export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = (
                     {h.bestWeight} кг × {h.bestReps}
                   </Text>
                   <Text style={[typography.caption, { color: colors.textTertiary }]}>
-                    ~{Math.round(h.bestWeight * (1 + h.bestReps / 30))} кг 1ПМ
+                    ~{Math.round(estimateOneRepMax(h.bestWeight, h.bestReps))} кг 1ПМ
                   </Text>
                 </View>
               </View>

@@ -6,47 +6,52 @@ import { Button } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { isFemale } from '../../../utils/gender';
+import {
+  calcMacros,
+  calcBMR as calcBmrShared,
+  calcTDEE,
+  DEFAULT_ACTIVITY,
+  GOAL_CAL_DELTAS,
+  type GoalKey,
+} from '../../../utils/macros';
 
-type GoalKey = 'weight_loss' | 'muscle_gain' | 'strength' | 'maintenance' | 'endurance';
+// This screen used to carry its OWN copy of Mifflin-St Jeor plus a hardcoded
+// ×1.55 and its own calorie/protein tables, so the same profile got different
+// targets here than in the macro calculator (audit R37). Everything now comes
+// from utils/macros; only the preset list and its labels live here.
+type PresetKey = Extract<GoalKey, 'weight_loss' | 'muscle_gain' | 'strength' | 'endurance' | 'recomp'>;
 
-const GOAL_PRESETS: Array<{ key: GoalKey; label: string; emoji: string; desc: string }> = [
-  { key: 'weight_loss', label: 'Похудение', emoji: '🔥', desc: '-500 ккал/TDEE' },
-  { key: 'maintenance', label: 'Поддержание', emoji: '⚖️', desc: '= TDEE' },
-  { key: 'muscle_gain', label: 'Набор массы', emoji: '💪', desc: '+400 ккал/TDEE' },
-  { key: 'strength', label: 'Сила', emoji: '🏋️', desc: '+200 ккал/TDEE' },
-  { key: 'endurance', label: 'Выносливость', emoji: '🏃', desc: '+100 ккал/TDEE' },
+const GOAL_PRESETS: Array<{ key: PresetKey; label: string; emoji: string; desc: string }> = [
+  { key: 'weight_loss', label: 'Похудение', emoji: '🔥', desc: `${GOAL_CAL_DELTAS.weight_loss} ккал/TDEE` },
+  { key: 'recomp', label: 'Поддержание', emoji: '⚖️', desc: '= TDEE' },
+  { key: 'muscle_gain', label: 'Набор массы', emoji: '💪', desc: `+${GOAL_CAL_DELTAS.muscle_gain} ккал/TDEE` },
+  { key: 'strength', label: 'Сила', emoji: '🏋️', desc: `+${GOAL_CAL_DELTAS.strength} ккал/TDEE` },
+  { key: 'endurance', label: 'Выносливость', emoji: '🏃', desc: `+${GOAL_CAL_DELTAS.endurance} ккал/TDEE` },
 ];
 
-function calcBMR(user: { weightKg?: number; heightCm?: number; gender?: string; dateOfBirth?: string } | null) {
-  const weight = user?.weightKg || 80;
-  const height = user?.heightCm || 175;
-  const age = user?.dateOfBirth
-    ? Math.floor((Date.now() - new Date(user.dateOfBirth).getTime()) / (365.25 * 24 * 3600 * 1000))
-    : 28;
-  const bmr = isFemale(user?.gender)
-    ? 10 * weight + 6.25 * height - 5 * age - 161
-    : 10 * weight + 6.25 * height - 5 * age + 5;
-  return { bmr: Math.round(bmr), tdee: Math.round(bmr * 1.55) };
+type ProfileLike = { weightKg?: number; heightCm?: number; gender?: string; dateOfBirth?: string } | null;
+
+function profileNumbers(user: ProfileLike) {
+  return {
+    weight: user?.weightKg || 80,
+    height: user?.heightCm || 175,
+    age: user?.dateOfBirth
+      ? Math.floor((Date.now() - new Date(user.dateOfBirth).getTime()) / (365.25 * 24 * 3600 * 1000))
+      : 28,
+    female: isFemale(user?.gender),
+  };
 }
 
-function calcTargetsForGoal(user: { weightKg?: number; heightCm?: number; gender?: string; dateOfBirth?: string } | null, goal: GoalKey) {
-  const weight = user?.weightKg || 80;
-  const { tdee } = calcBMR(user);
-  const calMap: Record<GoalKey, number> = {
-    weight_loss: Math.max(tdee - 500, 1200),
-    maintenance: tdee,
-    muscle_gain: tdee + 400,
-    strength: tdee + 200,
-    endurance: tdee + 100,
-  };
-  const protMap: Record<GoalKey, number> = {
-    weight_loss: 2.0, maintenance: 1.8, muscle_gain: 2.2, strength: 2.0, endurance: 1.6,
-  };
-  const calories = calMap[goal];
-  const protein = Math.round(weight * protMap[goal]);
-  const fats = Math.round((calories * 0.25) / 9);
-  const carbs = Math.max(Math.round((calories - protein * 4 - fats * 9) / 4), 50);
-  return { calories, protein, fats, carbs };
+function calcBMR(user: ProfileLike) {
+  const { weight, height, age, female } = profileNumbers(user);
+  const bmr = calcBmrShared(weight, height, age, female);
+  return { bmr: Math.round(bmr), tdee: calcTDEE(bmr, DEFAULT_ACTIVITY) };
+}
+
+function calcTargetsForGoal(user: ProfileLike, goal: PresetKey) {
+  const { weight, height, age, female } = profileNumbers(user);
+  const m = calcMacros(weight, height, age, female, DEFAULT_ACTIVITY, goal);
+  return { calories: m.targetCal, protein: m.protein, fats: m.fats, carbs: m.carbs };
 }
 
 interface Props {
@@ -65,7 +70,7 @@ export const GoalsModal: React.FC<Props> = ({ visible, onClose, selectedDate }) 
   const [goalProtein, setGoalProtein] = useState(dayLog.targetProtein.toString());
   const [goalFats, setGoalFats] = useState(dayLog.targetFats?.toString() || '70');
   const [goalCarbs, setGoalCarbs] = useState(dayLog.targetCarbs?.toString() || '250');
-  const [selectedGoal, setSelectedGoal] = useState<GoalKey | null>(null);
+  const [selectedGoal, setSelectedGoal] = useState<PresetKey | null>(null);
 
   const { bmr, tdee } = useMemo(() => calcBMR(user), [user?.weightKg, user?.heightCm, user?.gender, user?.dateOfBirth]);
 
@@ -81,7 +86,7 @@ export const GoalsModal: React.FC<Props> = ({ visible, onClose, selectedDate }) 
     }
   }, [visible, selectedDate]);
 
-  const applyGoalPreset = (goalKey: GoalKey) => {
+  const applyGoalPreset = (goalKey: PresetKey) => {
     haptic.light();
     setSelectedGoal(goalKey);
     const t = calcTargetsForGoal(user, goalKey);

@@ -9,6 +9,7 @@ import { spacing, contentMaxWidth } from '../../theme/spacing';
 import { TrainingGoal, FitnessLevel, Gender } from '../../types';
 import { GenderStep, BodyStep, GoalStep, LevelStep, DaysStep } from './steps';
 import { localDateStr } from '../../utils/date';
+import { calcMacros, DEFAULT_ACTIVITY, TRAINING_GOAL_TO_MACRO_GOAL } from '../../utils/macros';
 import { userService } from '../../services';
 
 const TOTAL_STEPS = 5;
@@ -89,18 +90,27 @@ export const OnboardingScreen: React.FC<{ navigation: any }> = () => {
 
     updateProfile({ gender: gender || undefined, heightCm: heightVal, weightKg: weightVal, goal: goal || undefined, fitnessLevel: level || undefined, dateOfBirth });
 
-    const bmr = gender === 'female'
-      ? 10 * weightVal + 6.25 * heightVal - 5 * ageVal - 161
-      : 10 * weightVal + 6.25 * heightVal - 5 * ageVal + 5;
-    const tdee = Math.round(bmr * 1.55);
-    const targetCalories = goal === 'weight_loss' ? Math.round(tdee - 400) : goal === 'muscle_gain' ? Math.round(tdee + 250) : tdee;
-    const proteinPerKg = goal === 'muscle_gain' ? 2.2 : goal === 'weight_loss' ? 2.0 : 1.8;
-    const targetProtein = Math.round(weightVal * proteinPerKg);
-    const targetFats = Math.round((targetCalories * 0.25) / 9);
-    const targetCarbs = Math.round((targetCalories - targetProtein * 4 - targetFats * 9) / 4);
+    // Onboarding used to carry its own third copy of Mifflin-St Jeor with a
+    // different surplus (+250 vs +400) and different protein multipliers, so
+    // the targets set here disagreed with both the macro calculator and the
+    // nutrition goals modal for the same profile (audit R37).
+    const macro = calcMacros(
+      weightVal,
+      heightVal,
+      ageVal,
+      gender === 'female',
+      DEFAULT_ACTIVITY,
+      TRAINING_GOAL_TO_MACRO_GOAL[goal ?? 'general_fitness'],
+    );
     const waterTargetMl = Math.round(weightVal * 35);
     const today = localDateStr(new Date());
-    setTargets(today, { calories: targetCalories, protein: targetProtein, fats: targetFats, carbs: Math.max(targetCarbs, 50), waterTargetMl });
+    setTargets(today, {
+      calories: macro.targetCal,
+      protein: macro.protein,
+      fats: macro.fats,
+      carbs: macro.carbs,
+      waterTargetMl,
+    });
 
     completeOnboarding();
 

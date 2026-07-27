@@ -1,4 +1,5 @@
 import { Workout, WorkoutExercise } from '../types';
+import { estimateOneRepMax } from './oneRepMax';
 
 export interface Achievement {
   id: string;
@@ -69,7 +70,7 @@ function maxWeightForExercises(history: Workout[], exerciseIds: string[]): numbe
   return max;
 }
 
-/** Estimated 1RM: weight * (1 + reps/30) — Epley */
+/** Best estimated 1RM across the given exercises (see utils/oneRepMax). */
 function best1RM(history: Workout[], exerciseIds: string[]): number {
   let best = 0;
   history.forEach((w) =>
@@ -78,7 +79,7 @@ function best1RM(history: Workout[], exerciseIds: string[]): number {
       .forEach((e) =>
         e.sets.forEach((s) => {
           if (s.completed && s.weight && s.reps) {
-            const est = s.weight * (1 + s.reps / 30);
+            const est = estimateOneRepMax(s.weight, s.reps);
             if (est > best) best = est;
           }
         })

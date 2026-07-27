@@ -6,10 +6,9 @@ import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
 import { useHaptic } from '../../../hooks/useHaptic';
 
-export function epley1RM(weight: number, reps: number): number {
-  if (reps === 1) return weight;
-  return Math.round(weight * (1 + reps / 30));
-}
+// Re-exported under the old name so PersonalRecordsScreen and records/index
+// keep working; the implementation now lives in utils/oneRepMax (audit R36).
+export { estimateOneRepMaxRounded as epley1RM } from '../../../utils/oneRepMax';
 
 export const MUSCLE_LABELS: Record<string, string> = {
   chest: 'Грудь', back: 'Спина', lats: 'Широчайшие', lower_back: 'Нижняя спина',

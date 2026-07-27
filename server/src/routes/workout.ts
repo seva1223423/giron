@@ -685,12 +685,19 @@ router.get('/leaderboard', authenticate, async (req: AuthRequest, res: Response)
           u."firstName"                                   AS "userName",
           ws.weight                                       AS "weightKg",
           ws.reps,
-          ROUND(ws.weight * (1 + ws.reps / 30.0))::int   AS "estimated1RM",
+          -- Mirrors src/utils/oneRepMax.ts: a single rep IS the max, so it is
+          -- returned as-is instead of being inflated 3.3% by Epley. Without
+          -- this the leaderboard ranked differently from the app's own PR
+          -- numbers, and a real heavy single lost to a lighter estimate
+          -- (audit R36).
+          ROUND(CASE WHEN ws.reps = 1 THEN ws.weight
+                     ELSE ws.weight * (1 + ws.reps / 30.0) END)::int AS "estimated1RM",
           w."completedAt"::text                           AS date,
           (sc.sessions >= 3)                              AS verified,
           ROW_NUMBER() OVER (
             PARTITION BY w."userId", we."exerciseId"
-            ORDER BY ws.weight * (1 + ws.reps / 30.0) DESC
+            ORDER BY CASE WHEN ws.reps = 1 THEN ws.weight
+                          ELSE ws.weight * (1 + ws.reps / 30.0) END DESC
           ) AS rn
         FROM  "WorkoutSet"      ws
         JOIN  "WorkoutExercise" we ON we.id  = ws."workoutExerciseId"

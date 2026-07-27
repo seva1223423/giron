@@ -4,16 +4,13 @@ import Svg, { Path, Circle, Defs, LinearGradient, Stop, Line } from 'react-nativ
 import { useWorkoutStore, useThemeColors } from '../../../store';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
+import { estimateOneRepMax as epley1RM } from '../../../utils/oneRepMax';
 
 interface Props {
   visible: boolean;
   onClose: () => void;
   exerciseId: string;
   exerciseName: string;
-}
-
-function epley1RM(weight: number, reps: number) {
-  return weight * (1 + reps / 30);
 }
 
 export const ExerciseProgressionModal: React.FC<Props> = ({ visible, onClose, exerciseId, exerciseName }) => {

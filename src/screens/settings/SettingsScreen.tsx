@@ -6,7 +6,7 @@ import { FadeIn } from '../../components';
 import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
 import {
-  AppearanceSection, UnitsSection, WorkoutSection,
+  AppearanceSection, WorkoutSection,
   NotificationsSection, SystemSection, LegalSection,
 } from './components';
 
@@ -30,7 +30,11 @@ export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
       </View>
 
       <AppearanceSection />
-      <UnitsSection />
+      {/* UnitsSection removed (audit R38): the kg/lb switch stored a value that
+          nothing ever read — no conversion happened on weight entry, history,
+          records or measurements, so the setting was purely decorative. The app
+          targets the Russian market, so metric-only is the honest state until
+          real conversion is implemented. */}
       <WorkoutSection />
       <NotificationsSection />
       <SystemSection />
