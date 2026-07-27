@@ -57,9 +57,9 @@ describe('theme colors — Direction A integrity', () => {
   });
 
   test('light mode uses deeper gold for contrast', () => {
-    // Champagne gold is too washed on cream bg; B08A4E is the deeper
-    // stop from the design token.
-    expect(lightColors.primary).toBe('#B08A4E');
+    // Champagne gold is too washed on cream. #B08A4E was the first attempt
+    // but still only reached 2.82:1; #86693B clears AA at 4.54:1 (audit R19).
+    expect(lightColors.primary).toBe('#86693B');
   });
 
   test('success / warning / error use warm (not neon) palette', () => {

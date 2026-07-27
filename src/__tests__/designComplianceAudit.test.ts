@@ -129,8 +129,9 @@ describe('Design spec lockdown', () => {
 describe('Light mode derivation consistency', () => {
   // Light mode uses deeper gold for readability on cream; these are
   // app-side decisions not direct tokens.A mappings. Lock them anyway.
-  test('light mode primary is deeper gold #B08A4E', () => {
-    expect(lightColors.primary).toBe('#B08A4E');
+  test('light mode primary is deep bronze-gold #86693B', () => {
+    // Darkened in audit R19 to clear WCAG AA on cream (4.54:1).
+    expect(lightColors.primary).toBe('#86693B');
   });
 
   test('light mode background is warm cream #F4F1EA (inverse of dark text)', () => {

@@ -154,24 +154,49 @@ describe('Light mode — primary text on background', () => {
 
   test('textSecondary on background AA (≥4.5)', () => {
     const ratio = contrastRatio(lightColors.textSecondary, lightColors.background);
-    expect(ratio).toBeGreaterThanOrEqual(4);
+    expect(ratio).toBeGreaterThanOrEqual(4.5);
   });
 
-  test('textTertiary on background visible (≥2)', () => {
-    // textTertiary is used for placeholder hint text and deprecated copy.
-    // Not primary reading text, so AA large is a stretch. Keep it visible.
+  test('textTertiary on background AA (≥4.5)', () => {
+    // Previously asserted ≥2 with a note calling AA "a stretch". That excuse
+    // is what let the default theme ship at 2.20:1 — textTertiary carries
+    // real copy (hints, dates, units), so it owes the same 4.5:1 as any other
+    // text (audit R19).
     const ratio = contrastRatio(lightColors.textTertiary, lightColors.background);
-    expect(ratio).toBeGreaterThanOrEqual(2);
+    expect(ratio).toBeGreaterThanOrEqual(4.5);
   });
 });
 
 describe('Light mode — gold primary on cream background', () => {
-  test('primary gold visible on cream (≥2.5)', () => {
-    // Light mode primary is bronze-gold (#B08A4E). Contrast ratio is
-    // sub-AA for small text — always paired with white text or used for
-    // borders/background accents, never as primary reading text.
+  test('primary gold meets AA on cream (≥4.5)', () => {
+    // The old threshold was 2.5 with a note claiming gold is "always paired
+    // with white text, never primary reading text". Both halves were false:
+    // it is used as text and icon colour in hundreds of places, and cream on
+    // gold measured the same 2.82:1 — the main button's own label was
+    // unreadable (audit R19).
     const ratio = contrastRatio(lightColors.primary, lightColors.background);
-    expect(ratio).toBeGreaterThanOrEqual(2.5);
+    expect(ratio).toBeGreaterThanOrEqual(4.5);
+  });
+
+  test('label on a gold button is readable (textInverse on primary)', () => {
+    const ratio = contrastRatio(lightColors.textInverse, lightColors.primary);
+    expect(ratio).toBeGreaterThanOrEqual(4.5);
+  });
+
+  test('status colours meet AA on cream', () => {
+    for (const token of ['success', 'warning', 'error', 'info'] as const) {
+      const ratio = contrastRatio(lightColors[token], lightColors.background);
+      expect({ token, ratio: Number(ratio.toFixed(2)) }).toEqual({
+        token,
+        ratio: expect.any(Number),
+      });
+      expect(ratio).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  test('placeholder meets AA on its own input background', () => {
+    const ratio = contrastRatio(lightColors.inputPlaceholder, lightColors.inputBackground);
+    expect(ratio).toBeGreaterThanOrEqual(4.5);
   });
 });
 

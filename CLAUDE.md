@@ -300,12 +300,13 @@ Force-update flow (когда старая версия должна обнов�
 ```
 
 ## Бренд (Direction A — Premium Graphite + Gold, 2026-04-22)
-- Primary (gold): `#D4B07A` (dark) / `#B08A4E` (light)
+- Primary (gold): `#D4B07A` (dark) / `#86693B` (light — углублён 2026-07-27, аудит R19: `#B08A4E` давал 2.82:1 на кремовом при норме 4.5:1)
 - Background: `#0E0E0F` (dark, warm graphite) / `#F4F1EA` (light, warm cream)
 - Surfaces: `#17171A` (surface/card) → `#1E1E22` (surfaceElevated)
 - Text: `#F4F1EA` (warm cream on dark) / `#17171A` (graphite on light)
 - Макросы (dark): калории `#E07A6B`, белки `#D4B07A` (= primary), жиры `#E8A36A`, углеводы `#9AC28C`
-- Макросы (light): калории `#C76558`, белки `#B08A4E`, жиры `#C9824E`, углеводы `#6FA66A`
+- Макросы (light): калории `#A9564B`, белки `#86693B`, жиры `#97623B`, углеводы `#50784C` (углублены вместе с primary — макросы зеркалят семантические токены: calories=error, protein=primary, fats=warning, carbs=success)
+- **Светлая тема обязана проходить WCAG AA (4.5:1).** Проверяется тестом `src/__tests__/designColorContrast.test.ts` — он требует 4.5 от ОБЕИХ тем. Не понижай пороги, чтобы «прошло»: именно так дефолтная тема и уехала на 2.2–2.8:1.
 - Дизайн: Premium dark с champagne gold акцентом (заменил старый фиолетовый `#8B5CF6` 2026-04-22). 38 SVG-иконок в `Icon` компоненте, без эмодзи, без unicode-глифов.
 - Banned legacy palette: `#8B5CF6`, `#A78BFA`, `#7C3AED`, `#6366F1`, `#F59E0B`, `#EF4444`, `#10B981` — нигде в `src/` не должны встречаться (исключение: `src/theme/colors.ts` — источник истины).
 

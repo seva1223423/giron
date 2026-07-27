@@ -93,9 +93,11 @@ describe('Brand gold token consistency', () => {
     expect(darkColors.progressBar).toBe('#D4B07A');
   });
 
-  test('light mode primary is deeper gold (#B08A4E)', () => {
-    expect(lightColors.primary).toBe('#B08A4E');
-    expect(lightColors.accent).toBe('#B08A4E');
+  test('light mode primary is deep bronze-gold (#86693B)', () => {
+    // Was #B08A4E until audit R19: that measured 2.82:1 on the cream
+    // background, below the 4.5:1 AA floor, in the DEFAULT theme.
+    expect(lightColors.primary).toBe('#86693B');
+    expect(lightColors.accent).toBe('#86693B');
   });
 });
 

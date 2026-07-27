@@ -16,12 +16,22 @@
  * bars and primary CTAs share the brand color.
  */
 
+// Light mode is the DEFAULT theme, and it used to fail WCAG AA across the
+// board: gold text measured 2.82:1 on the cream background where 4.5:1 is
+// required, tertiary text 2.20:1, the placeholder 2.04:1 — even the label on
+// the main gold button was unreadable, since cream-on-#B08A4E is also 2.82:1
+// (audit R19). The contrast test hid it by asking light mode for only 2.0-2.5.
+//
+// Values below were derived by darkening each token along its own hue until it
+// reaches 4.5:1 on #F4F1EA, so the palette keeps its warm character. The macro
+// chart palette is deliberately left alone: those are large graphical fills,
+// not text, and they are part of the documented brand spec.
 export const lightColors = {
-  primary: '#B08A4E',       // Gold — deeper for light-mode contrast
-  primaryDark: '#8E6B3E',   // Antique bronze
+  primary: '#86693B',       // Deep bronze-gold — 4.54:1 on cream (was #B08A4E, 2.82:1)
+  primaryDark: '#6B5430',   // Pressed state — darker still
   primaryLight: '#D4B07A',  // Champagne gold (dark-mode accent)
   secondary: '#17171A',
-  accent: '#B08A4E',
+  accent: '#86693B',
 
   background: '#F4F1EA',    // Warm cream (inverse of dark text)
   surface: '#FFFFFF',
@@ -30,39 +40,45 @@ export const lightColors = {
 
   text: '#17171A',          // Graphite
   textSecondary: '#6B6860',
-  textTertiary: '#A8A49C',
-  textMuted: '#A8A49C',     // Round 184: alias for responsive-package — same as textTertiary in light mode
+  textTertiary: '#716E69',  // 4.50:1 on cream (was #A8A49C, 2.20:1)
+  textMuted: '#716E69',     // Round 184: alias for responsive-package — same as textTertiary in light mode
   textInverse: '#F4F1EA',
 
   border: '#E5DFD2',        // Warm tan separator
   borderLight: '#EEE8DC',
   divider: '#E5DFD2',
 
-  success: '#6FA66A',       // Muted sage (matches graphite mood, not Apple neon)
-  warning: '#C9824E',       // Amber — warm
-  error: '#C76558',         // Terracotta
-  info: '#6B91B0',          // Muted slate
+  success: '#50784C',       // Deep sage — 4.51:1 (was #6FA66A, 2.54:1)
+  warning: '#97623B',       // Warm amber — 4.51:1 (was #C9824E, 2.74:1)
+  error: '#A9564B',         // Terracotta — 4.52:1 (was #C76558, 3.43:1)
+  info: '#537189',          // Muted slate — 4.55:1 (was #6B91B0, 2.95:1)
 
   tabBar: '#FFFFFF',
   tabBarBorder: '#E5DFD2',
-  tabBarActive: '#B08A4E',
-  tabBarInactive: '#A8A49C',
+  tabBarActive: '#86693B',
+  tabBarInactive: '#716E69',
 
   inputBackground: '#EEE8DC',
   inputBorder: '#E5DFD2',
   inputText: '#17171A',
-  inputPlaceholder: '#A8A49C',
+  // Slightly darker than textTertiary: the input background (#EEE8DC) is
+  // darker than the page, so the same grey only reached 4.16:1 there.
+  inputPlaceholder: '#6A6762',
 
   overlay: 'rgba(14, 14, 15, 0.4)',
   shadow: 'rgba(14, 14, 15, 0.08)',
 
-  progressBar: '#B08A4E',
+  progressBar: '#86693B',
   progressBarBackground: '#E5DFD2',
 
-  calories: '#C76558',      // Terracotta (warm red)
-  protein: '#B08A4E',       // Gold — primary brand
-  fats: '#C9824E',          // Amber
-  carbs: '#6FA66A',         // Sage
+  // Macros mirror the semantic tokens above (calories=error, protein=primary,
+  // fats=warning, carbs=success), so they move with them. Darkening keeps the
+  // "protein bar is the brand gold" rule intact and lifts the macro numbers —
+  // small text sitting on cream — from ~2.5-3.4:1 to AA (audit R19).
+  calories: '#A9564B',      // Terracotta (warm red)
+  protein: '#86693B',       // Gold — primary brand
+  fats: '#97623B',          // Amber
+  carbs: '#50784C',         // Sage
 };
 
 export const darkColors: typeof lightColors = {
