@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import dotenv from 'dotenv';
 import { authRouter } from './routes/auth';
 import { userRouter } from './routes/user';
@@ -312,12 +312,29 @@ const userRateLimiter = rateLimit({
   message: { error: 'Слишком много запросов. Подождите минуту.' },
 });
 
-/** TOTP verify: strict 5 attempts per 5 minutes per IP to mitigate brute-force */
+/**
+ * TOTP verify: strict 5 attempts per 5 minutes to mitigate brute-force.
+ *
+ * Two fixes from audit R27. This single instance is mounted on seven prefixes,
+ * and express-rate-limit keys purely by IP, so all seven shared ONE bucket:
+ * simply setting 2FA up (read status, start setup, confirm) spent the budget
+ * and one mistyped code returned 429 on a clean configuration. The key now
+ * includes the mounted path so each endpoint gets its own bucket, and
+ * read-only requests are skipped — a GET cannot brute-force anything.
+ *
+ * Known remaining limit: the key is still IP-based, so subscribers behind one
+ * mobile-carrier NAT share a bucket. Keying per account is not possible here —
+ * this middleware runs before `authenticate`, so req.userId does not exist yet.
+ */
 const totpRateLimiter = rateLimit({
   windowMs: 5 * 60 * 1000,
   max: 5,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => req.method === 'GET',
+  // ipKeyGenerator normalises IPv6 into a /56 subnet — required by
+  // express-rate-limit v7 when supplying a custom keyGenerator.
+  keyGenerator: (req) => `${ipKeyGenerator(req.ip ?? '')}:${req.baseUrl}`,
   message: { error: 'Слишком много попыток ввода кода 2FA. Подождите 5 минут.', code: 'TOTP_RATE_LIMIT' },
 });
 

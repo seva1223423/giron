@@ -32,6 +32,7 @@ import { Prisma } from '@prisma/client';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { prisma } from '../db';
 import { logger } from '../utils/logger';
+import { overPerUserAiRate } from '../utils/perUserRate';
 
 const router = Router();
 
@@ -138,6 +139,13 @@ const localKey = (parts: Array<string | number | null | undefined>): string =>
 router.post('/health/sync', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId!;
+    // Per-account burst cap. The schema accepts up to 2000 rows per array, so
+    // a single account could push roughly a million rows a minute into a
+    // free-tier database — the per-IP limiter does not stop it, and a real
+    // watch sync never needs more than a few calls a minute (audit R29).
+    if (overPerUserAiRate(userId, 12)) {
+      return res.status(429).json({ error: 'Слишком частая синхронизация. Попробуйте через минуту.' });
+    }
     const parsed = syncSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ error: 'Некорректные данные', details: parsed.error.flatten() });

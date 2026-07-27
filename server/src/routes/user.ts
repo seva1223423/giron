@@ -27,6 +27,7 @@ const FREE_MEASUREMENTS_LIMIT = 5;
 import { normalizePhone } from '../services/smsService';
 import { sendPushToUser } from '../services/pushService';
 import { sendPasswordChangedAlert } from '../services/emailService';
+import { overPerUserAiRate } from '../utils/perUserRate';
 
 const JWT_ISS = 'giron-api';
 const JWT_AUD = 'giron-app';
@@ -1571,6 +1572,13 @@ router.delete('/linked-accounts/:provider', authenticate, async (req: AuthReques
 router.get('/export', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId!;
+    // 14 parallel queries, several of them capped at 5000 rows — cheap to
+    // request, expensive to serve. Nothing in the client calls this yet, so
+    // any traffic here is either a power user or someone hammering it; two a
+    // minute is plenty for a genuine data export (audit R29).
+    if (overPerUserAiRate(userId, 2)) {
+      return res.status(429).json({ error: 'Экспорт можно запрашивать не чаще двух раз в минуту.' });
+    }
     // Round 240: bound every list query so a power user with 10K+ workouts
     // doesn't produce a multi-MB synchronous JSON dump that blocks the
     // event loop. Limits chosen to be generous (covers ~5 years of typical
@@ -1714,6 +1722,22 @@ router.delete('/account', authenticate, async (req: AuthRequest, res: Response) 
 
     // Cascade delete: Prisma schema has onDelete: Cascade on all user relations
     await prisma.user.delete({ where: { id: req.userId! } });
+
+    // ...but SecurityEvent and OtpCode hold userId as a PLAIN STRING with no
+    // relation, so the cascade never reaches them. Up to 200 security rows per
+    // person — IP address, device, action details — plus any outstanding OTP
+    // codes were surviving account deletion indefinitely, which defeats the
+    // right to erasure under 152-ФЗ (audit R32). Deleted explicitly, after the
+    // user row is gone so a failure here cannot leave a half-deleted account.
+    // The ACCOUNT_DELETED audit row written above goes with them: keeping it
+    // would mean keeping the very identifier we were asked to erase.
+    await Promise.all([
+      prisma.securityEvent.deleteMany({ where: { userId: req.userId! } }),
+      prisma.otpCode.deleteMany({ where: { userId: req.userId! } }),
+    ]).catch((cleanupErr) => {
+      // Non-blocking: the account itself is already gone.
+      logger.error('Post-delete cleanup of SecurityEvent/OtpCode failed:', cleanupErr);
+    });
 
     res.json({ message: 'Аккаунт удалён' });
   } catch (e: any) {

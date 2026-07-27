@@ -66,6 +66,9 @@ jest.mock('../db', () => ({
       create: jest.fn().mockResolvedValue({}),
       findFirst: jest.fn().mockResolvedValue(null),
       findMany: jest.fn().mockResolvedValue([]),
+      // Account deletion clears these explicitly — they hold userId as a plain
+      // string with no relation, so the cascade never reaches them (audit R32).
+      deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
     },
     passwordHistory: {
       findMany: jest.fn().mockResolvedValue([]),
@@ -75,6 +78,7 @@ jest.mock('../db', () => ({
     otpCode: {
       findFirst: jest.fn().mockResolvedValue(null),
       updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
     },
     usedTotpCode: {
       findFirst: jest.fn().mockResolvedValue(null),
@@ -1742,6 +1746,13 @@ describe('DELETE /api/user/account', () => {
     expect(res.body.message).toBeDefined();
     // Cascade deletion happened
     expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: 'u-test' } });
+    // ...and the two tables the cascade CANNOT reach are cleared explicitly.
+    // SecurityEvent.userId and OtpCode.userId are plain strings with no
+    // relation, so up to 200 rows of IP/device/action history per person used
+    // to outlive the account forever — a hole in the right to erasure under
+    // 152-ФЗ (audit R32).
+    expect(prisma.securityEvent.deleteMany).toHaveBeenCalledWith({ where: { userId: 'u-test' } });
+    expect(prisma.otpCode.deleteMany).toHaveBeenCalledWith({ where: { userId: 'u-test' } });
     // Audit trail: must write ACCOUNT_DELETED BEFORE the delete cascade
     // (otherwise the FK reference would be gone). This ordering is
     // critical — verify it via call order.
