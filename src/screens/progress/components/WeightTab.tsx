@@ -47,7 +47,15 @@ export const WeightTab: React.FC<WeightTabProps> = ({ colors, user }) => {
     setLoadingWeight(true);
     try {
       const data = await userService.getWeightHistory();
-      setWeightHistory(data.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
+      // The server returns a full ISO timestamp. The rows below render with
+      // `new Date(entry.date + 'T00:00:00')`, which on an ISO string produces
+      // "...ZT00:00:00" — an Invalid Date on every single row. Normalise to
+      // YYYY-MM-DD here, exactly as the measurements loader already does.
+      const normalised = data.map((w) => ({
+        ...w,
+        date: typeof w.date === 'string' ? w.date.split('T')[0] : w.date,
+      }));
+      setWeightHistory(normalised.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
     } catch {} finally {
       setLoadingWeight(false);
     }

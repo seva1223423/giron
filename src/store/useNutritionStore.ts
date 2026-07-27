@@ -115,17 +115,18 @@ export const useNutritionStore = create<NutritionStore>()(
             };
           });
         }).catch(() => {
-          // Rollback: remove the optimistically added meal
-          set((s) => {
-            const dl = s.dailyLog[date];
-            if (!dl) return s;
-            return {
-              dailyLog: {
-                ...s.dailyLog,
-                [date]: { ...dl, meals: dl.meals.filter((m) => m.id !== tempId) },
-              },
-            };
-          });
+          // Do NOT roll back. This used to delete the meal the user had just
+          // typed in whenever the request failed — offline, a 5xx, or the
+          // timeout Render's free tier serves on the first request after idle.
+          // The food simply vanished from the diary with no message at all.
+          //
+          // Keeping it is safe: the temp id carries the `meal-` prefix, and
+          // syncMealsFromServer deliberately preserves local-only meals with
+          // that prefix, so the entry survives later syncs instead of being
+          // overwritten. It is not on the server yet, so say so.
+          import('../components/app-modal/toast')
+            .then(({ toast }) => toast.warn('Приём пищи сохранён на телефоне, но не отправлен на сервер — проверьте соединение.'))
+            .catch(() => { /* toast host unavailable — the meal is still saved */ });
         });
       },
 

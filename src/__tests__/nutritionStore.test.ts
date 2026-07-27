@@ -61,6 +61,24 @@ describe('useNutritionStore', () => {
       expect(dayLog.meals).toHaveLength(2);
     });
 
+    test('keeps the meal when the server call fails — no silent data loss', async () => {
+      // The failure path used to roll back the optimistic insert, so food the
+      // user had just typed in vanished from the diary with no message —
+      // offline, a 5xx, or the timeout Render's free tier serves on the first
+      // request after idle. The entry must survive; syncMealsFromServer
+      // preserves local-only `meal-` ids, so it is not orphaned either.
+      const { nutritionService } = require('../services');
+      (nutritionService.addMeal as jest.Mock).mockRejectedValueOnce(new Error('Network Error'));
+
+      useNutritionStore.getState().addMeal('2026-04-09', mockMeal('meal-offline'));
+      // Let the rejected promise settle.
+      await new Promise((r) => setTimeout(r, 0));
+
+      const dayLog = useNutritionStore.getState().getDayLog('2026-04-09');
+      expect(dayLog.meals).toHaveLength(1);
+      expect(dayLog.meals[0].totalCalories).toBe(500);
+    });
+
     test('different dates have separate logs', () => {
       useNutritionStore.getState().addMeal('2026-04-08', mockMeal('meal-1'));
       useNutritionStore.getState().addMeal('2026-04-09', mockMeal('meal-2'));
