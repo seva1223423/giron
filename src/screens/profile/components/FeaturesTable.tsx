@@ -10,7 +10,10 @@ const FEATURES = [
   { icon: '◧', title: 'Расширенная аналитика', free: 'Базовая', pro: 'Полная + тренды' },
   { icon: '◫', title: 'Готовые программы', free: '3 шаблона', pro: '20+ программ' },
   { icon: '◑', title: 'КБЖУ сканер фото', free: '5 сканов/день', pro: 'Безлимитно' },
-  { icon: '◉', title: 'Клубный лидерборд', free: 'Просмотр', pro: 'Участие + рекорды' },
+  // Free tier is '—', not 'Просмотр': GET /workouts/leaderboard answers 402
+  // SUBSCRIPTION_REQUIRED without an active subscription, so the old row
+  // promised something the server refuses to serve (audit R18).
+  { icon: '◉', title: 'Клубный лидерборд', free: '—', pro: 'Участие + рекорды' },
   { icon: '◎', title: 'Динамика 1ПМ', free: 'Последние 10', pro: 'Полная история' },
   { icon: '◈', title: 'Приоритетный AI-ответ', free: '—', pro: 'Есть' },
   { icon: '◉', title: 'Умные напоминания', free: 'Базовые', pro: 'Персонализированные' },

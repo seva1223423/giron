@@ -33,8 +33,10 @@ export const NotificationsSection: React.FC = () => {
         let granted = status === 'granted';
         if (!granted) granted = await requestNotificationPermissions();
         if (granted) {
-          await scheduleDailyWorkoutReminder(reminderHour, 0);
+          // Flag first: scheduling now checks this toggle, so setting it
+          // afterwards would make the reminder silently refuse to schedule.
           setNotificationsEnabled(true);
+          await scheduleDailyWorkoutReminder(reminderHour, 0);
           Alert.alert('Уведомления включены', `Напоминание каждый день в ${reminderHour}:00.`);
         } else {
           Alert.alert('Нет доступа', 'Разреши уведомления в настройках устройства:\nНастройки → Giron → Уведомления.');

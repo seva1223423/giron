@@ -61,12 +61,43 @@ export async function getNotificationPermissionStatus(): Promise<string> {
   return status;
 }
 
+/**
+ * True when the user actually wants scheduled reminders: BOTH the in-app
+ * "Уведомления" toggle and the OS permission.
+ *
+ * Every scheduler here used to check the OS permission only, so switching
+ * the toggle off in Settings changed nothing — inactivity nudges, streak-risk
+ * warnings, the weekly summary, the day plan, the calorie summary and protein
+ * reminders all kept firing (audit R17).
+ *
+ * Deliberately NOT applied to the rest timer (started by the user inside a
+ * workout — a functional timer, not a reminder) or to
+ * sendImmediateNotification (only fires in direct response to a user action).
+ *
+ * The store is imported lazily, matching registerPushTokenWithServer, so this
+ * module stays free of a static dependency on the store graph.
+ */
+async function remindersAllowed(): Promise<boolean> {
+  try {
+    const { useSettingsStore } = await import('../store/useSettingsStore');
+    if (!useSettingsStore.getState().notificationsEnabled) return false;
+  } catch {
+    // Store unavailable (e.g. isolated unit test) — fall back to the OS check
+    // alone rather than silently dropping notifications.
+  }
+  const { status } = await Notifications.getPermissionsAsync();
+  return status === 'granted';
+}
+
 // Schedule a daily workout reminder at the given hour/minute (local time)
 // Fires every day at that time
 export async function scheduleDailyWorkoutReminder(hour: number, minute: number): Promise<void> {
   try {
     // Cancel existing reminder first
     await cancelWorkoutReminders();
+    // Guard AFTER the cancel, so a disabled toggle still clears anything
+    // previously scheduled instead of leaving it running.
+    if (!(await remindersAllowed())) return;
 
     const messages = [
       { title: 'Время тренироваться!', body: 'Открой Giron и сделай тренировку — ты уже почти там.' },
@@ -100,8 +131,11 @@ export async function scheduleDailyWorkoutReminder(hour: number, minute: number)
 // Schedule a one-time notification right away (e.g., for testing or instant reminders)
 export async function sendImmediateNotification(title: string, body: string): Promise<void> {
   try {
-    const { status } = await Notifications.getPermissionsAsync();
-    if (status !== 'granted') return;
+    // Intentionally NOT gated by the app's reminder toggle: this fires only
+    // when something the user just did asks for it (test notification, an
+    // instant confirmation), never on a schedule.
+    const permission = await Notifications.getPermissionsAsync();
+    if (permission.status !== 'granted') return;
     await Notifications.scheduleNotificationAsync({
       content: { title, body, sound: 'default', ...(Platform.OS === 'android' && { channelId: 'reminders' }) },
       trigger: null, // fires immediately
@@ -144,8 +178,7 @@ export async function cancelWorkoutReminders(): Promise<void> {
 // Call after finishing a workout — this replaces any previous streak-risk notification.
 export async function scheduleStreakRiskNotification(): Promise<void> {
   try {
-    const { status } = await Notifications.getPermissionsAsync();
-    if (status !== 'granted') return;
+    if (!(await remindersAllowed())) return;
     await Notifications.cancelScheduledNotificationAsync(NOTIFICATION_IDS.STREAK_RISK).catch(() => {});
     await Notifications.scheduleNotificationAsync({
       identifier: NOTIFICATION_IDS.STREAK_RISK,
@@ -175,8 +208,7 @@ export async function scheduleWaterReminders(
 ): Promise<void> {
   if (!Number.isFinite(intervalHours) || intervalHours <= 0) return;
   try {
-    const { status } = await Notifications.getPermissionsAsync();
-    if (status !== 'granted') return;
+    if (!(await remindersAllowed())) return;
 
     // Cancel existing water reminders first
     await cancelWaterReminders();
@@ -220,8 +252,7 @@ export async function scheduleNutritionSummaryReminder(
   proteinPercent: number,
 ): Promise<void> {
   try {
-    const { status } = await Notifications.getPermissionsAsync();
-    if (status !== 'granted') return;
+    if (!(await remindersAllowed())) return;
 
     await Notifications.cancelScheduledNotificationAsync('nutrition-summary').catch(() => {});
 
@@ -266,8 +297,7 @@ export async function scheduleWeeklySummaryNotification(
   bestWorkoutName?: string,
 ): Promise<void> {
   try {
-    const { status } = await Notifications.getPermissionsAsync();
-    if (status !== 'granted') return;
+    if (!(await remindersAllowed())) return;
 
     await Notifications.cancelScheduledNotificationAsync(NOTIFICATION_IDS.WEEKLY_SUMMARY).catch(() => {});
 
@@ -319,8 +349,7 @@ export async function scheduleProteinReminder(
   proteinTargetGrams: number,
 ): Promise<void> {
   try {
-    const { status } = await Notifications.getPermissionsAsync();
-    if (status !== 'granted') return;
+    if (!(await remindersAllowed())) return;
 
     await Notifications.cancelScheduledNotificationAsync('protein-reminder').catch(() => {});
 
@@ -373,8 +402,7 @@ export async function showTodayPlanNotification(
   streak: number,
 ): Promise<void> {
   try {
-    const { status } = await Notifications.getPermissionsAsync();
-    if (status !== 'granted') return;
+    if (!(await remindersAllowed())) return;
 
     await Notifications.dismissNotificationAsync('today-plan').catch(() => {});
 
@@ -419,8 +447,7 @@ export async function dismissTodayPlanNotification(): Promise<void> {
 // Call this when the app opens. Fires tomorrow morning at 9:00 if user hasn't trained.
 export async function scheduleInactivityReminder(daysSinceLastWorkout: number): Promise<void> {
   try {
-    const { status } = await Notifications.getPermissionsAsync();
-    if (status !== 'granted') return;
+    if (!(await remindersAllowed())) return;
 
     await Notifications.cancelScheduledNotificationAsync('inactivity-reminder').catch(() => {});
 

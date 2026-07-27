@@ -73,11 +73,17 @@ export const ClubLeaderboard: React.FC = () => {
   );
 
   if (leaderboard.length === 0) {
+    // This is what a user sees immediately AFTER paying, so it must not read
+    // like a broken purchase. Say plainly that the club is still small and
+    // that their own results already count (audit R18).
     return (
       <FadeIn>
-        <Card style={{ marginTop: spacing.lg }}>
-          <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center' }]}>
-            Рекорды клуба появятся когда участники завершат тренировки
+        <Card style={{ marginTop: spacing.lg, alignItems: 'center', paddingVertical: spacing.xl }}>
+          <Text style={[typography.bodySemibold, { color: colors.text, textAlign: 'center', marginBottom: spacing.xs }]}>
+            В клубе пока пусто
+          </Text>
+          <Text style={[typography.small, { color: colors.textSecondary, textAlign: 'center' }]}>
+            Твои рекорды уже учитываются — таблица заполнится, когда тренировки завершат другие участники.
           </Text>
         </Card>
       </FadeIn>

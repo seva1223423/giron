@@ -10,8 +10,19 @@ import { logger } from '../utils/logger';
 import { sendPasswordResetEmail, sendOtpEmail, sendNewLoginAlert, sendPasswordChangedAlert } from '../services/emailService';
 import { sendSmsOtp, normalizePhone } from '../services/smsService';
 import { sendPushToUser } from '../services/pushService';
+import { sendErrorToTelegram } from '../services/telegramLogger';
 
 const router = Router();
+
+/**
+ * Global SMS budget (audit R6). Every other OTP limit is per phone/email, so
+ * an attacker rotating through other people's numbers never trips one while
+ * each request bills a real SMS. These caps put a hard ceiling on the spend
+ * and page the founder in Telegram when hit. Tune via env once real traffic
+ * exists — 60/hour comfortably covers a small launch.
+ */
+const SMS_MAX_PER_HOUR = Number(process.env.SMS_MAX_PER_HOUR) || 60;
+const SMS_MAX_PER_DAY = Number(process.env.SMS_MAX_PER_DAY) || 300;
 
 // ── Security event logger ─────────────────────────────────────────────────────
 
@@ -1310,6 +1321,31 @@ router.post('/send-otp', async (req: Request, res: Response) => {
         return res.status(429).json({
           error: 'Слишком много запросов на смену email. Попробуйте через час.',
           code: 'EMAIL_CHANGE_RATE_LIMIT',
+        });
+      }
+    }
+
+    // Global SMS budget. Every limit above is scoped to ONE identifier, so an
+    // attacker cycling through other people's numbers never trips any of them
+    // while each request still bills a real SMS. The only remaining brake was
+    // the 20/15min IP limiter, which a handful of IPs defeats trivially — an
+    // open tap to the SMS.ru balance from launch day (audit R6). Counting
+    // OtpCode rows keeps the budget accurate across restarts and dynos,
+    // unlike an in-memory counter.
+    if (phone) {
+      const [smsLastHour, smsLastDay] = await Promise.all([
+        prisma.otpCode.count({ where: { phone: { not: null }, createdAt: { gte: new Date(Date.now() - 60 * 60 * 1000) } } }),
+        prisma.otpCode.count({ where: { phone: { not: null }, createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } } }),
+      ]);
+      if (smsLastHour >= SMS_MAX_PER_HOUR || smsLastDay >= SMS_MAX_PER_DAY) {
+        logger.error(`[SMS budget] Cap hit — hour=${smsLastHour}/${SMS_MAX_PER_HOUR}, day=${smsLastDay}/${SMS_MAX_PER_DAY}. SMS sending paused.`);
+        sendErrorToTelegram(
+          new Error(`SMS budget exceeded: ${smsLastHour}/h, ${smsLastDay}/day — sending paused`),
+          { route: 'POST /auth/send-otp', tags: { kind: 'sms-budget' } },
+        );
+        return res.status(429).json({
+          error: 'Отправка SMS временно недоступна. Попробуйте позже или используйте вход по email.',
+          code: 'SMS_BUDGET_EXCEEDED',
         });
       }
     }
