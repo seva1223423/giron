@@ -13,20 +13,52 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
  * the screen sources and fails if a new key appears that is in neither list.
  */
 
-/** Personal data — must not survive a logout. */
+/**
+ * Suffix the key with the signed-in user's id.
+ *
+ * Content a user creates and keeps ONLY on the device — progress photos, body
+ * measurements, custom quick meals, favourites — must not leak to the next
+ * account on the same phone, but deleting it on logout would destroy the
+ * user's only copy (nothing mirrors these to the server). Scoping the key
+ * solves both: the next account simply reads a different key, and the original
+ * data comes back on re-login.
+ *
+ * Falls back to the bare key when no one is signed in, so a read during boot
+ * never throws.
+ */
+export function userScopedKey(baseKey: string): string {
+  // Required lazily: useAuthStore reaches back into this module on logout.
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { useAuthStore } = require('../store/useAuthStore');
+  const id = useAuthStore.getState().user?.id;
+  return id ? `${baseKey}:${id}` : baseKey;
+}
+
+/**
+ * Throwaway state — caches and half-finished drafts. Safe to delete on logout:
+ * losing them costs the user nothing, and they can still describe the previous
+ * account (a half-scanned meal, recently viewed users).
+ *
+ * Content the user owns is NOT listed here. It is isolated with
+ * userScopedKey() instead — see above.
+ */
 export const SCREEN_OWNED_PRIVATE_KEYS = [
-  'giron_progress_photos', // progress/components/PhotosTab — body photos
-  'giron_body_measurements', // progress/components/weight/AddMeasurementsModal
   'giron_recent_scans', // nutrition/FoodScannerScreen
   'giron_scanner_draft', // nutrition/FoodScannerScreen
   'giron_ai_scan_cache', // nutrition/FoodScannerScreen
   'giron_scanner_last_meal_type', // nutrition/FoodScannerScreen
+  '@admin_recently_viewed_users', // admin/AdminDashboardScreen + AdminUserDetailScreen
+] as const;
+
+/** Owned by the user, isolated per account via userScopedKey, never deleted. */
+export const SCREEN_OWNED_SCOPED_KEYS = [
+  'giron_progress_photos', // progress/components/PhotosTab — body photos
+  'giron_body_measurements', // progress/components/weight/AddMeasurementsModal
   'giron/nutrition/quickMeals/overrides/v1', // nutrition/components/QuickMeals
   'giron/nutrition/quickMeals/hidden/v1', // nutrition/components/QuickMeals
   'giron/nutrition/quickMeals/userPresets/v1', // nutrition/components/QuickMeals
   'giron_exercise_favorites', // workouts/components/ExercisesTab
   'iron_gym_exercise_favorites', // workouts/ExerciseSearchScreen
-  '@admin_recently_viewed_users', // admin/AdminDashboardScreen + AdminUserDetailScreen
 ] as const;
 
 /**

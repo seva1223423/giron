@@ -70,7 +70,7 @@ export const ExerciseVideoCard: React.FC<Props> = ({
         <TouchableOpacity
           activeOpacity={0.92}
           onPress={openFullscreen}
-          style={[styles.media, { backgroundColor: colors.surfaceElevated }]}
+          style={[styles.media, { backgroundColor: colors.inputBackground }]}
           accessibilityRole="button"
           accessibilityLabel={`${exerciseName} — открыть видео в полном экране`}
         >
@@ -85,9 +85,12 @@ export const ExerciseVideoCard: React.FC<Props> = ({
           ) : posterSrc ? (
             <Image source={posterSrc} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
           ) : (
-            <View style={[StyleSheet.absoluteFillObject, styles.placeholder, { backgroundColor: colors.surfaceElevated }]}>
-              <Text style={{ fontSize: 36, marginBottom: 8 }}>▶</Text>
-              <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, fontWeight: '600' }}>Техника выполнения</Text>
+            // inputBackground, not surfaceElevated: the latter is pure white in
+            // light mode, and the caption below was hardcoded white — the
+            // placeholder rendered white-on-white.
+            <View style={[StyleSheet.absoluteFillObject, styles.placeholder, { backgroundColor: colors.inputBackground }]}>
+              <Text style={{ fontSize: 36, marginBottom: 8, color: colors.textSecondary }}>▶</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: '600' }}>Техника выполнения</Text>
             </View>
           )}
 

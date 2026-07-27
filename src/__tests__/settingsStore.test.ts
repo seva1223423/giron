@@ -114,7 +114,9 @@ describe('useSettingsStore', () => {
     expect(state.units).toBe('metric');
     expect(state.restTimerDefault).toBe(90);
     expect(state.hapticFeedback).toBe(true);
-    expect(state.notificationsEnabled).toBe(false);
+    // Reminders default ON: the OS permission is the real gate, so defaulting
+    // this off left users with no reminders even after granting permission.
+    expect(state.notificationsEnabled).toBe(true);
     expect(state.reminderHour).toBe(18);
     expect(state.waterRemindersEnabled).toBe(false);
     expect(state.waterReminderInterval).toBe(2);

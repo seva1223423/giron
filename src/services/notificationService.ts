@@ -77,10 +77,15 @@ export async function getNotificationPermissionStatus(): Promise<string> {
  * The store is imported lazily, matching registerPushTokenWithServer, so this
  * module stays free of a static dependency on the store graph.
  */
-async function remindersAllowed(): Promise<boolean> {
+async function remindersAllowed(kind: 'general' | 'water' = 'general'): Promise<boolean> {
   try {
     const { useSettingsStore } = await import('../store/useSettingsStore');
-    if (!useSettingsStore.getState().notificationsEnabled) return false;
+    const s = useSettingsStore.getState();
+    // Water reminders have their OWN switch. Gating them on the workout
+    // reminder toggle meant a user who turned water reminders ON still got
+    // nothing, because the unrelated master switch was off.
+    const enabled = kind === 'water' ? s.waterRemindersEnabled : s.notificationsEnabled;
+    if (!enabled) return false;
   } catch {
     // Store unavailable (e.g. isolated unit test) — fall back to the OS check
     // alone rather than silently dropping notifications.
@@ -208,7 +213,7 @@ export async function scheduleWaterReminders(
 ): Promise<void> {
   if (!Number.isFinite(intervalHours) || intervalHours <= 0) return;
   try {
-    if (!(await remindersAllowed())) return;
+    if (!(await remindersAllowed('water'))) return;
 
     // Cancel existing water reminders first
     await cancelWaterReminders();

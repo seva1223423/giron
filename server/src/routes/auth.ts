@@ -11,6 +11,7 @@ import { sendPasswordResetEmail, sendOtpEmail, sendNewLoginAlert, sendPasswordCh
 import { sendSmsOtp, normalizePhone } from '../services/smsService';
 import { sendPushToUser } from '../services/pushService';
 import { sendErrorToTelegram } from '../services/telegramLogger';
+import { smsCounts, recordSmsSend } from '../utils/smsBudget';
 
 const router = Router();
 
@@ -1333,10 +1334,7 @@ router.post('/send-otp', async (req: Request, res: Response) => {
     // OtpCode rows keeps the budget accurate across restarts and dynos,
     // unlike an in-memory counter.
     if (phone) {
-      const [smsLastHour, smsLastDay] = await Promise.all([
-        prisma.otpCode.count({ where: { phone: { not: null }, createdAt: { gte: new Date(Date.now() - 60 * 60 * 1000) } } }),
-        prisma.otpCode.count({ where: { phone: { not: null }, createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } } }),
-      ]);
+      const { hour: smsLastHour, day: smsLastDay } = smsCounts();
       if (smsLastHour >= SMS_MAX_PER_HOUR || smsLastDay >= SMS_MAX_PER_DAY) {
         logger.error(`[SMS budget] Cap hit — hour=${smsLastHour}/${SMS_MAX_PER_HOUR}, day=${smsLastDay}/${SMS_MAX_PER_DAY}. SMS sending paused.`);
         sendErrorToTelegram(
@@ -1366,6 +1364,7 @@ router.post('/send-otp', async (req: Request, res: Response) => {
 
     if (phone) {
       await sendSmsOtp(phone, code);
+      recordSmsSend();
     } else {
       await sendOtpEmail(email!, code);
     }

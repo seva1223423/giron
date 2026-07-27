@@ -45,7 +45,11 @@ export const useSettingsStore = create<SettingsStore>()(
       units: 'metric',
       restTimerDefault: 90,
       hapticFeedback: true,
-      notificationsEnabled: false,
+      // Default ON. The OS permission is the real gate — nothing fires until
+      // the user grants it — so defaulting this off meant that after granting
+      // permission they still silently got no reminders at all (audit R17
+      // follow-up). The switch now controls reminders; the OS controls consent.
+      notificationsEnabled: true,
       reminderHour: 18,
       waterRemindersEnabled: false,
       waterReminderInterval: 2,
@@ -75,7 +79,7 @@ export const useSettingsStore = create<SettingsStore>()(
         units: 'metric',
         restTimerDefault: 90,
         hapticFeedback: true,
-        notificationsEnabled: false,
+        notificationsEnabled: true, // see the default above
         reminderHour: 18,
         waterRemindersEnabled: false,
         waterReminderInterval: 2,

@@ -93,10 +93,13 @@ function clearStoreUserData() {
   } catch { /* best effort */ }
 
   // Stores are only half the picture: several screens write straight to
-  // AsyncStorage under their own keys, and those survived logout — including
-  // the previous account's progress photos and body measurements (audit R33).
-  // Fire-and-forget: these keys are independent of the throttled store
-  // snapshots flushed right after, so there is nothing to race.
+  // AsyncStorage under their own keys, and those survived logout (audit R33).
+  // This clears the throwaway ones — caches and half-finished drafts. Content
+  // the user owns (progress photos, quick meals, favourites) is NOT deleted:
+  // nothing mirrors it to the server, so wiping it on logout would destroy the
+  // only copy. Those keys are isolated per account with userScopedKey instead.
+  // Fire-and-forget: independent of the throttled store snapshots flushed
+  // right after, so there is nothing to race.
   import('../utils/screenOwnedStorage')
     .then((m) => m.clearScreenOwnedStorage())
     .catch(() => { /* best effort */ });

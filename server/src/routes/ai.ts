@@ -6283,7 +6283,10 @@ export async function executeTool(
     const { oldExerciseName, newExerciseName, workoutName } = parsed.data;
     const active = await prisma.program.findFirst({
       where: { userId, isActive: true },
-      include: { workouts: { include: { exercises: { include: { exercise: true } } } } },
+      // completedAt: null restricts this to the program DAY TEMPLATES. Without
+      // it the loop below also rewrote workouts the user had already finished,
+      // corrupting past records (audit R26 — these two tools were missed).
+      include: { workouts: { where: { completedAt: null }, include: { exercises: { include: { exercise: true } } } } },
     });
     if (!active) return { resultText: 'Нет активной программы', actionDescription: '' };
 
@@ -6343,7 +6346,10 @@ export async function executeTool(
     const { exercise1Name, exercise2Name, workoutName } = parsed.data;
     const active = await prisma.program.findFirst({
       where: { userId, isActive: true },
-      include: { workouts: { include: { exercises: { include: { exercise: true } } } } },
+      // completedAt: null restricts this to the program DAY TEMPLATES. Without
+      // it the loop below also rewrote workouts the user had already finished,
+      // corrupting past records (audit R26 — these two tools were missed).
+      include: { workouts: { where: { completedAt: null }, include: { exercises: { include: { exercise: true } } } } },
     });
     if (!active) return { resultText: 'Нет активной программы', actionDescription: '' };
 

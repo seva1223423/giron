@@ -153,7 +153,7 @@ export const ExerciseVideoModal: React.FC<Props> = ({
             {thumbUrl ? (
               <Image source={{ uri: thumbUrl }} style={styles.thumbnail} resizeMode="cover" />
             ) : (
-              <View style={[styles.thumbnail, styles.thumbnailPlaceholder, { backgroundColor: colors.surfaceElevated }]}>
+              <View style={[styles.thumbnail, styles.thumbnailPlaceholder, { backgroundColor: colors.inputBackground }]}>
                 <Text style={styles.placeholderIcon}>▶</Text>
                 <Text style={styles.placeholderText}>
                   {videoProvider === 'rutube' ? 'Открыть в Rutube' : features.youtubeVideos ? 'Найти в YouTube' : 'Найти в Rutube'}

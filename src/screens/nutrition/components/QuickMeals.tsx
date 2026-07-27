@@ -4,6 +4,7 @@ import {
   Modal, TextInput, KeyboardAvoidingView, Platform, ScrollView, Alert,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { userScopedKey } from '../../../utils/screenOwnedStorage';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useThemeColors, useNutritionStore } from '../../../store';
 import { typography } from '../../../theme';
@@ -54,7 +55,7 @@ export const QuickMeals: React.FC<Props> = ({ selectedDate }) => {
   const [userPresets, setUserPresets] = useState<QuickMealItem[]>([]);
 
   useEffect(() => {
-    AsyncStorage.getItem(OVERRIDES_KEY).then((raw) => {
+    AsyncStorage.getItem(userScopedKey(OVERRIDES_KEY)).then((raw) => {
       if (!raw) return;
       try {
         const parsed = JSON.parse(raw) ?? {};
@@ -73,17 +74,17 @@ export const QuickMeals: React.FC<Props> = ({ selectedDate }) => {
           }
         }
         setOverrides(pruned);
-        if (changed) AsyncStorage.setItem(OVERRIDES_KEY, JSON.stringify(pruned)).catch(() => {});
+        if (changed) AsyncStorage.setItem(userScopedKey(OVERRIDES_KEY), JSON.stringify(pruned)).catch(() => {});
       } catch {}
     });
-    AsyncStorage.getItem(USER_PRESETS_KEY).then((raw) => {
+    AsyncStorage.getItem(userScopedKey(USER_PRESETS_KEY)).then((raw) => {
       if (!raw) return;
       try {
         const parsed: QuickMealItem[] = JSON.parse(raw) ?? [];
         if (Array.isArray(parsed)) setUserPresets(parsed);
       } catch {}
     });
-    AsyncStorage.getItem(HIDDEN_KEY).then((raw) => {
+    AsyncStorage.getItem(userScopedKey(HIDDEN_KEY)).then((raw) => {
       if (!raw) return;
       try {
         const parsed: string[] = JSON.parse(raw) ?? [];
@@ -95,7 +96,7 @@ export const QuickMeals: React.FC<Props> = ({ selectedDate }) => {
         const pruned = parsed.filter((a) => validAbbrs.has(a as typeof BASE_QUICK_MEALS[number]['abbr']));
         setHidden(pruned);
         if (pruned.length !== parsed.length) {
-          AsyncStorage.setItem(HIDDEN_KEY, JSON.stringify(pruned)).catch(() => {});
+          AsyncStorage.setItem(userScopedKey(HIDDEN_KEY), JSON.stringify(pruned)).catch(() => {});
         }
       } catch {}
     });
@@ -103,15 +104,15 @@ export const QuickMeals: React.FC<Props> = ({ selectedDate }) => {
 
   const persistOverrides = (next: Record<string, Partial<QuickMealItem>>) => {
     setOverrides(next);
-    AsyncStorage.setItem(OVERRIDES_KEY, JSON.stringify(next)).catch(() => {});
+    AsyncStorage.setItem(userScopedKey(OVERRIDES_KEY), JSON.stringify(next)).catch(() => {});
   };
   const persistHidden = (next: string[]) => {
     setHidden(next);
-    AsyncStorage.setItem(HIDDEN_KEY, JSON.stringify(next)).catch(() => {});
+    AsyncStorage.setItem(userScopedKey(HIDDEN_KEY), JSON.stringify(next)).catch(() => {});
   };
   const persistUserPresets = (next: QuickMealItem[]) => {
     setUserPresets(next);
-    AsyncStorage.setItem(USER_PRESETS_KEY, JSON.stringify(next)).catch(() => {});
+    AsyncStorage.setItem(userScopedKey(USER_PRESETS_KEY), JSON.stringify(next)).catch(() => {});
   };
 
   // ── Resolved presets list (base + user-created, minus hidden) ────────

@@ -54,7 +54,7 @@ export const ProgramDayCard: React.FC<Props> = ({ day, dayIndex, goalColor, isEx
             return (
               <View key={exIndex} style={[styles.exRow, exIndex < day.exercises.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.divider }]}>
                 {thumb !== undefined ? (
-                  <Image source={thumb} style={[styles.exThumb, { backgroundColor: colors.surfaceElevated }]} />
+                  <Image source={thumb} style={[styles.exThumb, { backgroundColor: colors.inputBackground }]} />
                 ) : (
                   <View style={[styles.exNumber, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}>
                     <Text style={[typography.captionMedium, { color: colors.textSecondary }]}>{exIndex + 1}</Text>

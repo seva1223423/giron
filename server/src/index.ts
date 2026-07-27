@@ -334,7 +334,7 @@ const totpRateLimiter = rateLimit({
   skip: (req) => req.method === 'GET',
   // ipKeyGenerator normalises IPv6 into a /56 subnet — required by
   // express-rate-limit v7 when supplying a custom keyGenerator.
-  keyGenerator: (req) => `${ipKeyGenerator(req.ip ?? '')}:${req.baseUrl}`,
+  keyGenerator: (req) => `${ipKeyGenerator(req.ip ?? '')}:${req.baseUrl.toLowerCase()}`,
   message: { error: 'Слишком много попыток ввода кода 2FA. Подождите 5 минут.', code: 'TOTP_RATE_LIMIT' },
 });
 

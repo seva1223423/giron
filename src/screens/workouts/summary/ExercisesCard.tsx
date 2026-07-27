@@ -25,7 +25,7 @@ export const ExercisesCard: React.FC<Props> = ({ workout }) => {
           <View key={ex.id}>
             <View style={[{ flexDirection: 'row', paddingVertical: spacing.md, gap: spacing.md }, i < workout.exercises.length - 1 && !isSuperset && { borderBottomWidth: 1, borderBottomColor: colors.divider }]}>
               {thumb !== undefined && (
-                <Image source={thumb} style={[styles.thumb, { backgroundColor: colors.surfaceElevated }]} />
+                <Image source={thumb} style={[styles.thumb, { backgroundColor: colors.inputBackground }]} />
               )}
               <View style={{ flex: 1 }}>
                 <Text style={[typography.bodySemibold, { color: colors.text }]} numberOfLines={1}>{ex.exercise?.name ?? ''}</Text>

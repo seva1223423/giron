@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, ScrollView, FlatList, TouchableOpacity, TextInput, StyleSheet, Image } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { userScopedKey } from '../../../utils/screenOwnedStorage';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useThemeColors } from '../../../store';
 import { Card, Spinner } from '../../../components';
@@ -57,7 +58,7 @@ export const ExercisesTab: React.FC<Props> = ({ navigation }) => {
 
   useEffect(() => {
     let mounted = true;
-    AsyncStorage.getItem(FAVORITES_KEY).then((raw) => {
+    AsyncStorage.getItem(userScopedKey(FAVORITES_KEY)).then((raw) => {
       if (raw && mounted) {
         try { setFavoriteIds(new Set(JSON.parse(raw))); } catch {}
       }
@@ -92,7 +93,7 @@ export const ExercisesTab: React.FC<Props> = ({ navigation }) => {
       const next = new Set(prev);
       if (next.has(exerciseId)) next.delete(exerciseId);
       else next.add(exerciseId);
-      AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(Array.from(next)));
+      AsyncStorage.setItem(userScopedKey(FAVORITES_KEY), JSON.stringify(Array.from(next)));
       return next;
     });
   }, [haptic]);
@@ -126,9 +127,9 @@ export const ExercisesTab: React.FC<Props> = ({ navigation }) => {
             onPress={() => { haptic.light(); navigation.navigate('ExerciseDetail', { exerciseId: ex.id }); }}
           >
             {thumb !== undefined ? (
-              <Image source={thumb} style={[styles.cardThumb, { backgroundColor: colors.surfaceElevated }]} />
+              <Image source={thumb} style={[styles.cardThumb, { backgroundColor: colors.inputBackground }]} />
             ) : (
-              <View style={[styles.cardThumb, styles.cardThumbPlaceholder, { backgroundColor: colors.surfaceElevated }]}>
+              <View style={[styles.cardThumb, styles.cardThumbPlaceholder, { backgroundColor: colors.inputBackground }]}>
                 <Text style={styles.cardThumbPlaceholderIcon}>{ex.type === 'cardio' ? '🏃' : '💪'}</Text>
               </View>
             )}

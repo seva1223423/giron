@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { userScopedKey } from '../../../utils/screenOwnedStorage';
 import * as ImagePicker from 'expo-image-picker';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { FadeIn } from '../../../components';
@@ -33,7 +34,7 @@ export const PhotosTab: React.FC<PhotosTabProps> = ({ colors }) => {
   const fetchProgressPhotos = useCallback(async () => {
     setLoadingPhotos(true);
     try {
-      const raw = await AsyncStorage.getItem(PROGRESS_PHOTOS_KEY);
+      const raw = await AsyncStorage.getItem(userScopedKey(PROGRESS_PHOTOS_KEY));
       if (raw) {
         const data: ProgressPhoto[] = JSON.parse(raw);
         setProgressPhotos(data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
@@ -64,7 +65,7 @@ export const PhotosTab: React.FC<PhotosTabProps> = ({ colors }) => {
     const newPhoto: ProgressPhoto = { id: `photo-${Date.now()}`, uri: pendingPhotoUri, date: new Date().toISOString(), note: note || undefined };
     try {
       const updated = [newPhoto, ...progressPhotos];
-      await AsyncStorage.setItem(PROGRESS_PHOTOS_KEY, JSON.stringify(updated));
+      await AsyncStorage.setItem(userScopedKey(PROGRESS_PHOTOS_KEY), JSON.stringify(updated));
       setProgressPhotos(updated);
       setShowPhotoNoteModal(false);
       setPendingPhotoUri(null);
@@ -79,7 +80,7 @@ export const PhotosTab: React.FC<PhotosTabProps> = ({ colors }) => {
       { text: 'Отмена', style: 'cancel' },
       { text: 'Удалить', style: 'destructive', onPress: async () => {
         const updated = progressPhotos.filter((p) => p.id !== id);
-        await AsyncStorage.setItem(PROGRESS_PHOTOS_KEY, JSON.stringify(updated));
+        await AsyncStorage.setItem(userScopedKey(PROGRESS_PHOTOS_KEY), JSON.stringify(updated));
         setProgressPhotos(updated);
         if (selectedPhotoId === id) setSelectedPhotoId(null);
         haptic.warning();

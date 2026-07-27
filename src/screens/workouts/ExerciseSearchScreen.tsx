@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, ScrollView, FlatList, TouchableOpacity, TextInput, StyleSheet, Image } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { userScopedKey } from '../../utils/screenOwnedStorage';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
 import { useThemeColors } from '../../store';
@@ -66,7 +67,7 @@ export const ExerciseSearchScreen: React.FC<Props> = ({ navigation }) => {
 
   useEffect(() => {
     let mounted = true;
-    AsyncStorage.getItem(FAVORITES_KEY).then((raw) => {
+    AsyncStorage.getItem(userScopedKey(FAVORITES_KEY)).then((raw) => {
       if (raw && mounted) {
         try { setFavoriteIds(new Set(JSON.parse(raw))); } catch {}
       }
@@ -93,7 +94,7 @@ export const ExerciseSearchScreen: React.FC<Props> = ({ navigation }) => {
       const next = new Set(prev);
       if (next.has(exerciseId)) next.delete(exerciseId);
       else next.add(exerciseId);
-      AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(Array.from(next)));
+      AsyncStorage.setItem(userScopedKey(FAVORITES_KEY), JSON.stringify(Array.from(next)));
       return next;
     });
   }, [haptic]);

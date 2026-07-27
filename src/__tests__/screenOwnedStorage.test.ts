@@ -32,6 +32,7 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
 import {
   SCREEN_OWNED_PRIVATE_KEYS,
   SCREEN_OWNED_KEPT_KEYS,
+  SCREEN_OWNED_SCOPED_KEYS,
   clearScreenOwnedStorage,
 } from '../utils/screenOwnedStorage';
 
@@ -55,6 +56,7 @@ function walk(dir: string, acc: string[] = []): string[] {
 describe('screen-owned storage keys are all classified', () => {
   const known = new Set<string>([
     ...SCREEN_OWNED_PRIVATE_KEYS,
+    ...SCREEN_OWNED_SCOPED_KEYS,
     ...SCREEN_OWNED_KEPT_KEYS,
     ...STORE_OWNED,
   ]);
@@ -82,9 +84,18 @@ describe('screen-owned storage keys are all classified', () => {
     expect(unclassified).toEqual([]);
   });
 
-  test('the private list actually names the body-photo key (the worst leak)', () => {
-    expect(SCREEN_OWNED_PRIVATE_KEYS).toContain('giron_progress_photos');
-    expect(SCREEN_OWNED_PRIVATE_KEYS).toContain('giron_body_measurements');
+  test('body photos are isolated per account, never deleted', () => {
+    // Deleting them on logout destroyed the user's only copy — nothing mirrors
+    // progress photos to the server. They must be scoped, not wiped.
+    expect(SCREEN_OWNED_SCOPED_KEYS).toContain('giron_progress_photos');
+    expect(SCREEN_OWNED_PRIVATE_KEYS).not.toContain('giron_progress_photos');
+  });
+
+  test('the delete list holds only throwaway state, no user-authored content', () => {
+    const ownedContent = ['giron_progress_photos', 'giron_exercise_favorites', 'giron/nutrition/quickMeals/userPresets/v1'];
+    for (const k of ownedContent) {
+      expect(SCREEN_OWNED_PRIVATE_KEYS).not.toContain(k);
+    }
   });
 
   test('no key is both cleared and kept', () => {
