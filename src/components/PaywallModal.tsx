@@ -8,6 +8,7 @@ import {
   ScrollView,
 } from 'react-native';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
+import { useNavigation } from '@react-navigation/native';
 import { useThemeColors } from '../store';
 import { useSubscriptionStore, FREE_LIMITS } from '../store/useSubscriptionStore';
 import { useHaptic } from '../hooks/useHaptic';
@@ -51,7 +52,9 @@ const PRO_FEATURES: Array<{ icon: IconName; title: string; subtitle: string }> =
   {
     icon: 'dumbbell',
     title: 'Все программы',
-    subtitle: '50+ профессиональных',
+    // Must match data/programs.ts — it ships 25, and "50+" was a promise
+    // the app could not keep (audit R4).
+    subtitle: '25 программ',
   },
   {
     icon: 'chart',
@@ -80,7 +83,9 @@ import {
  * Russian payment method strip, and tall 58pt gold CTA.
  *
  * The annual plan is pre-selected (matches design) and shows the
- * strike-through old price + "ВЫГОДА −56%" gold chip badge.
+ * strike-through 12×monthly price + a gold discount chip. All numbers
+ * come from utils/paywall so this sheet can never disagree with the
+ * subscription screen it navigates to.
  */
 export const PaywallModal: React.FC<PaywallModalProps> = ({
   visible,
@@ -92,6 +97,11 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
   const colors = useThemeColors();
   const { trialUsed } = useSubscriptionStore();
   const haptic = useHaptic();
+  // Half the call sites never passed a `navigation` prop, so their CTA did
+  // nothing at all. Grabbing navigation from context makes the sheet work
+  // everywhere it is rendered (audit R2).
+  const fallbackNavigation = useNavigation<any>();
+  const nav = navigation ?? fallbackNavigation;
   // Plan selection — design opens with annual highlighted; user can tap
   // the monthly card to switch the primary CTA target.
   const [selectedPlan, setSelectedPlan] = useState<'year' | 'month'>('year');
@@ -99,9 +109,14 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
   const handleSubscribe = () => {
     haptic.medium();
     onClose();
-    if (navigation) {
-      navigation.navigate('Subscription', { preselect: selectedPlan });
-    }
+    // 'Subscription' is registered inside ProfileStack only, so a bare
+    // navigate('Subscription') is a no-op from the AI, Nutrition and
+    // Workouts tabs. Route through the tab so every entry point lands on
+    // the paid screen (audit R2).
+    nav?.navigate('ProfileTab', {
+      screen: 'Subscription',
+      params: { preselect: selectedPlan },
+    });
   };
 
   // CTA title + fine-print derived from the shared paywall util.

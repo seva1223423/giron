@@ -2,9 +2,11 @@
  * Paywall pricing + CTA copy tests.
  *
  * Locks:
- *   - The discount % displayed on the gold chip matches the actual
- *     cost delta (2990 vs 6788 → 56%, not 55% or 57%)
- *   - Effective monthly on the yearly plan is 249₽ (the copy says so)
+ *   - One price everywhere: 1990₽/year, 299₽/month (audit R3 — the app
+ *     used to show 2990₽ on the modal and 1990₽ on the next screen)
+ *   - The strike-through price is DERIVED from the monthly rate, so the
+ *     advertised discount is always a claim we can substantiate
+ *   - Effective monthly on the yearly plan is 166₽ (the copy says so)
  *   - CTA title branches correctly on plan × trial-used
  *   - Fine-print branches correctly across 4 combinations
  *   - Russian number formatting uses NBSP separators
@@ -23,25 +25,29 @@ import {
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-describe('Paywall pricing constants — Direction A spec', () => {
-  test('yearly price is 2990 ₽', () => {
-    expect(PRICE_YEAR_RUB).toBe(2990);
+describe('Paywall pricing constants — single source of truth', () => {
+  test('yearly price is 1990 ₽', () => {
+    expect(PRICE_YEAR_RUB).toBe(1990);
   });
 
-  test('old yearly price is 6788 ₽ (crossed out, for discount math)', () => {
-    expect(PRICE_YEAR_OLD_RUB).toBe(6788);
+  test('strike-through price is derived: 12 × monthly, never a made-up number', () => {
+    expect(PRICE_YEAR_OLD_RUB).toBe(PRICE_MONTH_RUB * 12);
+    expect(PRICE_YEAR_OLD_RUB).toBe(3588);
   });
 
-  test('monthly price is 569 ₽', () => {
-    expect(PRICE_MONTH_RUB).toBe(569);
+  test('monthly price is 299 ₽', () => {
+    expect(PRICE_MONTH_RUB).toBe(299);
   });
 
-  test('effective monthly on yearly plan is 249 ₽ (design says so)', () => {
-    expect(PRICE_YEAR_MONTHLY_EFFECTIVE_RUB).toBe(249);
+  test('effective monthly on yearly plan is 166 ₽ (the copy says so)', () => {
+    expect(PRICE_YEAR_MONTHLY_EFFECTIVE_RUB).toBe(166);
   });
 
-  test('annual discount is 56% (badge says "−56%")', () => {
-    expect(ANNUAL_DISCOUNT_PCT).toBe(56);
+  test('annual discount is 45% and matches the real delta', () => {
+    expect(ANNUAL_DISCOUNT_PCT).toBe(45);
+    // The badge number must equal the actual saving, or it is a false claim.
+    const realSaving = Math.round(100 - (PRICE_YEAR_RUB / PRICE_YEAR_OLD_RUB) * 100);
+    expect(ANNUAL_DISCOUNT_PCT).toBe(realSaving);
   });
 
   test('yearly price is cheaper than 12× monthly (must be — it\'s the discount)', () => {
@@ -56,12 +62,12 @@ describe('Paywall pricing constants — Direction A spec', () => {
 // ─── priceForPlan ───────────────────────────────────────────────────────────
 
 describe('priceForPlan', () => {
-  test('year → 2990', () => {
-    expect(priceForPlan('year')).toBe(2990);
+  test('year → 1990', () => {
+    expect(priceForPlan('year')).toBe(1990);
   });
 
-  test('month → 569', () => {
-    expect(priceForPlan('month')).toBe(569);
+  test('month → 299', () => {
+    expect(priceForPlan('month')).toBe(299);
   });
 });
 
@@ -73,14 +79,14 @@ describe('buildPaywallCtaTitle', () => {
     expect(buildPaywallCtaTitle('month', false)).toBe('Начать 7 дней бесплатно');
   });
 
-  test('trial used + yearly → "Оформить за 2 990 ₽"', () => {
+  test('trial used + yearly → "Оформить за 1 990 ₽"', () => {
     const out = buildPaywallCtaTitle('year', true);
-    // NBSP between "2" and "990"
-    expect(out).toMatch(/^Оформить за 2[\s\u202F\u00A0]990 ₽$/);
+    // NBSP between "1" and "990"
+    expect(out).toMatch(/^Оформить за 1[\s\u202F\u00A0]990 ₽$/);
   });
 
-  test('trial used + monthly → "Оформить за 569 ₽" (no separator, <1000)', () => {
-    expect(buildPaywallCtaTitle('month', true)).toBe('Оформить за 569 ₽');
+  test('trial used + monthly → "Оформить за 299 ₽" (no separator, <1000)', () => {
+    expect(buildPaywallCtaTitle('month', true)).toBe('Оформить за 299 ₽');
   });
 });
 
@@ -92,15 +98,15 @@ describe('buildPaywallCtaFineprint', () => {
     expect(buildPaywallCtaFineprint('month', true)).toBe('Отмена в любой момент');
   });
 
-  test('trial eligible + yearly → "Далее 2 990 ₽ / год · можно отменить"', () => {
+  test('trial eligible + yearly → "Далее 1 990 ₽ / год · можно отменить"', () => {
     const out = buildPaywallCtaFineprint('year', false);
-    expect(out).toMatch(/Далее 2[\s\u202F\u00A0]990 ₽ \/ год/);
+    expect(out).toMatch(/Далее 1[\s\u202F\u00A0]990 ₽ \/ год/);
     expect(out).toContain('можно отменить в любой момент');
   });
 
-  test('trial eligible + monthly → "Далее 569 ₽ / мес · можно отменить"', () => {
+  test('trial eligible + monthly → "Далее 299 ₽ / мес · можно отменить"', () => {
     const out = buildPaywallCtaFineprint('month', false);
-    expect(out).toContain('Далее 569 ₽ / мес');
+    expect(out).toContain('Далее 299 ₽ / мес');
     expect(out).toContain('можно отменить в любой момент');
   });
 });
@@ -113,19 +119,19 @@ describe('Paywall ru-RU formatting edge cases', () => {
     // Should split into exactly 2 groups of digits
     const groups = formatted.split(/[\s\u202F\u00A0]/);
     expect(groups).toHaveLength(2);
-    expect(groups[0]).toBe('2');
+    expect(groups[0]).toBe('1');
     expect(groups[1]).toBe('990');
   });
 
   test('3-digit monthly price stays unseparated', () => {
     const formatted = PRICE_MONTH_RUB.toLocaleString('ru-RU');
-    expect(formatted).toBe('569');
+    expect(formatted).toBe('299');
     expect(formatted).not.toContain(' ');
     expect(formatted).not.toContain(',');
   });
 
-  test('old price 6788 formats as "6 788" (one NBSP)', () => {
+  test('strike-through price 3588 formats as "3 588" (one NBSP)', () => {
     const formatted = PRICE_YEAR_OLD_RUB.toLocaleString('ru-RU');
-    expect(formatted.replace(/[\s\u202F\u00A0]/, ' ')).toBe('6 788');
+    expect(formatted.replace(/[\s\u202F\u00A0]/, ' ')).toBe('3 588');
   });
 });

@@ -1,18 +1,24 @@
 /**
  * Shared paywall pricing constants + derivation helpers.
  *
- * Extracted so the math behind "2 990 ₽ → 249 ₽/мес", the "−56%"
- * discount chip, and the CTA copy can be unit-tested without
- * rendering the PaywallModal.
+ * SINGLE SOURCE OF TRUTH for every paywall surface (PaywallModal,
+ * SubscriptionScreen, PlanSelector, AutoRenewalConsentModal). Each of
+ * those screens used to carry its own hardcoded numbers and they
+ * disagreed: the modal promised "Оформить за 2 990 ₽" and the very next
+ * screen showed 1 990 ₽. Import from here — never retype a price.
  */
 
-// Pricing from the Direction A design export. Annual 2990₽ with the
-// crossed-out 6788₽ old price; monthly 569₽.
-export const PRICE_YEAR_RUB = 2990;
-export const PRICE_YEAR_OLD_RUB = 6788;
-export const PRICE_MONTH_RUB = 569;
+// Annual 1990₽ / monthly 299₽.
+export const PRICE_YEAR_RUB = 1990;
+export const PRICE_MONTH_RUB = 299;
 
-/** Annual price divided by 12, rounded. Used for the "249 ₽ / мес ·
+/** Strike-through reference price: what 12 months actually cost at the
+ *  monthly rate. Derived, not invented — the previous 6788₽ "old price"
+ *  was a number we could not substantiate, which is exactly what ФЗ-38
+ *  «О рекламе» treats as a misleading discount claim. */
+export const PRICE_YEAR_OLD_RUB = PRICE_MONTH_RUB * 12;
+
+/** Annual price divided by 12, rounded. Used for the "166 ₽ / мес ·
  *  списание раз в год" subtitle on the yearly plan card. */
 export const PRICE_YEAR_MONTHLY_EFFECTIVE_RUB = Math.round(PRICE_YEAR_RUB / 12);
 

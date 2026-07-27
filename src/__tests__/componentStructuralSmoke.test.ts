@@ -43,13 +43,16 @@ describe('design utility modules export their symbols', () => {
     expect(typeof m.pluralizeDaysRu).toBe('function');
   });
 
+  // Exact price values are locked in paywallLogic.test.ts — the single place
+  // that owns them. This smoke test only checks the module's shape, so a
+  // price change means editing one test file, not two.
   test('utils/paywall exports pricing constants + CTA builders', () => {
     const m = require('../utils/paywall');
-    expect(m.PRICE_YEAR_RUB).toBe(2990);
-    expect(m.PRICE_MONTH_RUB).toBe(569);
-    expect(m.PRICE_YEAR_OLD_RUB).toBe(6788);
-    expect(m.PRICE_YEAR_MONTHLY_EFFECTIVE_RUB).toBe(249);
-    expect(m.ANNUAL_DISCOUNT_PCT).toBe(56);
+    expect(typeof m.PRICE_YEAR_RUB).toBe('number');
+    expect(typeof m.PRICE_MONTH_RUB).toBe('number');
+    expect(typeof m.PRICE_YEAR_OLD_RUB).toBe('number');
+    expect(typeof m.PRICE_YEAR_MONTHLY_EFFECTIVE_RUB).toBe('number');
+    expect(typeof m.ANNUAL_DISCOUNT_PCT).toBe('number');
     expect(typeof m.priceForPlan).toBe('function');
     expect(typeof m.buildPaywallCtaTitle).toBe('function');
     expect(typeof m.buildPaywallCtaFineprint).toBe('function');

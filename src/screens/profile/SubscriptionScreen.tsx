@@ -3,22 +3,23 @@ import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, ActivityIn
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
 import { useThemeColors, useSubscriptionStore } from '../../store';
-import { Card, Button, FadeIn } from '../../components';
+import { Button, FadeIn } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
+import { PRICE_YEAR_RUB, PRICE_MONTH_RUB } from '../../utils/paywall';
 import { PlanSelector, FeaturesTable, AutoRenewalConsentModal } from './components';
 
-const TESTIMONIALS = [
-  { name: 'Алексей', text: 'Iron Coach перестроил всю программу под моё плечо. За 3 месяца жим вырос с 90 до 120 кг.' },
-  { name: 'Мария', text: 'Фото-сканер КБЖУ — волшебство. Больше не считаю вручную, похудела на 7 кг за 2 месяца.' },
-];
-
-export const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+export const SubscriptionScreen: React.FC<{ navigation: any; route?: any }> = ({ navigation, route }) => {
   const safeTop = useSafeTop();
   const haptic = useHaptic();
   const colors = useThemeColors();
   const { isPremiumActive, syncWithBackend, activateOnBackend, cancelOnBackend, trialUsed } = useSubscriptionStore();
-  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('annual');
+  // PaywallModal passes the plan the user picked there ('year' | 'month').
+  // Without this the choice was silently dropped and the screen always
+  // reopened on annual (audit R2).
+  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>(
+    route?.params?.preselect === 'month' ? 'monthly' : 'annual',
+  );
   const [loading, setLoading] = useState(false);
   // 376-ФЗ §3 — gate the activate call behind an explicit consent modal.
   // For trials we still show the modal so users converting to paid have a
@@ -29,7 +30,9 @@ export const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }
 
   useEffect(() => { syncWithBackend(); }, []);
 
-  const priceLabel = selectedPlan === 'annual' ? '1 990 ₽/год' : '299 ₽/мес';
+  const priceLabel = selectedPlan === 'annual'
+    ? `${PRICE_YEAR_RUB.toLocaleString('ru-RU')} ₽/год`
+    : `${PRICE_MONTH_RUB.toLocaleString('ru-RU')} ₽/мес`;
   const cadenceLabel = selectedPlan === 'annual' ? 'ежегодно' : 'ежемесячно';
 
   const handleSubscribe = () => {
@@ -140,7 +143,7 @@ export const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }
             <>
               <Button title={trialUsed ? 'Оформить подписку' : 'Начать бесплатный период — 7 дней'} onPress={handleSubscribe} fullWidth style={{ marginTop: spacing.lg }} />
               <Text style={[typography.small, { color: colors.textTertiary, textAlign: 'center', marginTop: spacing.sm }]}>
-                {trialUsed ? `${selectedPlan === 'annual' ? '1 990₽/год' : '299₽/мес'} · Отмена в любой момент` : `Затем ${selectedPlan === 'annual' ? '1 990₽/год' : '299₽/мес'} · Отмена в любой момент`}
+                {trialUsed ? `${priceLabel} · Отмена в любой момент` : `Затем ${priceLabel} · Отмена в любой момент`}
               </Text>
             </>
           )}
@@ -148,23 +151,10 @@ export const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }
 
         <FadeIn delay={200}><FeaturesTable /></FadeIn>
 
-        {/* Social proof */}
-        <FadeIn delay={300}>
-          <View style={styles.socialProof}>
-            <Text style={[typography.number, { color: colors.text }]}>4.9</Text>
-            <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.xs }]}>Средняя оценка от пользователей Giron</Text>
-          </View>
-        </FadeIn>
-
-        {/* Testimonials */}
-        <FadeIn delay={350}>
-          {TESTIMONIALS.map((t, i) => (
-            <Card key={i} style={{ marginBottom: spacing.sm }}>
-              <Text style={[typography.bodySemibold, { color: colors.text }]}>{t.name}</Text>
-              <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.xs }]}>"{t.text}"</Text>
-            </Card>
-          ))}
-        </FadeIn>
+        {/* Social proof intentionally absent: the "4.9 средняя оценка" block
+            and two testimonials were invented copy shown to a product with
+            zero users. Bring them back only with real, attributable reviews
+            (audit R4 — ФЗ-38 «О рекламе» + RuStore moderation risk). */}
 
         {/* Restore + Terms */}
         <FadeIn delay={400}>
@@ -201,6 +191,5 @@ const styles = StyleSheet.create({
   hero: { alignItems: 'center', paddingVertical: spacing.xxl },
   crownBadge: { width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#D4B07A40' },
   activeProBadge: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, marginTop: spacing.lg, paddingVertical: spacing.md, paddingHorizontal: spacing.xl, borderRadius: borderRadius.xl, borderWidth: 1 },
-  socialProof: { alignItems: 'center', marginTop: spacing.xxl, marginBottom: spacing.lg },
   loadingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.3)', alignItems: 'center', justifyContent: 'center' },
 });

@@ -4,10 +4,33 @@ import { useHaptic } from '../../../hooks/useHaptic';
 import { useThemeColors } from '../../../store';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
+import {
+  PRICE_MONTH_RUB,
+  PRICE_YEAR_RUB,
+  PRICE_YEAR_MONTHLY_EFFECTIVE_RUB,
+  ANNUAL_DISCOUNT_PCT,
+} from '../../../utils/paywall';
 
+// Prices come from utils/paywall — never retype them here. This screen used
+// to hardcode 1990/299 while the paywall modal hardcoded 2990/569, so the
+// price changed between tapping "Оформить" and landing here (audit R3).
 const PLANS = [
-  { id: 'monthly' as const, label: 'Месяц', price: '299', period: 'мес', pricePerMonth: '299', badge: null },
-  { id: 'annual' as const, label: 'Год', price: '1 990', period: 'год', pricePerMonth: '166', badge: 'СКИДКА 44%' },
+  {
+    id: 'monthly' as const,
+    label: 'Месяц',
+    price: PRICE_MONTH_RUB.toLocaleString('ru-RU'),
+    period: 'мес',
+    pricePerMonth: null,
+    badge: null,
+  },
+  {
+    id: 'annual' as const,
+    label: 'Год',
+    price: PRICE_YEAR_RUB.toLocaleString('ru-RU'),
+    period: 'год',
+    pricePerMonth: PRICE_YEAR_MONTHLY_EFFECTIVE_RUB.toLocaleString('ru-RU'),
+    badge: `СКИДКА ${ANNUAL_DISCOUNT_PCT}%`,
+  },
 ];
 
 interface Props {

@@ -12,6 +12,9 @@ import { pluralizeDaysRu } from '../utils/layout';
 import {
   buildPaywallCtaTitle,
   priceForPlan,
+  PRICE_YEAR_RUB,
+  PRICE_MONTH_RUB,
+  ANNUAL_DISCOUNT_PCT,
 } from '../utils/paywall';
 
 // ─── Streak VO strings ─────────────────────────────────────────────────────
@@ -80,16 +83,19 @@ describe('Tab bar a11y labels', () => {
 describe('Paywall button a11y', () => {
   test('Plan toggle label includes price + discount', () => {
     // From PaywallModal: `Годовая подписка ${PRICE_YEAR_RUB} рублей,
-    // выгода ${ANNUAL_DISCOUNT_PCT} процентов`
-    // Just verify that integrating these numbers with the accessibility
-    // label template works.
-    const yearLabel = `Годовая подписка ${priceForPlan('year')} рублей, выгода 56 процентов`;
-    expect(yearLabel).toBe('Годовая подписка 2990 рублей, выгода 56 процентов');
+    // выгода ${ANNUAL_DISCOUNT_PCT} процентов`. Reads the shared constants
+    // rather than repeating the numbers, so a price change touches only
+    // paywallLogic.test.ts.
+    const yearLabel = `Годовая подписка ${priceForPlan('year')} рублей, выгода ${ANNUAL_DISCOUNT_PCT} процентов`;
+    expect(yearLabel).toBe(`Годовая подписка ${PRICE_YEAR_RUB} рублей, выгода ${ANNUAL_DISCOUNT_PCT} процентов`);
+    expect(yearLabel).toMatch(/^Годовая подписка \d+ рублей, выгода \d+ процентов$/);
   });
 
-  test('Monthly plan label uses "569 рублей" without separator', () => {
+  test('Monthly plan label speaks the raw number, without thousands separators', () => {
     const monthLabel = `Месячная подписка ${priceForPlan('month')} рублей`;
-    expect(monthLabel).toBe('Месячная подписка 569 рублей');
+    expect(monthLabel).toBe(`Месячная подписка ${PRICE_MONTH_RUB} рублей`);
+    // A screen reader should get "299", never "2 99" — no separator chars.
+    expect(monthLabel).toMatch(/^Месячная подписка \d+ рублей$/);
   });
 
   test('CTA title itself is usable as accessibilityLabel', () => {

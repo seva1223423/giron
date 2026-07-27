@@ -15,7 +15,7 @@ import {
   calorieDayProgress,
 } from '../utils/homeDerivations';
 import { rpeFillRatio, findLiveSet, buildSetEyebrow } from '../screens/tracker/components/heroLogic';
-import { buildPaywallCtaTitle, buildPaywallCtaFineprint } from '../utils/paywall';
+import { buildPaywallCtaTitle, buildPaywallCtaFineprint, PRICE_YEAR_RUB } from '../utils/paywall';
 import { formatDateMetaRu } from '../utils/date';
 import type { WorkoutExercise, WorkoutSet } from '../types';
 
@@ -117,13 +117,16 @@ describe('Regression: PaywallModal CTA copy matches design', () => {
     expect(buildPaywallCtaTitle('month', false)).toBe('Начать 7 дней бесплатно');
   });
 
-  test('trial-used yearly uses NBSP in "2 990 ₽"', () => {
+  test('trial-used yearly price groups thousands with NBSP, not a plain space', () => {
     const out = buildPaywallCtaTitle('year', true);
+    const digits = String(PRICE_YEAR_RUB);
+    const head = digits.slice(0, -3);
+    const tail = digits.slice(-3);
     // Must not use plain space or comma
-    expect(out).not.toContain('2 990'); // plain space forbidden
-    expect(out).not.toContain('2,990');
+    expect(out).not.toContain(`${head} ${tail}`); // plain space forbidden
+    expect(out).not.toContain(`${head},${tail}`);
     // Must match with any unicode space separator
-    expect(out).toMatch(/2[\u202F\u00A0]990/);
+    expect(out).toMatch(new RegExp(head + '[\u202F\u00A0]' + tail));
   });
 
   test('trial-eligible fine-print ends in "можно отменить в любой момент"', () => {
