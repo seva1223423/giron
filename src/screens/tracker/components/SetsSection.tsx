@@ -98,7 +98,15 @@ export const SetsSection: React.FC<Props> = ({
   };
 
   return (
-    <ScrollView contentContainerStyle={{ padding: spacing.xl, paddingBottom: spacing.huge * 2 }} showsVerticalScrollIndicator={false}>
+    // keyboardShouldPersistTaps: without it the first tap on ✓ or ± only
+    // dismisses the numeric keyboard, so every set took two taps. Android's
+    // number pad has no "Done" key, which made it happen constantly.
+    // 27 other screens already set this (audit R9).
+    <ScrollView
+      contentContainerStyle={{ padding: spacing.xl, paddingBottom: spacing.huge * 2 }}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+    >
       {/* Previous session summary */}
       {previousSets && (
         <View style={{

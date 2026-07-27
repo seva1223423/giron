@@ -424,7 +424,10 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, paddingHorizontal: 4 }}>
             <Text style={[typography.h4, { color: colors.text }]}>Ачивки</Text>
             <TouchableOpacity
-              onPress={() => { haptic.selection(); navigation.navigate('ProgressTab' as any); }}
+              // 'ProgressTab' is not a route — Progress lives inside
+              // WorkoutsStack, so this tap did nothing. The `as any` was
+              // hiding the mistake from TypeScript (audit R10).
+              onPress={() => { haptic.selection(); navigation.navigate('WorkoutsTab', { screen: 'Progress' }); }}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityLabel={`Открыть все ${achievements.length} достижений`}
               accessibilityRole="button"

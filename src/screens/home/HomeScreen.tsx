@@ -246,8 +246,16 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   }, [workoutHistory, activeProgram]);
 
   const handleStartPlannedWorkout = useCallback(async () => {
-    if (!todayPlan) return;
     haptic.medium();
+    // A fresh account gets Mon/Wed/Fri seeded with an EMPTY exercise list, so
+    // both of these cases used to `return` silently: the main gold CTA fired
+    // haptics and did nothing at all for the whole first week (audit R5).
+    // Send the user to the workouts list, where they can start a ready split
+    // or build their own.
+    if (!todayPlan || (!todayPlan.routineId && todayPlan.exercises.length === 0)) {
+      navigation.navigate('WorkoutsTab', { screen: 'WorkoutsList' });
+      return;
+    }
     // If the plan day is linked to a saved routine, use the progressive-overload path
     if (todayPlan.routineId) {
       try {
@@ -259,7 +267,6 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       }
       return;
     }
-    if (todayPlan.exercises.length === 0) return;
     const allExercises = [...customExercises, ...localExercises];
     const workoutExercises: WorkoutExercise[] = todayPlan.exercises
       .map((exId: string, index: number) => {

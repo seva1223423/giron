@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { useThemeColors, useAuthStore, useNutritionStore, useWorkoutStore } from '../../store';
 import { useSafeTop } from '../../hooks/useSafeTop';
@@ -74,6 +74,11 @@ export const OnboardingScreen: React.FC<{ navigation: any }> = () => {
         setWeekPlanDay(dayIndex, { name: 'Тренировка', emoji: '◎', exercises: [] });
       }
     });
+    // Skipping leaves these blank and we fall back to 175/75/25. That is fine
+    // as a starting point, but the calorie/protein targets derived from them
+    // used to be presented as if they were the user's real numbers (audit
+    // R12) — so we tell them plainly and point at the profile.
+    const usedFallbackBody = !height.trim() || !weight.trim() || !age.trim();
     const heightVal = Math.max(100, Math.min(300, parseInt(height.replace(',', '.'), 10) || 175));
     const weightVal = Math.max(20, Math.min(500, parseFloat(weight.replace(',', '.')) || 75));
     // Age floor 14 — users under 14 need a legal guardian's consent under 152-ФЗ ст. 9,
@@ -98,6 +103,13 @@ export const OnboardingScreen: React.FC<{ navigation: any }> = () => {
     setTargets(today, { calories: targetCalories, protein: targetProtein, fats: targetFats, carbs: Math.max(targetCarbs, 50), waterTargetMl });
 
     completeOnboarding();
+
+    if (usedFallbackBody) {
+      Alert.alert(
+        'Цели пока примерные',
+        'Мы посчитали калории и БЖУ по средним данным. Укажи рост, вес и возраст в профиле — пересчитаем под тебя.',
+      );
+    }
   };
 
   const canNext = () => {
