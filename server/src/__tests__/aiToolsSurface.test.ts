@@ -77,7 +77,34 @@ const EXPECTED_TOOL_NAMES = [
   'compare_periods',
   // Round 100
   'update_memory',
+  // Added after the round-100 baseline and missed by the old one-directional
+  // guard — the reverse check below found all nine at once (audit R43).
+  'log_completed_workout',
+  'delete_body_weight',
+  'delete_body_measurement',
+  'delete_cardio',
+  'delete_sleep',
+  'navigate_to_screen',
+  'get_health_summary',
+  'get_sleep_breakdown',
+  'get_readiness_score',
 ];
+
+/**
+ * The ACTUAL inline tool names, read out of routes/ai.ts.
+ *
+ * The hand-written baseline above only ever proved "everything on the list
+ * exists in code" — never the reverse — so nine tools were added without the
+ * guard noticing, and the count assertion sat at 33 while the code shipped 42
+ * (audit R43). Deriving the real list makes the check bidirectional and
+ * self-maintaining.
+ */
+async function readActualToolNames(): Promise<string[]> {
+  const fs = await import('fs/promises');
+  const path = await import('path');
+  const content = await fs.readFile(path.resolve(__dirname, '../routes/ai.ts'), 'utf-8');
+  return [...content.matchAll(/^\s+name: '([a-z][a-z0-9_]*)',$/gm)].map((m) => m[1]);
+}
 
 describe('AI tools surface (round 110 baseline)', () => {
   test('classifyIntent module loads without throwing', () => {
@@ -92,14 +119,23 @@ describe('AI tools surface (round 110 baseline)', () => {
     expect(set.size).toBe(EXPECTED_TOOL_NAMES.length);
   });
 
-  test('expected tool count is 33 (round-100 baseline)', () => {
-    expect(EXPECTED_TOOL_NAMES.length).toBe(33);
+  test('the real tool list in routes/ai.ts has no duplicates', async () => {
+    const actual = await readActualToolNames();
+    expect(actual.length).toBeGreaterThan(0);
+    expect(new Set(actual).size).toBe(actual.length);
   });
 
-  test('every tool name uses snake_case (no spaces, no camelCase)', () => {
-    for (const name of EXPECTED_TOOL_NAMES) {
+  test('every tool name uses snake_case (no spaces, no camelCase)', async () => {
+    for (const name of await readActualToolNames()) {
       expect(name).toMatch(/^[a-z][a-z0-9_]*$/);
     }
+  });
+
+  test('no tool exists in code that the baseline list does not know about', async () => {
+    // The direction the old suite never checked. If this fails, add the new
+    // tool to EXPECTED_TOOL_NAMES *and* to the tool list in CLAUDE.md.
+    const unknown = (await readActualToolNames()).filter((n) => !EXPECTED_TOOL_NAMES.includes(n));
+    expect(unknown).toEqual([]);
   });
 
   test('every expected tool name appears in routes/ai.ts as a toolName === branch (round 135)', async () => {
@@ -131,16 +167,11 @@ describe('AI tools surface (round 110 baseline)', () => {
     const fs = await import('fs/promises');
     const path = await import('path');
     const claudeMdPath = path.resolve(__dirname, '../../../CLAUDE.md');
-    let content = '';
-    try {
-      content = await fs.readFile(claudeMdPath, 'utf-8');
-    } catch {
-      // CLAUDE.md path differs on some checkouts; skip silently rather
-      // than failing the suite for environment reasons.
-      return;
-    }
-    for (const name of EXPECTED_TOOL_NAMES) {
-      expect(content).toContain(name);
-    }
+    // Previously this swallowed a read failure and returned, so the check
+    // could pass without ever running (audit R43). If the file moves, the
+    // test must fail loudly and be pointed at the new path.
+    const content = await fs.readFile(claudeMdPath, 'utf-8');
+    const undocumented = (await readActualToolNames()).filter((n) => !content.includes(n));
+    expect(undocumented).toEqual([]);
   });
 });

@@ -115,21 +115,21 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 - Express 4 + TypeScript
 - Prisma 6 ORM (PostgreSQL на Neon eu-central-1, 40 моделей)
 - JWT (60m access + 30d refresh, refresh hashed SHA-256) + bcryptjs, helmet, express-rate-limit
-- Zod (валидация), Multer (загрузка файлов), CORS
+- Zod (валидация), CORS (Multer НЕ используется — файлы приходят base64 в JSON)
 - AI: Mistral API (основной, `mistral-small-latest`), DeepSeek, Ollama (локальный fallback)
 - Деплой: Render (реальный хост `iron-gym-swoe.onrender.com` — он же в `EXPO_PUBLIC_API_URL`; `giron-api` НЕ существует), автодеплой на push в master
 
 ## Архитектура клиента
 
-### Поток: Auth → Onboarding (4 шага) → MainTabs (7 вкладок)
+### Поток: Auth → Onboarding (5 шагов) → MainTabs (7 вкладок)
 
 **7 вкладок:** Главная, Тренировки (12 экранов), Питание (5), Прогресс, ИИ, Новости, Профиль (6)
 
 **16 сторов:** auth, workout (самый сложный — PR-детекция, суперсеты, недельный план), nutrition, subscription (лимиты: 10 AI msg/день, 5 сканов), theme, settings, trainer, cardio, connection, measurements, onboardingTips, sleep, support, recipes, health, density
 
-**19 компонентов** (`src/components/*.tsx`, после удаления 11 мёртвых в R284): AnimatedPressable, Button, Card, DiffCard, ErrorBoundary, FadeIn, ForceUpdateModal, GoogleAuthButton (mode: `login|link`), HitTarget, Icon, Input, MacroBar, PaywallModal, Pill, ProgressRing, SkeletonLoader, Spinner, Sticker, Tooltip + папка `components/app-modal/` (AppModalProvider, ToastHost, installAppAlert)
+**20 компонентов** (`src/components/*.tsx`): AnimatedPressable, Button, Card, DiffCard, ErrorBoundary, FadeIn, ForceUpdateModal, GoogleAuthButton (mode: `login|link`), HitTarget, Icon, Input, MacroBar, PaywallModal, Pill, ProgressRing, SkeletonLoader, Spinner, Sticker, Tooltip + папка `components/app-modal/` (AppModalProvider, ToastHost, installAppAlert)
 
-**15 сервисов:** api.ts (axios + JWT auto-refresh), admin, ai, auth, cardio, news, notification, nutrition, support, trainer, user, workout, otaUpdater, recipe, health/
+**16 сервисов:** api.ts (axios + JWT auto-refresh), admin, ai, auth, cardio, news, notification, nutrition, support, trainer, user, workout, otaUpdater, recipe, voice, health/
 
 **Области экранов (16):** admin, ai, auth, cardio, health, home, news, nutrition, onboarding, profile, progress, settings, support, tracker, trainer, workouts
 
@@ -161,12 +161,13 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
   - `GET /admin/cron-health` — in-memory liveness ledger for retention/digest/keep-warm crons (resets on dyno restart)
   - `GET /admin/metrics/key` includes `onboardingFunnel` block (per-step drop-off from User.onboardingStepLog)
   - `POST /admin/test-notification` — fires test push and/or email to caller's account; verifies both channels work end-to-end
-- `ai.ts` (~19.8k строк) — **главный маршрут** (intent classification → mood detection → TF-IDF knowledge selection → аналитические блоки → AI call → tool-функции)
+- `ai.ts` (~19.9k строк) — **главный маршрут** (intent classification → mood detection → TF-IDF knowledge selection → аналитические блоки → AI call → tool-функции)
 
 ### AI система (server/src/routes/ai.ts + services/)
 - Intent: data_logging, program_creation, workout_modify, technique_question, nutrition_query, analytics_query, greeting, complaint, motivation, general
-- 42 tools (inline в ai.ts) + 6 context tools (ai/contextTools.ts): update_user_profile, log_body_weight, delete_body_weight, log_body_measurement, delete_body_measurement, create_workout, log_completed_workout, modify_workout, swap_exercise, add_superset, generate_warmup, set_workout_duration_goal, create_program, delete_program, set_weekly_plan, adjust_all_weights, activate_program, log_meal, delete_meal, modify_meal, update_nutrition_targets, log_water, set_water_target, find_recipes, add_recipe_to_diary, log_cardio, delete_cardio, log_sleep, delete_sleep, set_rest_timer, set_notifications, analyze_progress, suggest_next_workout, get_pr_history, compare_periods, search_exercises, explain_exercise, update_memory, navigate_to_screen, get_health_summary, get_sleep_breakdown, get_readiness_score
-- 25 модулей знаний (server/src/knowledge/, 6547 строк)
+- **42 inline-инструмента** в `ai.ts`: update_user_profile, log_body_weight, delete_body_weight, log_body_measurement, delete_body_measurement, create_workout, log_completed_workout, modify_workout, swap_exercise, add_superset, generate_warmup, set_workout_duration_goal, create_program, delete_program, set_weekly_plan, adjust_all_weights, activate_program, log_meal, delete_meal, modify_meal, update_nutrition_targets, log_water, set_water_target, find_recipes, add_recipe_to_diary, log_cardio, delete_cardio, log_sleep, delete_sleep, set_rest_timer, set_notifications, analyze_progress, suggest_next_workout, get_pr_history, compare_periods, search_exercises, explain_exercise, update_memory, navigate_to_screen, get_health_summary, get_sleep_breakdown, get_readiness_score
+- **6 контекстных инструментов** (`server/src/ai/contextTools.ts`) — это ДРУГОЙ список: get_workout_analysis, get_nutrition_analysis, get_recovery_status, get_progress_data, get_exercise_history, search_fitness_knowledge
+- 26 модулей знаний (server/src/knowledge/, 6547 строк)
 - AI Memory (9 категорий: preference, habit, injury, allergy, schedule, personality, goal, equipment, milestone)
 - Кэш: TTL 4ч, max 200, кэшируются только intent=technique_question/general
 - LLM Router (`services/llm/router.ts`): объявлена fallback chain через env `AI_PRIMARY_PROVIDER`/`AI_FALLBACK_CHAIN`, но реально подключён **только Mistral adapter** (yandex/gigachat закомментированы). Ollama (`localAI.ts`) к роутеру НЕ подключён — используется только для food vision как опция.
@@ -191,7 +192,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 | Провайдер | Endpoint          | Валидация токена                          | Ключ в БД  | Env-переменная              |
 |-----------|-------------------|-------------------------------------------|------------|-----------------------------|
-| Google    | `POST /auth/google` | google-auth-library `verifyIdToken`      | `googleId` | `GOOGLE_CLIENT_IDS`         |
+| Google    | `POST /auth/google` | google-auth-library `verifyIdToken`      | `googleId` | `GOOGLE_CLIENT_ID_WEB` / `_IOS` / `_ANDROID` |
 | VK ID     | `POST /auth/vk`   | `api.vk.com/method/users.get?access_token` | `vkId`     | `VK_APP_ID`                 |
 | Яндекс    | `POST /auth/yandex` | `login.yandex.ru/info?format=json`       | `yandexId` | `YANDEX_CLIENT_ID`          |
 
@@ -218,7 +219,7 @@ server/
     routes/      — auth, user, workout, nutrition, news, subscription, ai, trainer, cardio, support, admin, recipes, health, logging (14 файлов)
     services/    — deepseekAI, localAI, newsRefreshService, telegramLogger, emailService, smsService, pushService, retentionService, adminDigestService, aiMemoryService, errorReporter, …
     middleware/  — auth.ts (JWT verify)
-    knowledge/   — 25 модулей (6547 строк, тренировки/питание/добавки/физиология/психология)
+    knowledge/   — 26 модулей (6547 строк, тренировки/питание/добавки/физиология/психология)
     models/      — (пусто, используется Prisma)
     controllers/ — (пусто, логика в routes)
     utils/       — утилиты
@@ -241,12 +242,12 @@ server/
 # Клиент
 npm start              # expo start
 npm run android        # expo start --android
-npm test               # jest (client unit tests, 117 суитов, ~5481 тест)
+npm test               # jest (client unit tests, 120 суитов, 5508 тестов)
 
 # Сервер
 cd server
 npm run dev            # tsx watch src/index.ts (порт 3001)
-npm test               # jest (server integration tests, 92 суита, ~2604 теста)
+npm test               # jest (server integration tests, 103 суита, 2786 тестов)
                        # Новые суиты добавлены в rounds 2-18 (2026-04-28):
                        # retentionService, adminDigestService, cronHealth,
                        # aiMetrics, memCache, activityTracker
@@ -307,7 +308,7 @@ Force-update flow (когда старая версия должна обнов�
 - Макросы (dark): калории `#E07A6B`, белки `#D4B07A` (= primary), жиры `#E8A36A`, углеводы `#9AC28C`
 - Макросы (light): калории `#A9564B`, белки `#86693B`, жиры `#97623B`, углеводы `#50784C` (углублены вместе с primary — макросы зеркалят семантические токены: calories=error, protein=primary, fats=warning, carbs=success)
 - **Светлая тема обязана проходить WCAG AA (4.5:1).** Проверяется тестом `src/__tests__/designColorContrast.test.ts` — он требует 4.5 от ОБЕИХ тем. Не понижай пороги, чтобы «прошло»: именно так дефолтная тема и уехала на 2.2–2.8:1.
-- Дизайн: Premium dark с champagne gold акцентом (заменил старый фиолетовый `#8B5CF6` 2026-04-22). 38 SVG-иконок в `Icon` компоненте, без эмодзи, без unicode-глифов.
+- Дизайн: Premium dark с champagne gold акцентом (заменил старый фиолетовый `#8B5CF6` 2026-04-22). 39 SVG-иконок в `Icon` компоненте, без эмодзи, без unicode-глифов.
 - Banned legacy palette: `#8B5CF6`, `#A78BFA`, `#7C3AED`, `#6366F1`, `#F59E0B`, `#EF4444`, `#10B981` — нигде в `src/` не должны встречаться (исключение: `src/theme/colors.ts` — источник истины).
 
 ## Дизайн HTML-first — ОБЯЗАТЕЛЬНО (preview справа ДО кода)
@@ -339,7 +340,7 @@ Force-update flow (когда старая версия должна обнов�
 
 Не спавнить для: чисто backend, Prisma, AI tools, серверных маршрутов, type-only изменений без визуального эффекта, test-only изменений (кроме визуальных снапшотов).
 
-Полное определение агента: `.claude/agents/design.md`. Он знает все 38 иконок, 18 стилей типографики, точные hex Direction A, банлист старой палитры, audit-команды grep, паттерны миграции legacy → Direction A.
+Полное определение агента: `.claude/agents/design.md`. Он знает все 39 иконок, 18 стилей типографики, точные hex Direction A, банлист старой палитры, audit-команды grep, паттерны миграции legacy → Direction A.
 
 ## Системные модалки и тосты — `src/components/app-modal/`
 
