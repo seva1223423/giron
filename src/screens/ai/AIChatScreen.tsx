@@ -92,6 +92,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const getSleepEntries = useSleepStore((s) => s.getLastEntries);
   const syncSleep = useSleepStore((s) => s.syncFromServer);
   const consumeAiMessage = useSubscriptionStore((s) => s.consumeAiMessage);
+  const refundAiMessage = useSubscriptionStore((s) => s.refundAiMessage);
   const isPremiumActive = useSubscriptionStore((s) => s.isPremiumActive);
   const aiMessagesLeft = useSubscriptionStore((s) => s.aiMessagesLeft);
   const setRestTimerDefault = useSettingsStore((s) => s.setRestTimerDefault);
@@ -100,6 +101,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const setWaterRemindersEnabled = useSettingsStore((s) => s.setWaterRemindersEnabled);
   const setWorkoutDurationGoal = useSettingsStore((s) => s.setWorkoutDurationGoal);
   const addMeasurementEntry = useMeasurementsStore((s) => s.addEntry);
+  const syncMeasurements = useMeasurementsStore((s) => s.syncFromServer);
   // Audit R-2026-05-22 (vercel-react / rendering-content-visibility):
   // FlatList instead of ScrollView so only visible rows render. With
   // 50+ messages the ScrollView used to lay out every bubble on every
@@ -440,10 +442,16 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           fetchPrograms().catch(() => {});
           fetchHistory().catch(() => {});
         }
-        if (types.includes('update_user_profile') || types.includes('log_body_weight')) fetchProfile().catch(() => {});
-        if (types.includes('log_meal') || types.includes('delete_meal') || types.includes('modify_meal')) syncMealsFromServer(localDateStr(new Date())).catch(() => {});
-        if (types.includes('log_cardio')) syncCardio().catch(() => {});
-        if (types.includes('log_sleep')) syncSleep().catch(() => {});
+        // The server reports 30 action types; this handler used to know 24 of
+        // them. The six missing ones meant the coach answered "записал ✓"
+        // while the screen kept showing stale data until a manual refresh —
+        // which reads as the assistant lying about what it did (audit R13).
+        if (types.includes('log_completed_workout')) fetchHistory().catch(() => {});
+        if (types.includes('update_user_profile') || types.includes('log_body_weight') || types.includes('delete_body_weight')) fetchProfile().catch(() => {});
+        if (types.includes('delete_body_measurement')) syncMeasurements().catch(() => {});
+        if (types.includes('log_meal') || types.includes('delete_meal') || types.includes('modify_meal') || types.includes('add_recipe_to_diary')) syncMealsFromServer(localDateStr(new Date())).catch(() => {});
+        if (types.includes('log_cardio') || types.includes('delete_cardio')) syncCardio().catch(() => {});
+        if (types.includes('log_sleep') || types.includes('delete_sleep')) syncSleep().catch(() => {});
         if (types.includes('activate_program')) { fetchPrograms().catch(() => {}); fetchHistory().catch(() => {}); }
         if (types.includes('log_water')) {
           const waterAction = actions.find((act) => act.type === 'log_water');
@@ -533,6 +541,12 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       }
     } catch (e) {
       const apiError = getApiError(e);
+      // The daily quota is consumed before the request goes out, so a request
+      // that never produced an answer used to cost one of the 10 free
+      // messages. On Render's free tier the first call after idle often times
+      // out, which could burn several messages without a single reply
+      // (audit R16). Food scans already refund the same way.
+      refundAiMessage();
       haptic.error();
       setMessages((prev) => [...prev, { id: `error-${Date.now()}`, role: 'assistant', createdAt: new Date().toISOString(), content: apiError.message }]);
     } finally {

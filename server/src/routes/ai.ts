@@ -19,7 +19,7 @@ import { parseFoodResponse, validateFoodItems, flagSanity, type FoodItem as Food
 import { sanitizeInput, sanitizeForPrompt } from '../utils/inputSanitizer';
 import { detectInjection } from '../utils/promptInjectionDetector';
 import { reportError } from '../utils/errorReporter';
-import { chat, chatWithoutTools, chatStream, analyzeImage, generate, DeepSeekTool, DeepSeekMessage, estimateTokens, trimHistory, summarizeHistory, validateResponse, cleanResponse } from '../services/deepseekAI';
+import { chat, chatWithoutTools, chatStream, analyzeImage, generate, DeepSeekTool, DeepSeekMessage, estimateTokens, trimHistory, summarizeHistory, validateResponse, cleanResponse, MODEL_CONTEXT_TOKENS, TOOL_SCHEMA_RESERVE_TOKENS } from '../services/deepseekAI';
 import { extractMemories, type MemoryExtraction } from '../ai/memoryExtractor';
 import {
   TRAINING_PRINCIPLES,
@@ -14536,10 +14536,12 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       logger.debug(`[AI+] Context optimized: ${estimatedSystemTokens} → ${estimateTokens(finalSystemPrompt)} tokens`);
     }
 
-    // Smart history management — суммаризация старых сообщений + trim
-    // Mistral small: ~32k, DeepSeek: ~64k. Берём консервативно 24k для истории.
-    const MODEL_CONTEXT_TOKENS = 24_000;
-    const systemTokens = estimateTokens(finalSystemPrompt);
+    // Smart history management — суммаризация старых сообщений + trim.
+    // Budget lives in deepseekAI next to trimHistory; see MODEL_CONTEXT_TOKENS
+    // there for why the old inline 24k silently erased the conversation.
+    // Tool schemas ride alongside the prompt, so they must be counted here —
+    // estimateTokens(finalSystemPrompt) does not see them.
+    const systemTokens = estimateTokens(finalSystemPrompt) + TOOL_SCHEMA_RESERVE_TOKENS;
     const messages = await summarizeHistory(rawMessages, MODEL_CONTEXT_TOKENS, systemTokens, 8);
 
     const performedActions: Array<{ type: string; description: string; data?: Record<string, unknown> }> = [];

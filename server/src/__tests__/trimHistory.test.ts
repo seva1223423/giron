@@ -9,7 +9,7 @@
  * and edge cases.
  */
 
-import { trimHistory } from '../services/deepseekAI';
+import { trimHistory, MODEL_CONTEXT_TOKENS, TOOL_SCHEMA_RESERVE_TOKENS } from '../services/deepseekAI';
 
 describe('trimHistory — happy path', () => {
   test('returns all messages when total tokens fit within budget', () => {
@@ -103,5 +103,34 @@ describe('trimHistory — boundary properties', () => {
     ];
     const result = trimHistory(messages, 1000, 500);
     expect(result.length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+// ─── Regression: the coach must not forget the conversation (audit R14) ──────
+
+describe('context budget vs a real personalised prompt', () => {
+  // Once knowledge blocks, analytics and AI memory are folded in, the system
+  // prompt measures 19-25k tokens. With the old inline 24k window this made
+  // `available` negative, so trimHistory silently returned only the last two
+  // messages on EVERY chat call — the assistant appeared to have no memory.
+  const REALISTIC_SYSTEM_TOKENS = 25_000;
+  const systemTokens = REALISTIC_SYSTEM_TOKENS + TOOL_SCHEMA_RESERVE_TOKENS;
+
+  test('budget still leaves real room for history after prompt + tool schemas', () => {
+    const available = MODEL_CONTEXT_TOKENS - systemTokens - 2000; // 2000 = reply reserve
+    expect(available).toBeGreaterThan(10_000);
+  });
+
+  test('a 20-message conversation survives instead of collapsing to the last 2', () => {
+    const messages = Array.from({ length: 20 }, (_, i) => ({
+      role: (i % 2 === 0 ? 'user' : 'assistant') as 'user' | 'assistant',
+      content: `Сообщение ${i}: обсуждаем программу тренировок, веса и питание.`,
+    }));
+    const result = trimHistory(messages, MODEL_CONTEXT_TOKENS, systemTokens);
+    expect(result).toHaveLength(messages.length);
+  });
+
+  test('window stays inside the smallest model we might route to (DeepSeek 64k)', () => {
+    expect(MODEL_CONTEXT_TOKENS).toBeLessThanOrEqual(64_000);
   });
 });

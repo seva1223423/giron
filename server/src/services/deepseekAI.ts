@@ -139,6 +139,32 @@ export function estimateTokens(text: string): number {
   return Math.ceil(cyrillicCount / CHARS_PER_TOKEN_CYRILLIC + otherCount / CHARS_PER_TOKEN_OTHER);
 }
 
+/**
+ * Context budget for chat history.
+ *
+ * This used to be a bare `24_000` inside the /chat handler with the comment
+ * "Mistral small: ~32k — берём консервативно 24k". That guess predates the
+ * current models and it silently broke the assistant's memory: a
+ * personalised system prompt (knowledge blocks + analytics + AI memory)
+ * measures 19-25k tokens, so `available = 24k - systemTokens - 2k` went
+ * NEGATIVE and trimHistory fell back to `slice(-2)`. The coach forgot
+ * everything older than the previous message, and the paid summarisation
+ * call made just before it was thrown away unused (audit R14).
+ *
+ * Real windows: mistral-small-latest = 128k, DeepSeek = 64k. 60k stays
+ * safely inside the smallest one we might route to while leaving ~24k for
+ * actual conversation.
+ */
+export const MODEL_CONTEXT_TOKENS = Number(process.env.AI_CONTEXT_TOKENS) || 60_000;
+
+/**
+ * Tool JSON schemas are sent alongside the prompt but are NOT part of the
+ * system string, so estimateTokens(systemPrompt) misses them. 42 inline
+ * tools + 6 context tools measure ~11.5k tokens; reserve a round 12k so the
+ * budget reflects what actually goes over the wire.
+ */
+export const TOOL_SCHEMA_RESERVE_TOKENS = 12_000;
+
 /** Обрезка истории сообщений чтобы влезть в контекст */
 export function trimHistory(
   messages: DeepSeekMessage[],

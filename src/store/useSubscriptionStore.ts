@@ -53,6 +53,14 @@ interface SubscriptionStore {
   // Counters — return true if allowed, false if limit exceeded
   canSendAiMessage: () => boolean;
   consumeAiMessage: () => boolean;
+  /** Refund one AI message today — the quota is consumed before the request
+   *  is sent, so a request that never produced an answer (timeout, network
+   *  drop, 5xx) used to cost the user one of their 10 daily messages. On
+   *  Render's free tier the first request after idle often times out, so a
+   *  new user could burn several messages without seeing a single reply.
+   *  Mirrors refundFoodScan: no-op for premium, never below zero,
+   *  date-bounded. */
+  refundAiMessage: () => void;
   canScanFood: () => boolean;
   consumeFoodScan: () => boolean;
   /** Refund one food scan today — called when a scan we had optimistically
@@ -208,6 +216,17 @@ export const useSubscriptionStore = create<SubscriptionStore>()(
 
         set({ foodScansUsedToday: used + 1, foodScansDate: today });
         return true;
+      },
+
+      refundAiMessage: () => {
+        if (get().isPremiumActive()) return;
+        const today = todayDateStr();
+        const { aiMessagesDate, aiMessagesUsedToday } = get();
+        // Same date guard as refundFoodScan — a message consumed yesterday
+        // must not refund into today's budget.
+        if (aiMessagesDate !== today) return;
+        if (aiMessagesUsedToday <= 0) return;
+        set({ aiMessagesUsedToday: aiMessagesUsedToday - 1 });
       },
 
       refundFoodScan: () => {
