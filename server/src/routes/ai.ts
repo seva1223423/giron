@@ -5610,7 +5610,12 @@ export async function executeTool(
     const safeDeltaKg = deltaKg != null ? Math.min(100, Math.max(-100, Number(deltaKg) || 0)) : undefined;
     const active = await prisma.program.findFirst({
       where: { userId, isActive: true },
-      include: { workouts: { include: { exercises: { include: { sets: true } } } } },
+      // completedAt: null restricts this to the program's DAY TEMPLATES.
+      // Completed sessions also carry the active program's id, so without the
+      // filter this tool rewrote the weights actually lifted in past
+      // workouts — silently corrupting history and personal records
+      // (audit R26). A deload must change the plan, never the log.
+      include: { workouts: { where: { completedAt: null }, include: { exercises: { include: { sets: true } } } } },
     });
     if (!active) return { resultText: 'Нет активной программы', actionDescription: '' };
     if (safeMultiplier == null && safeDeltaKg == null) return { resultText: 'Укажи multiplier или deltaKg', actionDescription: '' };

@@ -100,7 +100,16 @@ router.get('/programs', authenticate, async (req: AuthRequest, res: Response) =>
     const programs = await prisma.program.findMany({
       where: { userId: req.userId },
       include: {
+        // A program's `workouts` are its DAY TEMPLATES (completedAt = null).
+        // Finishing a session also stamps it with the active program's id, so
+        // without this filter every completed workout came back here too:
+        // past sessions rendered as program days, the "N тренировок" counter
+        // lied, the free 10-workout history limit was bypassable, and the
+        // payload grew without bound (audit R26).
         workouts: {
+          where: { completedAt: null },
+          orderBy: { createdAt: 'asc' }, // day order — templates are created in sequence
+          take: 50,
           include: {
             exercises: {
               include: { exercise: { select: EXERCISE_LIST_SELECT }, sets: { orderBy: { setNumber: 'asc' } } },

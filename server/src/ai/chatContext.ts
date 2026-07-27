@@ -159,7 +159,14 @@ export async function fetchPrimaryChatContext(
     prisma.program.findFirst({
       where: { userId, isActive: true },
       include: {
+        // Day templates only. Completed sessions also carry the active
+        // program's id, so this used to hand the model the whole training
+        // history disguised as "your program" — duplicating the recent-workout
+        // block fetched right below and inflating the prompt (audit R26).
         workouts: {
+          where: { completedAt: null },
+          orderBy: { createdAt: 'asc' },
+          take: 50,
           include: { exercises: { include: { exercise: true, sets: true } } },
         },
       },

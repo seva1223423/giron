@@ -131,6 +131,11 @@ app.use('/api/ai/voice', express.json({ limit: '3mb' }));
 // standing between us and DoS — 4mb fits a worst-case real sync without
 // being permissive enough to abuse.
 app.use('/api/user/health/sync', express.json({ limit: '4mb' }));
+// Workout sync carries whole sessions: the Zod schemas here accept up to 500
+// sets, which serialises well past the 10kb global limit, so a genuinely long
+// workout used to be rejected as "too large" (audit R28). 512kb covers the
+// worst case the schemas permit and nothing more.
+app.use('/api/workouts', express.json({ limit: '512kb' }));
 
 // Global 10kb limit for all other endpoints.
 // Webhook rawBody captured here for HMAC signature verification in subscription/webhook routes.
@@ -456,6 +461,27 @@ app.use(sentryErrorHandler());
 // reportError routes to Sentry when SENTRY_DSN + @sentry/node are active,
 // otherwise falls through to logger.error — so call is unconditional.
 app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  // body-parser flags caller mistakes with a 4xx status: malformed JSON is
+  // 400 entity.parse.failed, an oversized body is 413 entity.too.large. This
+  // handler ignored that and treated everything as a server fault, so the
+  // caller got a misleading "Внутренняя ошибка сервера" and the founder got
+  // a Sentry event plus a Telegram page for someone else's broken request
+  // (audit R28). Answer honestly and stay quiet.
+  const clientStatus = Number(
+    (err as { status?: number; statusCode?: number }).status
+    ?? (err as { statusCode?: number }).statusCode
+    ?? 0,
+  );
+  if (clientStatus >= 400 && clientStatus < 500) {
+    logger.warn(`${req.method} ${req.path}: ${clientStatus} ${err.message}`);
+    if (!res.headersSent) {
+      res.status(clientStatus).json({
+        error: clientStatus === 413 ? 'Слишком большой запрос' : 'Некорректный запрос',
+      });
+    }
+    return;
+  }
+
   const userId = (req as { userId?: string }).userId;
   reportError(err, {
     route: `${req.method} ${req.path}`,

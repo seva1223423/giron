@@ -256,9 +256,13 @@ describe('fetchPrimaryChatContext — query parameter pass-through', () => {
     });
     expect(weekCall).toBeDefined();
     const gte = (weekCall![0] as { where: { completedAt: { gte: Date } } }).where.completedAt.gte;
-    // Should be roughly 7 days ago.
+    // Should be roughly 7 days ago. The tolerance is wall-clock slack between
+    // capturing t0 and the code computing its own window — on a loaded machine
+    // that gap easily exceeds 100ms, which used to fail the build for no
+    // reason (audit R45). 30s still pins "7 days, not 6 or 8".
     const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
-    expect(gte.getTime()).toBeGreaterThan(t0 - sevenDaysMs - 100);
-    expect(gte.getTime()).toBeLessThan(t0 - sevenDaysMs + 1000);
+    const SLACK_MS = 30_000;
+    expect(gte.getTime()).toBeGreaterThan(t0 - sevenDaysMs - SLACK_MS);
+    expect(gte.getTime()).toBeLessThan(t0 - sevenDaysMs + SLACK_MS);
   });
 });
