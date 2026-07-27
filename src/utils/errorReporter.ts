@@ -1,11 +1,19 @@
 /**
  * Client-side error reporter (mirror of server/src/utils/errorReporter.ts).
  *
- * Same activation pattern as the server: lazy-require @sentry/react-native
- * inside try/catch so the app boots even if the package isn't installed and
- * SENTRY_DSN isn't configured. Once the founder runs `npx expo install
- * @sentry/react-native` and sets EXPO_PUBLIC_SENTRY_DSN, init runs at first
- * call and every subsequent reportError() routes to Sentry.
+ * NOTE ON CHANNELS. Sentry is the OPTIONAL second channel here, not the
+ * primary one. This project's actual crash pipeline is Telegram: the client
+ * posts to `POST /log-client-error`, and the server forwards it to the
+ * founder's chat via services/telegramLogger (see routes/logging.ts, written
+ * specifically so crashes arrive "without installing Sentry"). That channel
+ * needs TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID in the server env — without
+ * them sendErrorToTelegram is a silent no-op.
+ *
+ * Sentry activation: @sentry/react-native IS already a dependency (see
+ * package.json) — the older comment here claimed it still had to be
+ * installed. It is lazy-required inside try/catch so the app boots regardless.
+ * Set EXPO_PUBLIC_SENTRY_DSN and init runs at the first reportError() call;
+ * leave it unset and this stays console-only, which is the expected state.
  *
  * Why client + server need separate wrappers:
  *   - @sentry/node is pure JS; @sentry/react-native has native modules and
