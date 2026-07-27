@@ -24,6 +24,7 @@ import { WorkoutSummaryScreen } from '../screens/workouts/WorkoutSummaryScreen';
 import { CustomWorkoutScreen } from '../screens/workouts/CustomWorkoutScreen';
 import { PlateCalculatorScreen } from '../screens/workouts/PlateCalculatorScreen';
 import { ProgramDetailScreen } from '../screens/workouts/ProgramDetailScreen';
+import { ProgramLibraryScreen } from '../screens/workouts/ProgramLibraryScreen';
 import { WorkoutHistoryScreen } from '../screens/workouts/WorkoutHistoryScreen';
 import { WeeklyPlanScreen } from '../screens/workouts/WeeklyPlanScreen';
 import { RoutinesListScreen } from '../screens/workouts/RoutinesListScreen';
@@ -170,6 +171,7 @@ function WorkoutsStackNavigator() {
       <WorkoutsStack.Screen name="CustomWorkout" component={CustomWorkoutScreen} />
       <WorkoutsStack.Screen name="PlateCalculator" component={PlateCalculatorScreen} options={{ animation: 'slide_from_bottom', presentation: 'modal' }} />
       <WorkoutsStack.Screen name="ProgramDetail" component={ProgramDetailScreen} />
+      <WorkoutsStack.Screen name="ProgramLibrary" component={ProgramLibraryScreen} />
       <WorkoutsStack.Screen name="WorkoutHistory" component={WorkoutHistoryScreen} />
       <WorkoutsStack.Screen name="WeeklyPlan" component={WeeklyPlanScreen} />
       <WorkoutsStack.Screen name="Routines" component={RoutinesListScreen} />

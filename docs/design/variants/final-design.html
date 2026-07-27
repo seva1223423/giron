@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Giron — итоговый дизайн раздела тренировок</title>
+<style>
+  :root{--bg:#0E0E0F;--sf:#17171A;--el:#1E1E22;--gold:#D4B07A;--tx:#F4F1EA;--t2:#A8A49C;--t3:#6B6860;
+        --ln:rgba(255,255,255,.07);--good:#9AC28C;--bad:#E07A6B}
+  *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,'Segoe UI',Roboto,sans-serif}
+  body{background:#0a0a0b;color:var(--tx);padding:26px 20px 70px;line-height:1.45}
+  .wrap{max-width:1600px;margin:0 auto}
+  h1{font-size:27px;font-weight:800;letter-spacing:-.5px}
+  .lead{color:var(--t2);font-size:13.5px;margin:8px 0;max-width:960px}
+  .note{display:inline-block;font-size:11px;color:var(--gold);border:1px solid rgba(212,176,122,.35);
+        background:rgba(212,176,122,.08);padding:3px 10px;border-radius:20px;margin-top:8px}
+  h2{font-size:17px;font-weight:800;margin:36px 0 3px;padding-top:20px;border-top:1px solid var(--ln)}
+  h2 .n{color:var(--gold);margin-right:8px}
+  .sub2{color:var(--t2);font-size:12.5px;margin-bottom:16px;max-width:1050px}
+  .principles{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:11px;margin:16px 0 4px}
+  .pr{background:var(--sf);border:1px solid var(--ln);border-radius:13px;padding:13px}
+  .pr b{display:block;font-size:11.5px;color:var(--gold);margin-bottom:5px;text-transform:uppercase;letter-spacing:.6px}
+  .pr span{font-size:12.5px;color:var(--t2)}.pr i{font-style:normal;color:var(--tx)}
+  .row{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start}
+  .col{width:296px;flex:0 0 auto}
+  .tag{display:flex;align-items:center;gap:8px;margin-bottom:8px;min-height:22px}
+  .tag .k{font-size:10.5px;font-weight:800;letter-spacing:.6px;padding:3px 8px;border-radius:6px;
+          background:rgba(212,176,122,.14);color:var(--gold);border:1px solid rgba(212,176,122,.3)}
+  .tag .nm{font-size:12.5px;font-weight:700}
+  .ph{position:relative;width:296px;height:600px;background:var(--bg);border:2px solid #26262b;border-radius:26px;
+      overflow:hidden;display:flex;flex-direction:column}
+  .st{height:24px;display:flex;align-items:center;justify-content:space-between;padding:0 13px;font-size:9.5px;color:var(--t3);flex:0 0 auto}
+  .bd{flex:1;position:relative;padding:0 13px;overflow:hidden}
+  .hd{font-size:19px;font-weight:800;padding:3px 1px 11px}
+  .thumb{position:absolute;left:0;right:0;bottom:0;height:36%;pointer-events:none;z-index:2;
+         background:linear-gradient(to top,rgba(154,194,140,.13),rgba(154,194,140,0))}
+  .lb{display:flex;justify-content:space-between;align-items:baseline;font-size:9.5px;letter-spacing:.9px;
+      color:var(--t3);font-weight:700;margin:13px 2px 7px}
+  .lb .all{color:var(--gold);letter-spacing:0;font-weight:600;font-size:10.5px}
+  .hero{background:linear-gradient(135deg,rgba(212,176,122,.18),rgba(212,176,122,.04));
+        border:1px solid rgba(212,176,122,.34);border-radius:16px;padding:13px}
+  .hero .t{font-size:15.5px;font-weight:800}
+  .hero .m{font-size:11px;color:var(--t2);margin-top:3px}
+  .hero .x{font-size:10.5px;color:var(--t3);margin-top:8px;line-height:1.5}
+  .c{background:var(--sf);border:1px solid var(--ln);border-radius:13px;padding:10px 11px;margin-bottom:6px}
+  .c .t{font-size:12.5px;font-weight:700}.c .m{font-size:10.5px;color:var(--t2);margin-top:2px}
+  .cv{float:right;color:var(--t3);font-size:14px;line-height:1}
+  .strip{display:flex;gap:7px;overflow:hidden}
+  .card{flex:0 0 118px;background:var(--sf);border:1px solid var(--ln);border-radius:12px;padding:10px}
+  .card .t{font-size:11.5px;font-weight:700;line-height:1.3}.card .m{font-size:9.5px;color:var(--t3);margin-top:4px}
+  .card.add{border-style:dashed;display:flex;align-items:center;justify-content:center;color:var(--gold);font-size:20px}
+  .cov{flex:0 0 132px;height:72px;border-radius:12px;padding:10px;display:flex;flex-direction:column;justify-content:flex-end}
+  .cov .t{font-size:11.5px;font-weight:800}.cov .m{font-size:9px;opacity:.75;margin-top:2px}
+  .cta{background:var(--gold);color:#17171A;font-weight:800;font-size:14px;text-align:center;padding:15px;border-radius:14px}
+  .cta.s{background:transparent;color:var(--gold);border:1.5px solid rgba(212,176,122,.42)}
+  .bot{position:absolute;left:13px;right:13px;bottom:12px;z-index:5}
+  .rw{display:flex;gap:7px}.rw>*{flex:1}
+  .tb{display:flex;border-top:1px solid var(--ln);background:rgba(20,20,24,.9);flex:0 0 auto;opacity:.4}
+  .tb div{flex:1;text-align:center;font-size:13px;color:var(--t3);padding:9px 0 11px}
+  .tb div.on{color:var(--gold)}
+  /* строка подхода — только данные */
+  .exn{font-size:17px;font-weight:800;padding:2px 0 1px}
+  .subx{font-size:10.5px;color:var(--t3);margin-bottom:13px}
+  .r{display:flex;align-items:baseline;gap:10px;padding:13px 12px;border-radius:12px;margin-bottom:5px;border:1px solid transparent}
+  .r .i{width:14px;font-size:11px;color:var(--t3);flex:0 0 auto}
+  .r .v{font-size:19px;font-weight:700;letter-spacing:-.3px}
+  .r .u{font-size:11px;color:var(--t3);margin-left:-5px}
+  .r .x{font-size:12px;color:var(--t3);margin:0 1px}
+  .r.done{color:var(--t2)}.r.done .v{color:var(--t2);font-weight:600}
+  .r.done::after{content:'✓';margin-left:auto;color:var(--good);font-size:14px}
+  .r.live{background:rgba(212,176,122,.09);border-color:rgba(212,176,122,.34)}
+  .r.live .v{color:var(--gold);font-size:23px}
+  .r.next{opacity:.42}
+  .sheet{position:absolute;left:0;right:0;bottom:0;background:var(--el);border-top:1px solid var(--ln);
+         border-radius:18px 18px 0 0;padding:11px 13px 13px;z-index:6}
+  .sheet .cap{font-size:9.5px;letter-spacing:1px;color:var(--t3);text-align:center;margin-bottom:7px}
+  .wheel{display:flex;align-items:center;justify-content:center;gap:20px;height:104px;position:relative}
+  .wcol{display:flex;flex-direction:column;align-items:center;gap:2px}
+  .wcol .o{font-size:14px;color:var(--t3);opacity:.45}
+  .wcol .o2{font-size:16px;color:var(--t2);opacity:.7}
+  .wcol .c2{font-size:27px;font-weight:800;color:var(--gold)}
+  .wsel{position:absolute;left:8px;right:8px;top:50%;transform:translateY(-50%);height:38px;
+        border-top:1px solid rgba(212,176,122,.3);border-bottom:1px solid rgba(212,176,122,.3)}
+  .chips{display:flex;gap:5px;justify-content:center;flex-wrap:wrap}
+  .chip{font-size:11px;padding:6px 11px;border-radius:18px;border:1px solid var(--ln);color:var(--t2);background:var(--sf)}
+  .chip.on{background:rgba(212,176,122,.16);color:var(--gold);border-color:rgba(212,176,122,.42)}
+  .rest{position:absolute;left:13px;right:13px;bottom:12px;background:var(--el);border:1px solid rgba(212,176,122,.35);
+        border-radius:13px;padding:10px 13px;display:flex;align-items:center;justify-content:space-between;z-index:7}
+  .rest .tm{font-size:19px;font-weight:800;color:var(--gold)}
+  .big{font-size:40px;font-weight:800;color:var(--gold);text-align:center;letter-spacing:-1px}
+  .flow{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:14px 0 4px;font-size:12px;color:var(--t2)}
+  .flow span{background:var(--sf);border:1px solid var(--ln);padding:6px 11px;border-radius:9px}
+  .flow b{color:var(--gold)}
+  table{width:100%;border-collapse:collapse;margin-top:14px;font-size:12.5px}
+  th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--ln)}
+  th{color:var(--gold);font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;font-weight:800}
+  td.y{color:var(--good)}td.n{color:var(--bad)}
+  .vd{margin-top:14px;background:var(--sf);border:1px solid rgba(212,176,122,.35);border-left:3px solid var(--gold);
+      border-radius:12px;padding:13px 15px;font-size:12.5px}
+  .vd b{color:var(--gold)}
+  .taps{font-size:10.5px;color:var(--t2);margin-top:7px}.taps b{color:var(--tx)}
+</style>
+</head>
+<body><div class="wrap">
+
+<h1>Итоговый дизайн — лучшее из всех вариантов</h1>
+<p class="lead">Собрано вместе: карточка «Сегодня», мои шаблоны и библиотека программ на одном экране,
+   журнал подходов без единой кнопки, барабан для ввода, отдых полосой внизу. Один сквозной приём на всё приложение.</p>
+<div class="note">Финальный макет. Скажешь «делай» — реализую в коде.</div>
+
+<h2><span class="n">0</span>Четыре правила, из которых всё выведено</h2>
+<div class="principles">
+  <div class="pr"><b>Экран отвечает на один вопрос</b><span>Главный — <i>«что тренировать сегодня»</i>. Всё остальное ниже и тише.</span></div>
+  <div class="pr"><b>Строка — это данные</b><span>Цифры показывают, а не управляют. <i>Ноль кнопок</i> в списке подходов.</span></div>
+  <div class="pr"><b>Действие — внизу, одно</b><span>Всё частое живёт в нижней трети, где достаёт большой палец. <i>Одна</i> золотая кнопка на экран.</span></div>
+  <div class="pr"><b>Значения подставлены</b><span>Вес и повторы берутся из прошлого раза — в <i>9 случаях из 10</i> трогать нечего.</span></div>
+</div>
+
+<h2><span class="n">1</span>Сквозной путь</h2>
+<div class="flow">
+  <span><b>Сегодня</b> — что делать</span>→<span>Тренировка — журнал без кнопок</span>→<span>Отдых — полоса внизу</span>→<span>Итог — рекорды</span>
+</div>
+
+<div class="row" style="margin-top:14px">
+
+  <!-- 1. СЕГОДНЯ -->
+  <div class="col"><div class="tag"><span class="k">1</span><span class="nm">Сегодня — есть программа</span></div>
+    <div class="ph"><div class="st"><span>9:41</span><span>▮▮</span></div><div class="thumb"></div>
+      <div class="bd"><div class="hd">Сегодня</div>
+        <div class="hero"><div class="t">День 3 · Грудь и трицепс</div>
+          <div class="m">Неделя 2 из 8 · 5 упражнений · ~55 мин</div>
+          <div class="x">Жим лёжа · Разводка · Брусья · Французский · Разгибания</div></div>
+        <div class="lb"><span>МОИ ШАБЛОНЫ</span><span class="all">все 6 →</span></div>
+        <div class="strip">
+          <div class="card"><div class="t">Ноги — база</div><div class="m">5 упр · 55 мин</div></div>
+          <div class="card"><div class="t">Спина + бицепс</div><div class="m">6 упр · 60 мин</div></div>
+          <div class="card add">+</div></div>
+        <div class="lb"><span>БИБЛИОТЕКА ПРОГРАММ</span><span class="all">все 25 →</span></div>
+        <div class="strip">
+          <div class="cov" style="background:linear-gradient(135deg,rgba(212,176,122,.22),rgba(212,176,122,.05));border:1px solid rgba(212,176,122,.3)">
+            <div class="t">Full Body</div><div class="m">3 дня · новичок</div></div>
+          <div class="cov" style="background:linear-gradient(135deg,rgba(154,194,140,.2),rgba(154,194,140,.04));border:1px solid rgba(154,194,140,.28)">
+            <div class="t">Push Pull Legs</div><div class="m">6 дней · опыт</div></div></div>
+      </div>
+      <div class="bot"><div class="cta">Начать день 3</div></div>
+      <div class="tb"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div></div>
+    <div class="taps">Ответ, шаблоны и библиотека — <b>без прокрутки</b>. Старт — 1 тап.</div></div>
+
+  <!-- 2. СЕГОДНЯ без программы -->
+  <div class="col"><div class="tag"><span class="k">2</span><span class="nm">Сегодня — программы нет</span></div>
+    <div class="ph"><div class="st"><span>9:41</span><span>▮▮</span></div><div class="thumb"></div>
+      <div class="bd"><div class="hd">Сегодня</div>
+        <div class="hero"><div class="t">Плана на сегодня нет</div>
+          <div class="m">Повтори прошлую, возьми шаблон или выбери программу</div>
+          <div class="x">На этой неделе уже 2 тренировки — так держать</div></div>
+        <div class="c"><span class="cv">›</span><div class="t">Повторить прошлую</div><div class="m">Спина + бицепс · вчера</div></div>
+        <div class="lb"><span>МОИ ШАБЛОНЫ</span><span class="all">все 6 →</span></div>
+        <div class="strip">
+          <div class="card"><div class="t">Ноги — база</div><div class="m">5 упр · 55 мин</div></div>
+          <div class="card"><div class="t">Спина + бицепс</div><div class="m">6 упр · 60 мин</div></div>
+          <div class="card add">+</div></div>
+        <div class="lb"><span>БИБЛИОТЕКА ПРОГРАММ</span><span class="all">все 25 →</span></div>
+        <div class="strip">
+          <div class="cov" style="background:linear-gradient(135deg,rgba(212,176,122,.22),rgba(212,176,122,.05));border:1px solid rgba(212,176,122,.3)">
+            <div class="t">Full Body</div><div class="m">3 дня · новичок</div></div>
+          <div class="cov" style="background:linear-gradient(135deg,rgba(154,194,140,.2),rgba(154,194,140,.04));border:1px solid rgba(154,194,140,.28)">
+            <div class="t">Сила 5×5</div><div class="m">3 дня · база</div></div></div>
+      </div>
+      <div class="bot"><div class="rw"><div class="cta">Свободная</div><div class="cta s">Подобрать</div></div></div>
+      <div class="tb"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div></div>
+    <div class="taps">Экран <b>не ломается</b> без программы — и «Повторить прошлую» наконец живая.</div></div>
+
+  <!-- 3. ТРЕНИРОВКА -->
+  <div class="col"><div class="tag"><span class="k">3</span><span class="nm">Тренировка — журнал без кнопок</span></div>
+    <div class="ph"><div class="st"><span>9:41</span><span>▮▮</span></div>
+      <div class="bd"><div class="exn">Жим лёжа</div>
+        <div class="subx">Подход 2 из 4 · прошлый раз 100 × 8 · рекорд 105</div>
+        <div class="r done"><span class="i">1</span><span class="v">100</span><span class="u">кг</span><span class="x">×</span><span class="v">8</span></div>
+        <div class="r live"><span class="i">2</span><span class="v">100</span><span class="u">кг</span><span class="x">×</span><span class="v">8</span></div>
+        <div class="r next"><span class="i">3</span><span class="v">100</span><span class="u">кг</span><span class="x">×</span><span class="v">8</span></div>
+        <div class="r next"><span class="i">4</span><span class="v">100</span><span class="u">кг</span><span class="x">×</span><span class="v">8</span></div>
+        <div class="sheet"><div class="cap">ТАП ПО ЦИФРЕ — ИЗМЕНИТЬ</div>
+          <div class="chips" style="margin-bottom:8px"><span class="chip">95</span><span class="chip">97.5</span>
+            <span class="chip on">100</span><span class="chip">102.5</span><span class="chip">105</span></div>
+          <div class="cta">Засчитать подход</div></div></div>
+      <div class="tb"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div></div>
+    <div class="taps"><b>0 кнопок</b> в строках (было 20). Обычный подход — 1 тап внизу.</div></div>
+
+  <!-- 4. БАРАБАН -->
+  <div class="col"><div class="tag"><span class="k">4</span><span class="nm">Изменить вес — барабан</span></div>
+    <div class="ph"><div class="st"><span>9:41</span><span>▮▮</span></div>
+      <div class="bd"><div class="exn">Жим лёжа</div>
+        <div class="subx">Подход 2 из 4</div>
+        <div class="r done"><span class="i">1</span><span class="v">100</span><span class="u">кг</span><span class="x">×</span><span class="v">8</span></div>
+        <div class="r live"><span class="i">2</span><span class="v">102.5</span><span class="u">кг</span><span class="x">×</span><span class="v">8</span></div>
+        <div class="sheet"><div class="cap">ВЕС И ПОВТОРЫ</div>
+          <div class="wheel"><div class="wsel"></div>
+            <div class="wcol"><span class="o">97.5</span><span class="o2">100</span><span class="c2">102.5</span><span class="o2">105</span><span class="o">107.5</span></div>
+            <div style="font-size:14px;color:var(--t3);align-self:center">кг ×</div>
+            <div class="wcol"><span class="o">6</span><span class="o2">7</span><span class="c2">8</span><span class="o2">9</span><span class="o">10</span></div></div>
+          <div class="cta" style="margin-top:5px">Засчитать подход</div></div></div>
+      <div class="tb"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div></div>
+    <div class="taps">Любое число, крупная цель. Тот же барабан — <b>для КБЖУ, воды, замеров</b>.</div></div>
+
+  <!-- 5. ОТДЫХ -->
+  <div class="col"><div class="tag"><span class="k">5</span><span class="nm">Отдых — экран живой</span></div>
+    <div class="ph"><div class="st"><span>9:41</span><span>▮▮</span></div>
+      <div class="bd"><div class="exn">Жим лёжа</div>
+        <div class="subx">Подход 2 засчитан · осталось 2</div>
+        <div class="r done"><span class="i">1</span><span class="v">100</span><span class="u">кг</span><span class="x">×</span><span class="v">8</span></div>
+        <div class="r done"><span class="i">2</span><span class="v">102.5</span><span class="u">кг</span><span class="x">×</span><span class="v">8</span></div>
+        <div class="r next"><span class="i">3</span><span class="v">102.5</span><span class="u">кг</span><span class="x">×</span><span class="v">8</span></div>
+        <div class="lb"><span>СЛЕДУЮЩЕЕ УПРАЖНЕНИЕ</span><span class="all">заменить</span></div>
+        <div class="c"><span class="cv">›</span><div class="t">Разводка гантелей</div><div class="m">3 × 12 · 22 кг</div></div>
+      </div>
+      <div class="rest"><div><div style="font-size:9px;color:var(--t3);letter-spacing:.6px">ОТДЫХ</div><div class="tm">1:24</div></div>
+        <div style="display:flex;gap:6px"><span class="chip">+30с</span><span class="chip on">Дальше</span></div></div>
+      <div class="tb"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div></div>
+    <div class="taps">Пауза не блокирует экран: видно следующее упражнение и можно <b>заменить</b>.</div></div>
+
+  <!-- 6. ИТОГ -->
+  <div class="col"><div class="tag"><span class="k">6</span><span class="nm">Итог — награда</span></div>
+    <div class="ph"><div class="st"><span>9:41</span><span>▮▮</span></div><div class="thumb"></div>
+      <div class="bd"><div style="height:14px"></div>
+        <div class="big" style="font-size:15px;letter-spacing:1px;color:var(--t3);font-weight:700">ГОТОВО</div>
+        <div class="big" style="margin:6px 0 2px">102.5</div>
+        <div style="text-align:center;font-size:11px;color:var(--t2);margin-bottom:14px">новый рекорд в жиме лёжа · было 100</div>
+        <div class="hero" style="padding:11px"><div class="t" style="font-size:13px">Грудь и трицепс</div>
+          <div class="m">54 минуты · 5 упражнений · 18 подходов · 7 240 кг объёма</div></div>
+        <div class="lb"><span>ЧТО ДАЛЬШЕ</span></div>
+        <div class="c"><span class="cv">›</span><div class="t">Сохранить как шаблон</div><div class="m">чтобы повторить в один тап</div></div>
+        <div class="c"><span class="cv">›</span><div class="t">День 4 — пятница</div><div class="m">Спина · по программе</div></div>
+      </div>
+      <div class="bot"><div class="cta">Готово</div></div>
+      <div class="tb"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div></div>
+    <div class="taps">Рекорд — первое, что видно. Отсюда же <b>рождается шаблон</b>.</div></div>
+</div>
+
+<h2><span class="n">2</span>Что меняется в цифрах</h2>
+<table>
+  <tr><th>Задача</th><th>Сейчас</th><th>Станет</th></tr>
+  <tr><td>Узнать, что тренировать сегодня</td><td class="n">нигде не сказано</td><td class="y">первое на экране</td></tr>
+  <tr><td>Начать тренировку по плану</td><td class="n">5–6 тапов + догадка</td><td class="y">1 тап</td></tr>
+  <tr><td>Кнопок в списке подходов</td><td class="n">20</td><td class="y">0</td></tr>
+  <tr><td>Записать обычный подход</td><td>1 тап по мелкой цели</td><td class="y">1 тап по широкой кнопке</td></tr>
+  <tr><td>Поменять вес 100 → 92.5</td><td class="n">3 тапа (или 40 по ±2.5)</td><td class="y">1 тап по чипу</td></tr>
+  <tr><td>Исправить засчитанный подход</td><td class="n">невозможно</td><td class="y">тап по цифре</td></tr>
+  <tr><td>Посмотреть следующее упражнение в отдыхе</td><td class="n">экран заблокирован</td><td class="y">видно всегда</td></tr>
+  <tr><td>Повторить прошлую тренировку</td><td class="n">кнопка мёртвая</td><td class="y">1 тап на «Сегодня»</td></tr>
+  <tr><td>Дойти до библиотеки программ</td><td>2 тапа во вкладке</td><td class="y">1 тап, видно обложки</td></tr>
+</table>
+
+<div class="vd"><b>Что берём из каждого варианта.</b>
+  Карточка «Сегодня» — из варианта A первого набора: она отвечает на главный вопрос.
+  Мои шаблоны и библиотека программ — твоё замечание: обе ленты остаются на виду, программы показаны обложками, их выбирают глазами.
+  Журнал подходов без кнопок и барабан — из набора по вводу: строка стала данными, а не пультом.
+  Отдых полосой — чтобы пауза не выключала приложение. Итог с рекордом — единственное место, где уже сейчас всё правильно, его не трогаем,
+  только добавляем «сохранить как шаблон», замыкая круг: <b>тренировка → шаблон → завтра в один тап</b>.
+</div>
+
+</div></body></html>

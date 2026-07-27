@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Giron — «Сегодня» + шаблоны + библиотека</title>
+<style>
+  :root{--bg:#0E0E0F;--sf:#17171A;--el:#1E1E22;--gold:#D4B07A;--tx:#F4F1EA;--t2:#A8A49C;--t3:#6B6860;
+        --ln:rgba(255,255,255,.07);--good:#9AC28C;--bad:#E07A6B}
+  *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,'Segoe UI',Roboto,sans-serif}
+  body{background:#0a0a0b;color:var(--tx);padding:26px 20px 70px;line-height:1.45}
+  .wrap{max-width:1560px;margin:0 auto}
+  h1{font-size:25px;font-weight:800;letter-spacing:-.4px}
+  .lead{color:var(--t2);font-size:13.5px;margin:7px 0;max-width:940px}
+  .note{display:inline-block;font-size:11px;color:var(--gold);border:1px solid rgba(212,176,122,.35);
+        background:rgba(212,176,122,.08);padding:3px 10px;border-radius:20px;margin-top:8px}
+  h2{font-size:17px;font-weight:800;margin:34px 0 3px;padding-top:20px;border-top:1px solid var(--ln)}
+  h2 .n{color:var(--gold);margin-right:8px}
+  .sub2{color:var(--t2);font-size:12.5px;margin-bottom:16px;max-width:1000px}
+  .row{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start}
+  .col{width:296px;flex:0 0 auto}
+  .tag{display:flex;align-items:center;gap:8px;margin-bottom:8px;min-height:22px}
+  .tag .k{font-size:10.5px;font-weight:800;letter-spacing:.6px;padding:3px 8px;border-radius:6px;
+          background:rgba(212,176,122,.14);color:var(--gold);border:1px solid rgba(212,176,122,.3)}
+  .tag .nm{font-size:12.5px;font-weight:700}
+  .win .k{background:rgba(154,194,140,.16);color:var(--good);border-color:rgba(154,194,140,.35)}
+  .ph{position:relative;width:296px;height:600px;background:var(--bg);border:2px solid #26262b;border-radius:26px;
+      overflow:hidden;display:flex;flex-direction:column}
+  .st{height:24px;display:flex;align-items:center;justify-content:space-between;padding:0 13px;font-size:9.5px;color:var(--t3);flex:0 0 auto}
+  .bd{flex:1;position:relative;padding:0 13px;overflow:hidden}
+  .hd{font-size:19px;font-weight:800;padding:3px 1px 11px}
+  .thumb{position:absolute;left:0;right:0;bottom:0;height:36%;pointer-events:none;z-index:2;
+         background:linear-gradient(to top,rgba(154,194,140,.15),rgba(154,194,140,0))}
+  .lb{display:flex;justify-content:space-between;align-items:baseline;font-size:9.5px;letter-spacing:.9px;
+      color:var(--t3);font-weight:700;margin:13px 2px 7px}
+  .lb .all{color:var(--gold);letter-spacing:0;font-weight:600;font-size:10.5px}
+  .hero{background:linear-gradient(135deg,rgba(212,176,122,.18),rgba(212,176,122,.04));
+        border:1px solid rgba(212,176,122,.34);border-radius:16px;padding:13px}
+  .hero .t{font-size:15.5px;font-weight:800}
+  .hero .m{font-size:11px;color:var(--t2);margin-top:3px}
+  .hero .x{font-size:10.5px;color:var(--t3);margin-top:8px;line-height:1.5}
+  .c{background:var(--sf);border:1px solid var(--ln);border-radius:13px;padding:10px 11px;margin-bottom:6px}
+  .c .t{font-size:12.5px;font-weight:700}
+  .c .m{font-size:10.5px;color:var(--t2);margin-top:2px}
+  .cv{float:right;color:var(--t3);font-size:14px;line-height:1}
+  /* горизонтальная лента */
+  .strip{display:flex;gap:7px;overflow:hidden}
+  .card{flex:0 0 118px;background:var(--sf);border:1px solid var(--ln);border-radius:12px;padding:10px}
+  .card .t{font-size:11.5px;font-weight:700;line-height:1.3}
+  .card .m{font-size:9.5px;color:var(--t3);margin-top:4px}
+  .card.add{border-style:dashed;display:flex;align-items:center;justify-content:center;color:var(--gold);font-size:20px}
+  .cov{flex:0 0 132px;height:72px;border-radius:12px;padding:10px;display:flex;flex-direction:column;justify-content:flex-end}
+  .cov .t{font-size:11.5px;font-weight:800}
+  .cov .m{font-size:9px;opacity:.75;margin-top:2px}
+  .cta{background:var(--gold);color:#17171A;font-weight:800;font-size:14px;text-align:center;padding:15px;border-radius:14px}
+  .cta.s{background:transparent;color:var(--gold);border:1.5px solid rgba(212,176,122,.42)}
+  .bot{position:absolute;left:13px;right:13px;bottom:12px;z-index:5}
+  .rw{display:flex;gap:7px}.rw>*{flex:1}
+  .seg{display:flex;gap:5px;background:var(--sf);border:1px solid var(--ln);border-radius:11px;padding:3px;margin-bottom:9px}
+  .seg div{flex:1;text-align:center;font-size:11px;font-weight:700;padding:7px 0;border-radius:8px;color:var(--t2)}
+  .seg div.on{background:var(--gold);color:#17171A}
+  .tb{display:flex;border-top:1px solid var(--ln);background:rgba(20,20,24,.9);flex:0 0 auto;opacity:.4}
+  .tb div{flex:1;text-align:center;font-size:13px;color:var(--t3);padding:9px 0 11px}
+  .tb div.on{color:var(--gold)}
+  table{width:100%;border-collapse:collapse;margin-top:14px;font-size:12.5px}
+  th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--ln);vertical-align:top}
+  th{color:var(--gold);font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;font-weight:800}
+  td.y{color:var(--good)}td.n{color:var(--bad)}
+  .vd{margin-top:13px;background:var(--sf);border:1px solid rgba(154,194,140,.28);border-left:3px solid var(--good);
+      border-radius:12px;padding:12px 14px;font-size:12.5px}
+  .vd b{color:var(--good)}
+  .taps{font-size:10.5px;color:var(--t2);margin-top:7px}.taps b{color:var(--tx)}
+</style>
+</head>
+<body><div class="wrap">
+
+<h1>«Сегодня» + мои шаблоны + библиотека программ</h1>
+<p class="lead">Ты прав: карточка «Сегодня» отвечает на главный вопрос, но шаблоны и библиотеку прятать нельзя.
+   Три компоновки, где помещается всё — и главная кнопка остаётся внизу, в зоне большого пальца.</p>
+<div class="note">Макет. Выбираешь компоновку — реализую.</div>
+
+<h2><span class="n">1</span>Три способа уместить всё</h2>
+<p class="sub2">Во всех трёх: сверху — что тренировать сегодня, снизу — кнопка старта. Отличается то, как показаны шаблоны и программы.</p>
+<div class="row">
+
+  <!-- A1 -->
+  <div class="col"><div class="tag win"><span class="k">A1 · рекоменд.</span><span class="nm">Две горизонтальные ленты</span></div>
+    <div class="ph"><div class="st"><span>9:41</span><span>▮▮</span></div><div class="thumb"></div>
+      <div class="bd"><div class="hd">Сегодня</div>
+        <div class="hero"><div class="t">День 3 · Грудь и трицепс</div>
+          <div class="m">Неделя 2 из 8 · 5 упражнений · ~55 мин</div>
+          <div class="x">Жим лёжа · Разводка · Брусья · Французский · Разгибания</div></div>
+
+        <div class="lb"><span>МОИ ШАБЛОНЫ</span><span class="all">все 6 →</span></div>
+        <div class="strip">
+          <div class="card"><div class="t">Ноги — база</div><div class="m">5 упр · 55 мин</div></div>
+          <div class="card"><div class="t">Спина + бицепс</div><div class="m">6 упр · 60 мин</div></div>
+          <div class="card add">+</div></div>
+
+        <div class="lb"><span>БИБЛИОТЕКА ПРОГРАММ</span><span class="all">все 25 →</span></div>
+        <div class="strip">
+          <div class="cov" style="background:linear-gradient(135deg,rgba(212,176,122,.22),rgba(212,176,122,.05));border:1px solid rgba(212,176,122,.3)">
+            <div class="t">Full Body</div><div class="m">3 дня · новичок</div></div>
+          <div class="cov" style="background:linear-gradient(135deg,rgba(154,194,140,.2),rgba(154,194,140,.04));border:1px solid rgba(154,194,140,.28)">
+            <div class="t">Push Pull Legs</div><div class="m">6 дней · опыт</div></div></div>
+      </div>
+      <div class="bot"><div class="cta">Начать день 3</div></div>
+      <div class="tb"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div></div>
+    <div class="taps">Всё на одном экране без прокрутки. Шаблон — <b>1 тап</b>, библиотека — <b>1 тап</b>.</div></div>
+
+  <!-- A2 -->
+  <div class="col"><div class="tag"><span class="k">A2</span><span class="nm">Шаблоны списком, библиотека строкой</span></div>
+    <div class="ph"><div class="st"><span>9:41</span><span>▮▮</span></div><div class="thumb"></div>
+      <div class="bd"><div class="hd">Сегодня</div>
+        <div class="hero"><div class="t">День 3 · Грудь и трицепс</div>
+          <div class="m">Неделя 2 из 8 · 5 упражнений</div></div>
+
+        <div class="lb"><span>МОИ ШАБЛОНЫ</span><span class="all">все 6 →</span></div>
+        <div class="c"><span class="cv">›</span><div class="t">Ноги — база</div><div class="m">5 упражнений · ~55 мин</div></div>
+        <div class="c"><span class="cv">›</span><div class="t">Спина + бицепс</div><div class="m">6 упражнений · ~60 мин</div></div>
+        <div class="c" style="border-style:dashed"><div class="t" style="color:var(--gold)">+ Новый шаблон</div></div>
+
+        <div class="c" style="background:rgba(212,176,122,.07);border-color:rgba(212,176,122,.28);margin-top:9px">
+          <span class="cv" style="color:var(--gold)">›</span>
+          <div class="t">Библиотека программ</div><div class="m">25 готовых · подобрать под себя</div></div>
+      </div>
+      <div class="bot"><div class="cta">Начать день 3</div></div>
+      <div class="tb"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div></div>
+    <div class="taps">Шаблоны читаются лучше (полное название). Программы — <b>за одной строкой</b>.</div></div>
+
+  <!-- A3 -->
+  <div class="col"><div class="tag"><span class="k">A3</span><span class="nm">Переключатель под героем</span></div>
+    <div class="ph"><div class="st"><span>9:41</span><span>▮▮</span></div><div class="thumb"></div>
+      <div class="bd"><div class="hd">Сегодня</div>
+        <div class="hero"><div class="t">День 3 · Грудь и трицепс</div>
+          <div class="m">Неделя 2 из 8 · 5 упражнений</div></div>
+        <div style="height:11px"></div>
+        <div class="seg"><div class="on">Мои шаблоны</div><div>Программы</div></div>
+        <div class="c"><span class="cv">›</span><div class="t">Ноги — база</div><div class="m">5 упражнений · ~55 мин</div></div>
+        <div class="c"><span class="cv">›</span><div class="t">Спина + бицепс</div><div class="m">6 упражнений · ~60 мин</div></div>
+        <div class="c"><span class="cv">›</span><div class="t">Грудь — тяжёлый</div><div class="m">4 упражнения · ~45 мин</div></div>
+      </div>
+      <div class="bot"><div class="cta">Начать день 3</div></div>
+      <div class="tb"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div></div>
+    <div class="taps">Больше строк в списке. Но программы <b>скрыты за переключателем</b>.</div></div>
+
+  <!-- нет программы -->
+  <div class="col"><div class="tag"><span class="k">A1</span><span class="nm">Тот же экран без программы</span></div>
+    <div class="ph"><div class="st"><span>9:41</span><span>▮▮</span></div><div class="thumb"></div>
+      <div class="bd"><div class="hd">Сегодня</div>
+        <div class="hero"><div class="t">Программы нет</div>
+          <div class="m">Выбери из библиотеки или начни свободную тренировку</div>
+          <div class="x">Тренировался 3 раза за неделю — можно и без плана</div></div>
+
+        <div class="lb"><span>МОИ ШАБЛОНЫ</span><span class="all">все 6 →</span></div>
+        <div class="strip">
+          <div class="card"><div class="t">Ноги — база</div><div class="m">5 упр · 55 мин</div></div>
+          <div class="card"><div class="t">Спина + бицепс</div><div class="m">6 упр · 60 мин</div></div>
+          <div class="card add">+</div></div>
+
+        <div class="lb"><span>БИБЛИОТЕКА ПРОГРАММ</span><span class="all">все 25 →</span></div>
+        <div class="strip">
+          <div class="cov" style="background:linear-gradient(135deg,rgba(212,176,122,.22),rgba(212,176,122,.05));border:1px solid rgba(212,176,122,.3)">
+            <div class="t">Full Body</div><div class="m">3 дня · новичок</div></div>
+          <div class="cov" style="background:linear-gradient(135deg,rgba(154,194,140,.2),rgba(154,194,140,.04));border:1px solid rgba(154,194,140,.28)">
+            <div class="t">Push Pull Legs</div><div class="m">6 дней · опыт</div></div></div>
+      </div>
+      <div class="bot"><div class="rw"><div class="cta">Свободная</div><div class="cta s">Подобрать</div></div></div>
+      <div class="tb"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div></div>
+    <div class="taps">Экран <b>не ломается</b> без программы — герой меняет текст, кнопки внизу другие.</div></div>
+</div>
+
+<table>
+  <tr><th>Критерий</th><th>A1 · ленты</th><th>A2 · список</th><th>A3 · переключатель</th></tr>
+  <tr><td>Видно и шаблоны, и программы сразу</td><td class="y">да</td><td class="y">да</td><td class="n">нет</td></tr>
+  <tr><td>Помещается без прокрутки</td><td class="y">да</td><td>почти</td><td class="y">да</td></tr>
+  <tr><td>Названия шаблонов читаются целиком</td><td>обрезаются</td><td class="y">да</td><td class="y">да</td></tr>
+  <tr><td>Программы выглядят привлекательно</td><td class="y">обложки</td><td class="n">строка</td><td class="n">список</td></tr>
+  <tr><td>Тапов до библиотеки программ</td><td class="y">1</td><td class="y">1</td><td class="n">2</td></tr>
+  <tr><td>Работает без активной программы</td><td class="y">да</td><td class="y">да</td><td class="y">да</td></tr>
+</table>
+<div class="vd"><b>Рекомендую A1.</b> Единственная компоновка, где герой, шаблоны и библиотека помещаются на один экран без прокрутки,
+  и где программы показаны обложками — их и выбирают глазами. Минус один: длинное название шаблона в узкой карточке обрежется,
+  поэтому рядом есть «все 6 →» на полный список.
+  <br><br>Если названия шаблонов важнее вида программ — тогда <b>A2</b>: шаблоны полными строками, библиотека одной заметной строкой.</div>
+
+</div></body></html>

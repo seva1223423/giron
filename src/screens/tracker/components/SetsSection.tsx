@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, Alert, useWindowDimensions } from 'react-native';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useThemeStore, useWorkoutStore } from '../../../store';
 import { Card, Button, AnimatedPressable, Icon } from '../../../components';
@@ -30,8 +30,6 @@ interface Props {
 export const SetsSection: React.FC<Props> = ({
   currentExercise, currentExerciseIndex, workout, previousSets, navigation, onCompleteSet, onRpeSelected,
 }) => {
-  const { width: screenW } = useWindowDimensions();
-  const SHOW_PLATE_CALC = screenW > 360;
   const haptic = useHaptic();
   const { colors } = useThemeStore();
 
@@ -211,13 +209,14 @@ export const SetsSection: React.FC<Props> = ({
         />
       )}
 
-      {/* Table header — columns must mirror SetRow layout exactly */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm, paddingHorizontal: spacing.sm, gap: spacing.md }}>
-        <Text style={[typography.captionMedium, { color: colors.textSecondary, width: 40 }]}>{'\u0421\u0435\u0442'}</Text>
-        <Text style={[typography.captionMedium, { color: colors.textSecondary, flex: 1, textAlign: 'center' }]}>{'\u0412\u0435\u0441 (\u043A\u0433)'}</Text>
-        {SHOW_PLATE_CALC && <View style={{ width: 28 }} />}
-        <Text style={[typography.captionMedium, { color: colors.textSecondary, flex: 1, textAlign: 'center' }]}>{'\u041F\u043E\u0432\u0442.'}</Text>
-        <View style={{ width: 40 }} />
+      {/* Table header — columns must mirror SetRow layout exactly. Weight and
+          reps merged into one column when the ± steppers were replaced by a
+          single tappable "60 кг × 10" value. */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm, paddingHorizontal: spacing.sm, gap: spacing.sm }}>
+        <Text style={[typography.captionMedium, { color: colors.textSecondary, width: 40, textAlign: 'center' }]}>{'Сет'}</Text>
+        <Text style={[typography.captionMedium, { color: colors.textSecondary, flex: 1, paddingHorizontal: spacing.xs }]}>{'Вес × повторы'}</Text>
+        <View style={{ width: 44 }} />
+        <View style={{ width: 44 }} />
       </View>
 
       {/* Sets — `activeSetIndex` is the first uncompleted set; it gets a

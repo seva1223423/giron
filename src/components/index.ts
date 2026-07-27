@@ -15,3 +15,5 @@ export { Spinner } from './Spinner';
 export { ForceUpdateModal } from './ForceUpdateModal';
 export { NetworkStatusBar } from './NetworkStatusBar';
 export { HitTarget } from './HitTarget';
+export { NumberWheel, WHEEL_ITEM_HEIGHT } from './NumberWheel';
+export { NumberSheet, buildPresets } from './NumberSheet';

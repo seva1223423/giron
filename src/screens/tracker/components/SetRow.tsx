@@ -1,14 +1,15 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, TextInput, StyleSheet, useWindowDimensions, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import Animated, {
   useSharedValue, useAnimatedStyle, withSpring, withSequence,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useHaptic } from '../../../hooks/useHaptic';
-import { AnimatedPressable, Icon } from '../../../components';
+import { AnimatedPressable, Icon, NumberSheet } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { estimateOneRepMaxRounded as estimate1RM } from '../../../utils/oneRepMax';
+import { buildPresets } from '../../../utils/wheel';
 
 const SET_TYPES = ['normal', 'warmup', 'dropset'] as const;
 /** Set-type chip config — colors resolved per-call from theme so chips
@@ -19,7 +20,6 @@ const buildSetTypeConfig = (colors: any): Record<string, { label: string; color:
   warmup:  { label: 'РАЗМ', color: colors.warning }, // warm amber
   dropset: { label: 'ДРОП', color: colors.error },   // terracotta
 });
-const RPE_VALUES = [6, 7, 7.5, 8, 8.5, 9, 9.5, 10];
 
 /** RPE scale colors — sage → amber → terracotta, theme-aware.
  *  Maps directly to Direction A semantic tokens (success/warning/error).
@@ -30,6 +30,24 @@ function rpeColor(rpe: number, colors: any): string {
   if (rpe <= 8) return colors.warning;  // amber (warn)
   return colors.error;                  // terracotta (danger / near failure)
 }
+
+/** 102.5 → "102.5", 60.0 → "60". */
+const fmt = (v: number) => (Number.isInteger(v) ? String(v) : String(Math.round(v * 100) / 100));
+
+/**
+ * WHY THIS ROW HAS ALMOST NO BUTTONS.
+ *
+ * It used to carry five controls — −, weight field, +, −, reps field, + and a
+ * plate icon — which on a five-set exercise put more than twenty tap targets
+ * on screen at once. It read as a control panel, and the fixed 2.5 kg step
+ * meant forty taps to go from nothing to 100 kg.
+ *
+ * Now the row is data: number, "60 кг × 10", RPE, and one checkmark. Tapping
+ * any number opens a wheel sheet at the bottom of the screen, where the thumb
+ * already is. The plate calculator moved inside that sheet, next to the weight
+ * it describes. RPE is no longer an eight-button strip that pops open after
+ * every set — it is just another number you can tap.
+ */
 
 interface Props {
   set: any;
@@ -95,14 +113,12 @@ const TouchableArea: React.FC<{ onPress: () => void; completed: boolean; colors:
 );
 
 export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, suggestedRpe, isActive, onComplete, onRpeChange, onRemove, onTypeChange, onOpenPlates, colors }) => {
-  const { width: screenW } = useWindowDimensions();
-  const SHOW_PLATE_CALC = screenW > 360;
   const haptic = useHaptic();
-  const initialWeight = set.weight ? set.weight.toString() : (prevSet?.weight ? prevSet.weight.toString() : '');
-  const initialReps = set.reps ? set.reps.toString() : (prevSet?.reps ? prevSet.reps.toString() : '10');
-  const [weight, setWeight] = useState(initialWeight);
-  const [reps, setReps] = useState(initialReps);
-  const [showRpe, setShowRpe] = useState(false);
+  const [weight, setWeight] = useState<number>(set.weight ?? prevSet?.weight ?? 0);
+  const [reps, setReps] = useState<number>(set.reps ?? prevSet?.reps ?? 10);
+  // Only one sheet is ever open, so a single discriminator beats two booleans.
+  const [sheet, setSheet] = useState<'load' | 'rpe' | null>(null);
+  const [draftRpe, setDraftRpe] = useState<number>(set.rpe ?? suggestedRpe ?? 8);
   const currentType = set.type || 'normal';
   const setTypeConfig = buildSetTypeConfig(colors);
 
@@ -110,24 +126,10 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
     // A completed set used to be frozen here: tapping ✓ again returned
     // immediately, so a mis-tap that logged 0 kg could never be corrected —
     // the wrong number stayed in history and in the PR maths forever (audit
-    // W2). The inputs were always editable; only saving was blocked.
-    // Re-confirming now saves the corrected values, and the caller is told
-    // this is a correction so it does not restart rest or jump exercises.
-    const isCorrection = !!set.completed;
-    let finalWeight = Math.max(0, parseFloat(weight.replace(',', '.')) || 0);
-    let finalReps = Math.max(0, parseInt(reps, 10) || 0);
-    if (finalWeight === 0 && prevSet?.weight) {
-      finalWeight = prevSet.weight;
-      setWeight(String(prevSet.weight));
-    }
-    if (finalReps === 0 && prevSet?.reps) {
-      finalReps = prevSet.reps;
-      setReps(String(prevSet.reps));
-    }
-    onComplete(finalReps, finalWeight, isCorrection);
-    // RPE is asked once, when the set is first logged — not again on a fix.
-    if (!isCorrection) setShowRpe(true);
-  }, [weight, reps, prevSet, onComplete, set.completed]);
+    // W2). Re-confirming now saves the corrected values, and the caller is
+    // told this is a correction so it does not restart rest or jump exercises.
+    onComplete(Math.max(0, reps), Math.max(0, weight), !!set.completed);
+  }, [weight, reps, onComplete, set.completed]);
 
   const completed1RM = set.completed && set.weight && set.reps
     ? estimate1RM(set.weight, set.reps)
@@ -141,6 +143,8 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
   const borderColor = set.completed ? colors.success : isActive ? colors.primary : 'transparent';
   const borderWidth = set.completed || isActive ? 3 : 0;
 
+  const showPrev = !set.completed && !!prevSet?.weight;
+
   return (
     <View style={{
       backgroundColor: rowBg,
@@ -149,7 +153,7 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
       borderLeftWidth: borderWidth,
       borderLeftColor: borderColor,
     }}>
-      <View style={[styles.setRow, { paddingVertical: spacing.sm }]}>
+      <View style={styles.setRow}>
         {/* Set number / type badge */}
         <AnimatedPressable
           onPress={onTypeChange ? () => {
@@ -169,124 +173,94 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
           <Text style={[typography.bodyMedium, { color: colors.textSecondary }]}>{setIndex + 1}</Text>
         </AnimatedPressable>
 
-        {/* Weight stepper */}
-        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-          <AnimatedPressable
-            onPress={() => { haptic.selection(); const v = parseFloat(weight.replace(',', '.')) || 0; setWeight(String(Math.max(0, Math.round((v - 2.5) * 4) / 4))); }}
-            haptic={false}
-            scaleDown={0.85}
-            style={[styles.stepBtn, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }] as any}
-          >
-            <Text style={{ color: colors.textSecondary, fontWeight: '800', fontSize: 17 }}>−</Text>
-          </AnimatedPressable>
-          <TextInput
-            style={[styles.setInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]}
-            value={weight}
-            onChangeText={setWeight}
-            keyboardType="numeric"
-            placeholder={prevSet?.weight ? prevSet.weight.toString() : '0'}
-            placeholderTextColor={prevSet?.weight ? colors.primary + '60' : colors.inputPlaceholder}
-          />
-          <AnimatedPressable
-            onPress={() => { haptic.selection(); const v = parseFloat(weight.replace(',', '.')) || 0; setWeight(String(Math.round((v + 2.5) * 4) / 4)); }}
-            haptic={false}
-            scaleDown={0.85}
-            style={[styles.stepBtn, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }] as any}
-          >
-            <Text style={{ color: colors.textSecondary, fontWeight: '800', fontSize: 17 }}>+</Text>
-          </AnimatedPressable>
-        </View>
+        {/* The whole "60 кг × 10" block is one target — the numbers are the
+            control, so there is nothing else to aim at. */}
+        <AnimatedPressable
+          onPress={() => { haptic.selection(); setSheet('load'); }}
+          haptic={false}
+          scaleDown={0.97}
+          style={styles.values as any}
+          accessibilityRole="button"
+          accessibilityLabel={`${weight > 0 ? `${fmt(weight)} килограмм, ` : ''}${reps} повторений. Нажми, чтобы изменить`}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+            <Text style={[typography.h3, { color: weight > 0 ? colors.text : colors.textTertiary }]} allowFontScaling={false}>
+              {weight > 0 ? fmt(weight) : '—'}
+            </Text>
+            {weight > 0 && (
+              <Text style={[typography.caption, { color: colors.textTertiary, marginLeft: 2 }]} allowFontScaling={false}>кг</Text>
+            )}
+            <Text style={[typography.body, { color: colors.textTertiary, marginHorizontal: 6 }]} allowFontScaling={false}>×</Text>
+            <Text style={[typography.h3, { color: colors.text }]} allowFontScaling={false}>{reps}</Text>
+          </View>
+          {showPrev && (
+            <Text style={[typography.caption, { color: colors.textTertiary }]} numberOfLines={1}>
+              прошлый раз {fmt(prevSet!.weight!)}{prevSet?.reps ? ` × ${prevSet.reps}` : ''}
+            </Text>
+          )}
+        </AnimatedPressable>
 
-        {/* Plate calc */}
-        {SHOW_PLATE_CALC && onOpenPlates && (
+        {/* RPE — shown only once the set exists. A dash invites the tap; the
+            eight-button strip that used to pop open here is gone. */}
+        {set.completed && (
           <AnimatedPressable
-            onPress={() => { haptic.selection(); onOpenPlates(parseFloat(weight.replace(',', '.')) || 0); }}
+            onPress={() => { haptic.selection(); setDraftRpe(set.rpe ?? suggestedRpe ?? 8); setSheet('rpe'); }}
             haptic={false}
-            scaleDown={0.9}
-            style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.sm } as any}
+            scaleDown={0.92}
+            style={styles.rpeSlot as any}
+            accessibilityRole="button"
+            accessibilityLabel={set.rpe ? `Тяжесть ${set.rpe} из 10. Нажми, чтобы изменить` : 'Оценить тяжесть подхода'}
           >
-            <Icon name="dumbbell" size={16} color={colors.primary} />
+            <Text style={{ fontSize: 8, fontWeight: '700', letterSpacing: 0.5, color: colors.textTertiary }}>RPE</Text>
+            <Text
+              style={[typography.bodyMedium, { color: set.rpe ? rpeColor(set.rpe, colors) : colors.primary }]}
+              allowFontScaling={false}
+            >
+              {set.rpe ? fmt(set.rpe) : '—'}
+            </Text>
           </AnimatedPressable>
         )}
 
-        {/* Reps stepper */}
-        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-          <AnimatedPressable
-            onPress={() => { haptic.selection(); const v = parseInt(reps, 10) || 0; setReps(String(Math.max(1, v - 1))); }}
-            haptic={false}
-            scaleDown={0.85}
-            style={[styles.stepBtn, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }] as any}
-          >
-            <Text style={{ color: colors.textSecondary, fontWeight: '800', fontSize: 17 }}>−</Text>
-          </AnimatedPressable>
-          <TextInput
-            style={[styles.setInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]}
-            value={reps}
-            onChangeText={setReps}
-            keyboardType="numeric"
-            placeholder="10"
-            placeholderTextColor={colors.inputPlaceholder}
-          />
-          <AnimatedPressable
-            onPress={() => { haptic.selection(); const v = parseInt(reps, 10) || 0; setReps(String(v + 1)); }}
-            haptic={false}
-            scaleDown={0.85}
-            style={[styles.stepBtn, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }] as any}
-          >
-            <Text style={{ color: colors.textSecondary, fontWeight: '800', fontSize: 17 }}>+</Text>
-          </AnimatedPressable>
-        </View>
-
-        {/* Complete button */}
         <CompleteButton completed={set.completed} onPress={handleComplete} colors={colors} est1RM={completed1RM} />
       </View>
 
-      {/* Quick weight presets */}
-      {!set.completed && (parseFloat(weight.replace(',', '.')) === 0 || weight === '') && prevSet?.weight && (
-        <View style={{ flexDirection: 'row', gap: 4, marginTop: 2, paddingHorizontal: spacing.sm, paddingBottom: spacing.xs, flexWrap: 'wrap' }}>
-          {[prevSet.weight, prevSet.weight + 2.5, prevSet.weight + 5, prevSet.weight - 5].filter(w => w > 0).map((w) => (
-            <AnimatedPressable
-              key={w}
-              onPress={() => { haptic.selection(); setWeight(String(w)); }}
-              haptic={false}
-              scaleDown={0.91}
-              style={{ paddingVertical: 5, paddingHorizontal: 10, borderRadius: 6, backgroundColor: colors.primary + '12', borderWidth: 1, borderColor: colors.primary + '30' } as any}
-            >
-              <Text style={{ fontSize: 11, fontWeight: '600', color: colors.primary }}>{w}</Text>
-            </AnimatedPressable>
-          ))}
-        </View>
+      {/* Mounted only while open, so a screen of sets holds at most one Modal. */}
+      {sheet === 'load' && (
+        <NumberSheet
+          visible
+          onClose={() => setSheet(null)}
+          title={`Подход ${setIndex + 1}`}
+          // 0.5 kg steps so dumbbells and microplates are reachable; the
+          // presets below jump in 2.5 kg, which is what the wheel would be
+          // slow at. Coarse where it helps, fine where it must.
+          primary={{ label: 'Вес', value: weight, onChange: setWeight, min: 0, max: 300, step: 0.5, unit: 'кг' }}
+          secondary={{ label: 'Повторения', value: reps, onChange: setReps, min: 0, max: 60, step: 1 }}
+          presets={buildPresets(weight, 2.5)}
+          secondaryAction={onOpenPlates ? {
+            label: 'Расчёт блинов',
+            onPress: () => { setSheet(null); onOpenPlates(weight); },
+          } : undefined}
+          confirmLabel={set.completed ? 'Сохранить' : 'Готово'}
+          onConfirm={() => {
+            setSheet(null);
+            // Editing a logged set has to write through: closing the sheet on
+            // a changed number that was never saved is how wrong history gets
+            // made. An unlogged set just keeps the value until ✓.
+            if (set.completed) onComplete(Math.max(0, reps), Math.max(0, weight), true);
+          }}
+        />
       )}
 
-      {/* RPE picker */}
-      {set.completed && showRpe && (
-        <View style={[styles.rpePicker, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[typography.caption, { color: colors.textTertiary, marginRight: spacing.sm }]}>RPE</Text>
-          {RPE_VALUES.map((v) => (
-            <View key={v} style={{ alignItems: 'center' }}>
-              <AnimatedPressable
-                onPress={() => { haptic.selection(); onRpeChange(v); setShowRpe(false); }}
-                haptic={false}
-                scaleDown={0.88}
-                style={[styles.rpeBtn, {
-                  backgroundColor: set.rpe === v ? rpeColor(v, colors) : suggestedRpe === v ? colors.primary + '18' : colors.inputBackground,
-                  borderColor: set.rpe === v ? rpeColor(v, colors) : suggestedRpe === v ? colors.primary : colors.border,
-                  borderWidth: suggestedRpe === v && set.rpe !== v ? 2 : 1,
-                }] as any}
-              >
-                <Text style={[typography.small, { color: set.rpe === v ? '#fff' : suggestedRpe === v ? colors.primary : colors.textSecondary, fontWeight: '700' }]}>{v}</Text>
-              </AnimatedPressable>
-              {suggestedRpe === v && set.rpe !== v && (
-                <Text style={{ fontSize: 8, color: colors.primary, fontWeight: '600', marginTop: 1 }}>ожид.</Text>
-              )}
-            </View>
-          ))}
-          {set.rpe && (
-            <Text style={[typography.caption, { color: rpeColor(set.rpe, colors), marginLeft: spacing.xs, fontWeight: '700' }]}>
-              {set.rpe >= 10 ? 'Макс' : set.rpe >= 9 ? 'Тяжело' : set.rpe >= 8 ? 'Сложно' : 'Легко'}
-            </Text>
-          )}
-        </View>
+      {sheet === 'rpe' && (
+        <NumberSheet
+          visible
+          onClose={() => setSheet(null)}
+          title="Насколько тяжело"
+          primary={{ label: 'Тяжесть', value: draftRpe, onChange: setDraftRpe, min: 6, max: 10, step: 0.5, unit: 'из 10' }}
+          presets={suggestedRpe ? [suggestedRpe] : []}
+          confirmLabel={`${fmt(draftRpe)} — ${draftRpe >= 10 ? 'максимум' : draftRpe >= 9 ? 'тяжело' : draftRpe >= 8 ? 'сложно' : 'легко'}`}
+          onConfirm={() => { onRpeChange(draftRpe); setSheet(null); }}
+        />
       )}
     </View>
   );
@@ -295,28 +269,16 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
 const styles = StyleSheet.create({
   setRow: {
     flexDirection: 'row', alignItems: 'center',
-    marginBottom: spacing.sm, paddingHorizontal: spacing.sm, gap: spacing.md,
+    paddingVertical: spacing.sm, paddingHorizontal: spacing.sm, gap: spacing.sm,
   },
-  setInput: {
-    flex: 1, textAlign: 'center', paddingVertical: spacing.sm,
-    borderRadius: borderRadius.sm, borderWidth: 1, fontSize: 16, fontWeight: '600',
-    minHeight: 40,
+  values: {
+    flex: 1, minHeight: 48, justifyContent: 'center', paddingHorizontal: spacing.xs,
+  },
+  rpeSlot: {
+    minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center',
   },
   checkBtn: {
     width: 44, height: 44, borderRadius: borderRadius.sm,
     alignItems: 'center', justifyContent: 'center', borderWidth: 1.5,
-  },
-  stepBtn: {
-    width: 32, height: 44, borderRadius: borderRadius.sm,
-    borderWidth: 1, alignItems: 'center', justifyContent: 'center',
-  },
-  rpePicker: {
-    flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm, marginTop: 2, marginBottom: spacing.xs,
-    borderRadius: borderRadius.sm, borderWidth: 1, flexWrap: 'wrap', gap: 4,
-  },
-  rpeBtn: {
-    width: 38, height: 38, borderRadius: borderRadius.sm,
-    borderWidth: 1, alignItems: 'center', justifyContent: 'center',
   },
 });

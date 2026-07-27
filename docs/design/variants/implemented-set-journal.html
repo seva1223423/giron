@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Giron — журнал подходов (реализовано)</title>
+<style>
+  :root{
+    --bg:#0E0E0F; --surface:#17171A; --elev:#1E1E22; --border:#2A2A2F;
+    --text:#F4F1EA; --t2:#A8A49C; --t3:#6E6A63;
+    --gold:#D4B07A; --sage:#9AC28C; --amber:#E8A36A; --terra:#E07A6B;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{background:#08080A;color:var(--text);font-family:-apple-system,'Segoe UI',Roboto,sans-serif;
+       display:flex;flex-direction:column;align-items:center;gap:18px;padding:24px 12px 60px}
+  h1{font-size:19px;font-weight:800;letter-spacing:-.3px;text-align:center}
+  .sub{color:var(--t2);font-size:13px;text-align:center;max-width:640px;line-height:1.5}
+  .badge{display:inline-block;background:rgba(154,194,140,.14);border:1px solid rgba(154,194,140,.4);
+         color:var(--sage);font-size:11px;font-weight:700;letter-spacing:.6px;
+         padding:4px 10px;border-radius:999px}
+  .stage{display:flex;gap:18px;flex-wrap:wrap;justify-content:center;align-items:flex-start}
+  .phone{width:340px;height:680px;background:var(--bg);border-radius:30px;border:1px solid #26262B;
+         position:relative;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.6)}
+  .cap{width:340px;color:var(--t3);font-size:11.5px;text-align:center;margin-top:8px;line-height:1.5}
+  .cap b{color:var(--gold)}
+  .status{display:flex;justify-content:space-between;padding:12px 18px 4px;font-size:11px;color:var(--t3)}
+  .head{padding:8px 16px 12px;border-bottom:1px solid var(--border)}
+  .head h2{font-size:20px;font-weight:800;letter-spacing:-.4px}
+  .head p{color:var(--t2);font-size:12px;margin-top:3px}
+  .thead{display:flex;align-items:center;gap:10px;padding:12px 14px 8px;font-size:10.5px;
+         font-weight:700;letter-spacing:.7px;color:var(--t2)}
+  .thead .n{width:34px;text-align:center}.thead .v{flex:1;padding-left:6px}
+  .thead .s{width:38px}
+  /* ── set row: data, not controls ───────────────────────── */
+  .row{display:flex;align-items:center;gap:10px;padding:9px 14px;border-radius:8px;margin:0 6px 2px;
+       border-left:3px solid transparent;cursor:pointer;transition:background .12s}
+  .row:active{background:rgba(212,176,122,.09)}
+  .row.active{background:rgba(212,176,122,.06);border-left-color:var(--gold)}
+  .row.done{background:rgba(154,194,140,.07);border-left-color:var(--sage)}
+  .num{width:34px;text-align:center}
+  .num .tag{font-size:7.5px;font-weight:800;letter-spacing:.5px;color:var(--gold)}
+  .num .i{font-size:14px;font-weight:600;color:var(--t2)}
+  .vals{flex:1;min-height:44px;display:flex;flex-direction:column;justify-content:center;padding-left:6px}
+  .vline{display:flex;align-items:baseline}
+  .vline .w{font-size:19px;font-weight:800;letter-spacing:-.4px}
+  .vline .u{font-size:11px;color:var(--t3);margin-left:2px}
+  .vline .x{font-size:14px;color:var(--t3);margin:0 6px}
+  .vline .r{font-size:19px;font-weight:800;letter-spacing:-.4px}
+  .prev{font-size:10.5px;color:var(--t3);margin-top:1px}
+  .rpe{width:38px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .rpe .l{font-size:7.5px;font-weight:800;letter-spacing:.5px;color:var(--t3)}
+  .rpe .v{font-size:14px;font-weight:600}
+  .chk{width:40px;height:40px;border-radius:8px;border:1.5px solid var(--border);background:#131316;
+       display:flex;align-items:center;justify-content:center;flex:none;cursor:pointer;transition:transform .1s}
+  .chk:active{transform:scale(.9)}
+  .chk svg{width:19px;height:19px}
+  .chk.on{background:var(--sage);border-color:var(--sage)}
+  .hint{margin:16px 14px 0;text-align:center;font-size:10.5px;letter-spacing:.8px;font-weight:700;color:var(--t3)}
+  /* ── bottom sheet with the wheel ────────────────────────── */
+  .scrim{position:absolute;inset:0;background:rgba(0,0,0,.55);opacity:0;pointer-events:none;transition:opacity .18s}
+  .scrim.on{opacity:1;pointer-events:auto}
+  .sheet{position:absolute;left:0;right:0;bottom:0;background:var(--elev);border-top:1px solid var(--border);
+         border-radius:22px 22px 0 0;padding:8px 18px 18px;transform:translateY(105%);transition:transform .26s cubic-bezier(.2,.9,.3,1)}
+  .sheet.on{transform:translateY(0)}
+  .grip{width:36px;height:4px;border-radius:2px;background:var(--border);margin:0 auto 12px}
+  .stitle{text-align:center;font-size:10.5px;font-weight:700;letter-spacing:1px;color:var(--t3)}
+  .chips{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:12px}
+  .chip{min-width:52px;height:40px;padding:0 9px;border-radius:999px;border:1px solid var(--border);
+        background:var(--surface);color:var(--t2);font-size:13px;font-weight:600;cursor:pointer;
+        display:flex;align-items:center;justify-content:center}
+  .chip.on{background:rgba(212,176,122,.15);border-color:rgba(212,176,122,.42);color:var(--gold)}
+  .wheels{display:flex;align-items:center;gap:14px;margin:8px 0}
+  .wcol{flex:1;position:relative}
+  .band{position:absolute;left:0;right:0;top:76px;height:38px;border-top:1px solid rgba(212,176,122,.33);
+        border-bottom:1px solid rgba(212,176,122,.33);pointer-events:none}
+  .wheel{height:190px;overflow-y:scroll;scroll-snap-type:y mandatory;scrollbar-width:none;padding:76px 0}
+  .wheel::-webkit-scrollbar{display:none}
+  .opt{height:38px;display:flex;align-items:center;justify-content:center;scroll-snap-align:center;
+       font-size:15px;font-weight:500;color:var(--t2);opacity:.25;transition:opacity .1s,color .1s}
+  .opt.near{opacity:.55}
+  .opt.sel{opacity:1;color:var(--gold);font-size:22px;font-weight:800}
+  .unit{position:absolute;right:0;top:50%;transform:translateY(-50%);font-size:11px;color:var(--t3)}
+  .mul{color:var(--t3);font-size:16px;align-self:center}
+  .link{height:40px;display:flex;align-items:center;justify-content:center;color:var(--gold);font-size:13px;font-weight:600;cursor:pointer}
+  .cta{height:52px;border-radius:14px;background:var(--gold);color:#17171A;font-size:15px;font-weight:700;
+       display:flex;align-items:center;justify-content:center;margin-top:6px;cursor:pointer;border:none;width:100%}
+  .cta:active{transform:scale(.985)}
+  /* before/after comparison */
+  .old{padding:9px 10px;display:flex;align-items:center;gap:6px}
+  .ob{width:30px;height:42px;border-radius:7px;border:1px solid var(--border);background:#131316;
+      display:flex;align-items:center;justify-content:center;color:var(--t2);font-weight:800;font-size:16px}
+  .oi{flex:1;height:42px;border-radius:7px;border:1px solid var(--border);background:#131316;
+      display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600}
+  .tally{display:flex;gap:22px;justify-content:center;margin-top:10px}
+  .tally div{text-align:center}
+  .tally .k{font-size:26px;font-weight:800;letter-spacing:-1px}
+  .tally .kk{color:var(--terra)}.tally .kg{color:var(--sage)}
+  .tally .l{font-size:10px;color:var(--t3);margin-top:2px}
+</style>
+</head>
+<body>
+
+<span class="badge">УЖЕ В КОДЕ</span>
+<h1>Журнал подходов — строка стала данными</h1>
+<p class="sub">Это не набросок: то же, что сейчас лежит в <code>SetRow.tsx</code> и <code>NumberWheel.tsx</code> —
+те же размеры, цвета и шаги. Барабан крутится, чипы работают. Потрогай.</p>
+
+<div class="stage">
+
+  <div>
+  <div class="phone">
+    <div class="status"><span>9:41</span><span>▮▮</span></div>
+    <div class="head">
+      <h2>Жим лёжа</h2>
+      <p>Подход 2 из 4 · прошлый раз 100 × 8 · рекорд 105</p>
+    </div>
+    <div class="thead"><span class="n">Сет</span><span class="v">Вес × повторы</span><span class="s"></span><span style="width:40px"></span></div>
+    <div id="rows"></div>
+    <div class="hint">ТАП ПО ЦИФРЕ — ИЗМЕНИТЬ</div>
+
+    <div class="scrim" id="scrim" onclick="closeSheet()"></div>
+    <div class="sheet" id="sheet">
+      <div class="grip"></div>
+      <div class="stitle" id="stitle">ПОДХОД 2</div>
+      <div class="chips" id="chips"></div>
+      <div class="wheels">
+        <div class="wcol">
+          <div class="band"></div>
+          <div class="wheel" id="wW"></div>
+          <div class="unit">кг</div>
+        </div>
+        <div class="mul">×</div>
+        <div class="wcol">
+          <div class="band"></div>
+          <div class="wheel" id="wR"></div>
+        </div>
+      </div>
+      <div class="link" onclick="closeSheet()">Расчёт блинов</div>
+      <button class="cta" onclick="closeSheet()">Готово</button>
+    </div>
+  </div>
+  <p class="cap">Строка: номер, «60 кг × 10», RPE, одна галочка. <b>Ноль кнопок ввода.</b><br>
+     Тап по цифрам открывает барабан внизу — там, где палец.</p>
+  </div>
+
+  <div>
+  <div class="phone" style="height:auto;padding-bottom:18px">
+    <div class="status"><span>9:41</span><span>▮▮</span></div>
+    <div class="head"><h2>Было</h2><p>та же одна строка подхода</p></div>
+    <div class="old">
+      <div style="width:34px;text-align:center"><div class="num"><div class="tag">РАБ</div><div class="i">2</div></div></div>
+      <div class="ob">−</div><div class="oi">100</div><div class="ob">+</div>
+      <div style="color:var(--gold);font-size:15px">▦</div>
+      <div class="ob">−</div><div class="oi">8</div><div class="ob">+</div>
+      <div class="chk on"><svg viewBox="0 0 24 24" fill="none" stroke="#17171A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+    </div>
+    <div style="padding:0 14px">
+      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px">
+        <span class="chip" style="min-width:0;height:26px;font-size:11px;padding:0 9px">6</span>
+        <span class="chip" style="min-width:0;height:26px;font-size:11px;padding:0 9px">7</span>
+        <span class="chip" style="min-width:0;height:26px;font-size:11px;padding:0 9px">7.5</span>
+        <span class="chip" style="min-width:0;height:26px;font-size:11px;padding:0 9px">8</span>
+        <span class="chip" style="min-width:0;height:26px;font-size:11px;padding:0 9px">8.5</span>
+        <span class="chip" style="min-width:0;height:26px;font-size:11px;padding:0 9px">9</span>
+        <span class="chip" style="min-width:0;height:26px;font-size:11px;padding:0 9px">9.5</span>
+        <span class="chip" style="min-width:0;height:26px;font-size:11px;padding:0 9px">10</span>
+      </div>
+      <p style="color:var(--t3);font-size:10.5px;margin-top:8px;line-height:1.5">
+        7 целей в одной строке + полоса RPE из 8 кнопок, которая
+        выскакивала после каждого подхода.</p>
+    </div>
+    <div class="tally">
+      <div><div class="k kk">27</div><div class="l">целей было<br>на экране из 4 сетов</div></div>
+      <div><div class="k kg">4</div><div class="l">стало<br>(4 галочки)</div></div>
+    </div>
+    <p style="color:var(--t3);font-size:10.5px;text-align:center;padding:10px 18px 0;line-height:1.5">
+      Плюс: шаг был жёстко 2.5 кг — 61 кг ввести было нельзя.<br>
+      Теперь барабан ходит по 0.5, а чипы прыгают по 2.5.</p>
+  </div>
+  <p class="cap">Слева — что видит палец сейчас. <b>27 целей против 4.</b></p>
+  </div>
+
+</div>
+
+<script>
+const R = 38;
+const sets = [
+  {w:100, r:8, done:true,  rpe:8},
+  {w:100, r:8, done:false, rpe:null, active:true, prev:'100 × 8'},
+  {w:100, r:8, done:false, rpe:null, prev:'100 × 8'},
+  {w:100, r:8, done:false, rpe:null, prev:'100 × 8'},
+];
+let open = -1;
+
+const fmt = v => Number.isInteger(v) ? v : Math.round(v*100)/100;
+const rpeCol = v => v<=7 ? 'var(--sage)' : v<=8 ? 'var(--amber)' : 'var(--terra)';
+
+function draw(){
+  document.getElementById('rows').innerHTML = sets.map((s,i)=>`
+    <div class="row ${s.done?'done':s.active?'active':''}">
+      <div class="num" onclick="event.stopPropagation()">
+        <div class="tag">РАБ</div><div class="i">${i+1}</div>
+      </div>
+      <div class="vals" onclick="openSheet(${i})">
+        <div class="vline">
+          <span class="w" style="color:${s.w>0?'var(--text)':'var(--t3)'}">${s.w>0?fmt(s.w):'—'}</span>
+          ${s.w>0?'<span class="u">кг</span>':''}
+          <span class="x">×</span><span class="r">${s.r}</span>
+        </div>
+        ${!s.done && s.prev ? `<div class="prev">прошлый раз ${s.prev}</div>`:''}
+      </div>
+      ${s.done ? `<div class="rpe" onclick="event.stopPropagation()">
+          <div class="l">RPE</div>
+          <div class="v" style="color:${s.rpe?rpeCol(s.rpe):'var(--gold)'}">${s.rpe?fmt(s.rpe):'—'}</div>
+        </div>` : '<div class="rpe"></div>'}
+      <div class="chk ${s.done?'on':''}" onclick="toggle(${i})">
+        <svg viewBox="0 0 24 24" fill="none" stroke="${s.done?'#17171A':'#A8A49C'}" stroke-width="3"
+             stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+    </div>`).join('');
+}
+function toggle(i){ sets[i].done=!sets[i].done; if(sets[i].done&&!sets[i].rpe) sets[i].rpe=8; draw(); }
+
+function fill(el, min, max, step, val, onPick){
+  const n = Math.floor((max-min)/step)+1;
+  const opts = Array.from({length:n},(_,i)=>Math.round((min+i*step)*1000)/1000);
+  el.innerHTML = opts.map(v=>`<div class="opt" data-v="${v}">${fmt(v)}</div>`).join('');
+  const idx = Math.min(n-1, Math.max(0, Math.round((val-min)/step)));
+  el.scrollTop = idx*R;
+  const mark = () => {
+    const c = Math.round(el.scrollTop/R);
+    [...el.children].forEach((o,i)=>{
+      o.className = 'opt' + (i===c?' sel':Math.abs(i-c)===1?' near':'');
+    });
+    return opts[Math.min(n-1,Math.max(0,c))];
+  };
+  mark();
+  let t;
+  el.onscroll = () => { const v = mark(); clearTimeout(t); t = setTimeout(()=>onPick(v), 90); };
+  return mark;
+}
+
+function openSheet(i){
+  open = i;
+  const s = sets[i];
+  document.getElementById('stitle').textContent = `ПОДХОД ${i+1}`;
+  fill(document.getElementById('wW'), 0, 300, 0.5, s.w, v=>{ s.w=v; draw(); chips(); });
+  fill(document.getElementById('wR'), 0, 60, 1, s.r, v=>{ s.r=v; draw(); });
+  chips();
+  document.getElementById('sheet').classList.add('on');
+  document.getElementById('scrim').classList.add('on');
+}
+function chips(){
+  const s = sets[open]; if(!s) return;
+  const vals=[]; for(let k=-2;k<=2;k++){const v=Math.round((s.w+k*2.5)*1000)/1000; if(v>=0) vals.push(v);}
+  document.getElementById('chips').innerHTML = vals.map(v=>
+    `<div class="chip ${Math.abs(v-s.w)<1e-6?'on':''}" onclick="pick(${v})">${fmt(v)}</div>`).join('');
+}
+function pick(v){
+  const s = sets[open]; s.w=v; draw();
+  const el = document.getElementById('wW');
+  el.scrollTo({top: Math.round(v/0.5)*R, behavior:'smooth'});
+  chips();
+}
+function closeSheet(){
+  document.getElementById('sheet').classList.remove('on');
+  document.getElementById('scrim').classList.remove('on');
+}
+draw();
+</script>
+</body>
+</html>

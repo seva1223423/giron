@@ -1,13 +1,10 @@
 export { WorkoutsHeader } from './WorkoutsHeader';
-export { WorkoutsTabBar } from './WorkoutsTabBar';
-export type { WorkoutsTab } from './WorkoutsTabBar';
-export { QuickStartTab } from './QuickStartTab';
 export { ProgramsTab } from './ProgramsTab';
-export { HeroStartButton } from './HeroStartButton';
-export { HistoryTab } from './HistoryTab';
 export { UtilityMenu } from './UtilityMenu';
 export { ExercisesTab } from './ExercisesTab';
 export { ExerciseSelectStep } from './ExerciseSelectStep';
 export { ConfigureStepContainer } from './ConfigureStep';
 export { CreateExerciseModal } from './CreateExerciseModal';
 export { UserProgramsList } from './UserProgramsList';
+export { TodayCard } from './TodayCard';
+export { ShelfStrip, type ShelfItem } from './ShelfStrip';

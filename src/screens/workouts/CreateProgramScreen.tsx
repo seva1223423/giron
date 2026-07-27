@@ -85,9 +85,9 @@ const DURATION_MAX = 12;
 const DAYS_MIN = 2;
 const DAYS_MAX = 6;
 
-// Bundled day presets — short subset of QuickStartTab's QUICK_WORKOUTS,
+// Bundled day presets — short subset of the workouts screen QUICK_SPLITS,
 // reshaped for selecting day templates inside a program. Source of
-// truth for "full" presets stays in QuickStartTab; here we only need
+// truth for "full" presets stays in WorkoutsScreen; here we only need
 // enough variety for the most common splits.
 const DAY_PRESETS: { id: string; name: string; exerciseIds: string[] }[] = [
   { id: 'preset-chest-tri',   name: 'Грудь + Трицепс', exerciseIds: ['bench-press', 'incline-bench-press', 'dumbbell-fly', 'tricep-pushdown', 'overhead-tricep-ext'] },
@@ -100,7 +100,7 @@ const DAY_PRESETS: { id: string; name: string; exerciseIds: string[] }[] = [
   { id: 'preset-core',        name: 'Пресс + Кор',     exerciseIds: ['plank', 'cable-crunch', 'hanging-leg-raise', 'bicycle-crunch', 'russian-twist', 'side-plank'] },
 ];
 
-// Rough per-set time budget — matches QuickStartTab default of 4 sets/exercise.
+// Rough per-set time budget — matches the 4 sets/exercise default.
 // Display heuristic only; real duration depends on configuration.
 const MINUTES_PER_EXERCISE = 10;
 

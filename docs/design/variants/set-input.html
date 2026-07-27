@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Giron — механика ввода подхода</title>
+<style>
+  :root{--bg:#0E0E0F;--sf:#17171A;--el:#1E1E22;--gold:#D4B07A;--tx:#F4F1EA;--t2:#A8A49C;--t3:#6B6860;
+        --ln:rgba(255,255,255,.07);--good:#9AC28C;--bad:#E07A6B}
+  *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,'Segoe UI',Roboto,sans-serif}
+  body{background:#0a0a0b;color:var(--tx);padding:26px 20px 70px;line-height:1.45}
+  .wrap{max-width:1560px;margin:0 auto}
+  h1{font-size:25px;font-weight:800;letter-spacing:-.4px}
+  .lead{color:var(--t2);font-size:13.5px;margin:7px 0;max-width:920px}
+  .note{display:inline-block;font-size:11px;color:var(--gold);border:1px solid rgba(212,176,122,.35);
+        background:rgba(212,176,122,.08);padding:3px 10px;border-radius:20px;margin-top:8px}
+  h2{font-size:17px;font-weight:800;margin:36px 0 3px;padding-top:20px;border-top:1px solid var(--ln)}
+  h2 .n{color:var(--gold);margin-right:8px}
+  .prob{background:rgba(224,122,107,.07);border:1px solid rgba(224,122,107,.22);border-left:3px solid var(--bad);
+        border-radius:10px;padding:10px 13px;font-size:12.5px;color:var(--t2);margin:10px 0 18px;max-width:1100px}
+  .prob b{color:var(--bad)}
+  .row{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start}
+  .col{width:296px;flex:0 0 auto}
+  .tag{display:flex;align-items:center;gap:8px;margin-bottom:8px;min-height:22px}
+  .tag .k{font-size:10.5px;font-weight:800;letter-spacing:.6px;padding:3px 8px;border-radius:6px;
+          background:rgba(212,176,122,.14);color:var(--gold);border:1px solid rgba(212,176,122,.3)}
+  .tag .nm{font-size:12.5px;font-weight:700}
+  .cur .k{background:rgba(224,122,107,.14);color:var(--bad);border-color:rgba(224,122,107,.3)}
+  .win .k{background:rgba(154,194,140,.16);color:var(--good);border-color:rgba(154,194,140,.35)}
+  .ph{position:relative;width:296px;height:582px;background:var(--bg);border:2px solid #26262b;border-radius:26px;
+      overflow:hidden;display:flex;flex-direction:column}
+  .st{height:24px;display:flex;align-items:center;justify-content:space-between;padding:0 13px;font-size:9.5px;color:var(--t3);flex:0 0 auto}
+  .bd{flex:1;position:relative;padding:0 14px;overflow:hidden}
+  .exn{font-size:17px;font-weight:800;padding:2px 0 1px}
+  .sub{font-size:10.5px;color:var(--t3);margin-bottom:14px}
+
+  /* ЧИСТАЯ СТРОКА — данные, не кнопки */
+  .r{display:flex;align-items:baseline;gap:10px;padding:13px 12px;border-radius:12px;margin-bottom:5px;
+     border:1px solid transparent}
+  .r .i{width:14px;font-size:11px;color:var(--t3);flex:0 0 auto}
+  .r .v{font-size:19px;font-weight:700;letter-spacing:-.3px}
+  .r .u{font-size:11px;color:var(--t3);margin-left:-5px}
+  .r .x{font-size:12px;color:var(--t3);margin:0 1px}
+  .r.done{color:var(--t2)}
+  .r.done .v{color:var(--t2);font-weight:600}
+  .r.done::after{content:'✓';margin-left:auto;color:var(--good);font-size:14px}
+  .r.live{background:rgba(212,176,122,.09);border-color:rgba(212,176,122,.34)}
+  .r.live .v{color:var(--gold);font-size:23px}
+  .r.next{opacity:.42}
+  .r.tap{position:relative}
+  .r.tap .v{border-bottom:1.5px dashed rgba(212,176,122,.45);padding-bottom:1px}
+
+  /* нижние механики */
+  .sheet{position:absolute;left:0;right:0;bottom:0;background:var(--el);border-top:1px solid var(--ln);
+         border-radius:18px 18px 0 0;padding:12px 14px 14px;z-index:6}
+  .sheet .cap{font-size:9.5px;letter-spacing:1px;color:var(--t3);text-align:center;margin-bottom:8px}
+  .wheel{display:flex;align-items:center;justify-content:center;gap:22px;height:112px;position:relative}
+  .wcol{display:flex;flex-direction:column;align-items:center;gap:2px}
+  .wcol .o{font-size:15px;color:var(--t3);opacity:.45}
+  .wcol .o2{font-size:17px;color:var(--t2);opacity:.7}
+  .wcol .c{font-size:29px;font-weight:800;color:var(--gold)}
+  .wsel{position:absolute;left:8px;right:8px;top:50%;transform:translateY(-50%);height:40px;
+        border-top:1px solid rgba(212,176,122,.3);border-bottom:1px solid rgba(212,176,122,.3);pointer-events:none}
+  .pad{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .pad div{height:44px;border-radius:10px;background:var(--sf);border:1px solid var(--ln);
+           display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:600}
+  .pad div.a{background:rgba(212,176,122,.15);border-color:rgba(212,176,122,.35);color:var(--gold)}
+  .cta{background:var(--gold);color:#17171A;font-weight:800;font-size:14px;text-align:center;padding:15px;border-radius:14px}
+  .cta.s{background:transparent;color:var(--gold);border:1.5px solid rgba(212,176,122,.4)}
+  .bot{position:absolute;left:14px;right:14px;bottom:12px;z-index:5}
+  .scrub{display:flex;align-items:center;justify-content:center;gap:14px;padding:6px 0 2px}
+  .scrub .ar{font-size:15px;color:rgba(212,176,122,.5)}
+  .scrub .big{font-size:44px;font-weight:800;color:var(--gold);letter-spacing:-1px}
+  .hint{font-size:10px;color:var(--t3);text-align:center;margin-top:2px}
+  .chips{display:flex;gap:5px;justify-content:center;flex-wrap:wrap;margin-top:9px}
+  .chip{font-size:11.5px;padding:7px 12px;border-radius:18px;border:1px solid var(--ln);color:var(--t2);background:var(--sf)}
+  .chip.on{background:rgba(212,176,122,.16);color:var(--gold);border-color:rgba(212,176,122,.42)}
+  .swipe{position:relative;overflow:hidden}
+  .swipe .track{position:absolute;inset:0;background:linear-gradient(90deg,rgba(154,194,140,.22),transparent 55%);
+                display:flex;align-items:center;padding-left:12px;font-size:13px;color:var(--good)}
+  .cnt{display:flex;justify-content:space-between;font-size:10px;color:var(--t3);margin:12px 2px 6px}
+  table{width:100%;border-collapse:collapse;margin-top:14px;font-size:12.5px}
+  th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--ln);vertical-align:top}
+  th{color:var(--gold);font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;font-weight:800}
+  td.y{color:var(--good)}td.n{color:var(--bad)}
+  .vd{margin-top:13px;background:var(--sf);border:1px solid rgba(154,194,140,.28);border-left:3px solid var(--good);
+      border-radius:12px;padding:12px 14px;font-size:12.5px}
+  .vd b{color:var(--good)}
+  .taps{font-size:10.5px;color:var(--t2);margin-top:7px}.taps b{color:var(--tx)}
+</style>
+</head>
+<body><div class="wrap">
+
+<h1>Механика ввода подхода — без кнопок</h1>
+<p class="lead">Замечание принято: строка не должна быть панелью приборов. Во всех вариантах ниже
+   <b>в строке подхода нет ни одной кнопки</b> — только цифры. Отличается то, чем эти цифры меняют.</p>
+<div class="note">Макет. Выбираешь механику — реализую.</div>
+
+<h2><span class="n">0</span>В чём была ошибка</h2>
+<div class="prob"><b>Было (и в текущем приложении, и в моём первом варианте):</b> на каждую строку — пять органов управления
+  (− вес +, − повторы +, галочка). Четыре подхода = <b>20 кнопок на экране</b>. Плюс шаг жёстко 2.5 кг: до 100 кг это 40 нажатий.
+  Выглядит как пульт, а не как журнал тренировки.</div>
+<div class="row">
+  <div class="col"><div class="tag cur"><span class="k">БЫЛО</span><span class="nm">20 кнопок</span></div>
+    <div class="ph"><div class="st"><span>9:41</span><span>▮▮</span></div>
+      <div class="bd"><div class="exn">Жим лёжа</div><div class="sub">Подход 2 из 4</div>
+        <div style="display:flex;align-items:center;gap:4px;background:var(--sf);border:1px solid var(--ln);border-radius:11px;padding:7px;margin-bottom:6px">
+          <span style="width:16px;font-size:11px;color:var(--t3);text-align:center">1</span>
+          <span style="width:26px;height:32px;border-radius:7px;background:var(--el);border:1px solid var(--ln);display:flex;align-items:center;justify-content:center;color:var(--t2)">−</span>
+          <span style="flex:1;height:32px;border-radius:7px;background:var(--el);border:1px solid var(--ln);display:flex;align-items:center;justify-content:center;font-weight:700">100</span>
+          <span style="width:26px;height:32px;border-radius:7px;background:var(--el);border:1px solid var(--ln);display:flex;align-items:center;justify-content:center;color:var(--t2)">+</span>
+          <span style="width:26px;height:32px;border-radius:7px;background:var(--el);border:1px solid var(--ln);display:flex;align-items:center;justify-content:center;color:var(--t2)">−</span>
+          <span style="flex:1;height:32px;border-radius:7px;background:var(--el);border:1px solid var(--ln);display:flex;align-items:center;justify-content:center;font-weight:700">8</span>
+          <span style="width:26px;height:32px;border-radius:7px;background:var(--el);border:1px solid var(--ln);display:flex;align-items:center;justify-content:center;color:var(--t2)">+</span>
+          <span style="width:32px;height:32px;border-radius:8px;background:rgba(154,194,140,.18);border:1px solid rgba(154,194,140,.4);color:var(--good);display:flex;align-items:center;justify-content:center">✓</span></div>
+        <div style="opacity:.85;display:flex;align-items:center;gap:4px;background:rgba(212,176,122,.07);border:1px solid rgba(212,176,122,.3);border-radius:11px;padding:7px;margin-bottom:6px">
+          <span style="width:16px;font-size:11px;color:var(--t3);text-align:center">2</span>
+          <span style="width:26px;height:32px;border-radius:7px;background:var(--el);border:1px solid var(--ln);display:flex;align-items:center;justify-content:center;color:var(--t2)">−</span>
+          <span style="flex:1;height:32px;border-radius:7px;background:var(--el);border:1px solid var(--ln);display:flex;align-items:center;justify-content:center;font-weight:700">100</span>
+          <span style="width:26px;height:32px;border-radius:7px;background:var(--el);border:1px solid var(--ln);display:flex;align-items:center;justify-content:center;color:var(--t2)">+</span>
+          <span style="width:26px;height:32px;border-radius:7px;background:var(--el);border:1px solid var(--ln);display:flex;align-items:center;justify-content:center;color:var(--t2)">−</span>
+          <span style="flex:1;height:32px;border-radius:7px;background:var(--el);border:1px solid var(--ln);display:flex;align-items:center;justify-content:center;font-weight:700">8</span>
+          <span style="width:26px;height:32px;border-radius:7px;background:var(--el);border:1px solid var(--ln);display:flex;align-items:center;justify-content:center;color:var(--t2)">+</span>
+          <span style="width:32px;height:32px;border-radius:8px;background:rgba(154,194,140,.18);border:1px solid rgba(154,194,140,.4);color:var(--good);display:flex;align-items:center;justify-content:center">✓</span></div>
+        <div class="cnt"><span>кнопок на экране: 20</span><span style="color:var(--bad)">шумно</span></div></div></div>
+    <div class="taps">Строка выглядит как <b>пульт</b>.</div></div>
+
+  <div class="col" style="width:auto;max-width:420px;padding-top:30px">
+    <div style="background:var(--sf);border:1px solid var(--ln);border-radius:14px;padding:16px">
+      <div style="font-size:12px;color:var(--gold);font-weight:800;letter-spacing:.6px;margin-bottom:9px">ПРИНЦИП НОВЫХ ВАРИАНТОВ</div>
+      <div style="font-size:12.5px;color:var(--t2);line-height:1.65">
+        1. В строке — <b style="color:var(--tx)">только цифры</b>. Никаких ±, никакой галочки.<br>
+        2. Вес и повторы <b style="color:var(--tx)">уже подставлены</b> из прошлой тренировки — в 9 случаях из 10 трогать нечего.<br>
+        3. Менять значение нужно <b style="color:var(--tx)">редко</b> — значит механика может стоить одного тапа, но быть точной и крупной.<br>
+        4. Подтверждение — <b style="color:var(--tx)">одно на экран</b>, внизу, под большим пальцем.
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2><span class="n">1</span>Четыре механики ввода</h2>
+<div class="row">
+
+  <!-- A -->
+  <div class="col"><div class="tag win"><span class="k">A · рекоменд.</span><span class="nm">Барабан снизу</span></div>
+    <div class="ph"><div class="st"><span>9:41</span><span>▮▮</span></div>
+      <div class="bd"><div class="exn">Жим лёжа</div><div class="sub">Прошлый раз 100 × 8 · рекорд 105</div>
+        <div class="r done"><span class="i">1</span><span class="v">100</span><span class="u">кг</span><span class="x">×</span><span class="v">8</span></div>
+        <div class="r live tap"><span class="i">2</span><span class="v">100</span><span class="u">кг</span><span class="x">×</span><span class="v">8</span></div>
+        <div class="r next"><span class="i">3</span><span class="v">100</span><span class="u">кг</span><span class="x">×</span><span class="v">8</span></div>
+        <div class="r next"><span class="i">4</span><span class="v">100</span><span class="u">кг</span><span class="x">×</span><span class="v">8</span></div>
+        <div class="cnt"><span>кнопок в строках: 0</span><span style="color:var(--good)">тихо</span></div>
+        <div class="sheet"><div class="cap">ТАП ПО ЦИФРЕ — КРУТИ</div>
+          <div class="wheel"><div class="wsel"></div>
+            <div class="wcol"><span class="o">95</span><span class="o2">97.5</span><span class="c">100</span><span class="o2">102.5</span><span class="o">105</span></div>
+            <div style="font-size:15px;color:var(--t3);align-self:center">кг ×</div>
+            <div class="wcol"><span class="o">6</span><span class="o2">7</span><span class="c">8</span><span class="o2">9</span><span class="o">10</span></div></div>
+          <div class="cta" style="margin-top:6px">Засчитать подход</div></div></div></div>
+    <div class="taps">Не менял — <b>1 тап</b> внизу. Менял — тап по цифре, крутанул, тап.</div></div>
+
+  <!-- B -->
+  <div class="col"><div class="tag"><span class="k">B</span><span class="nm">Протяжка пальцем</span></div>
+    <div class="ph"><div class="st"><span>9:41</span><span>▮▮</span></div>
+      <div class="bd"><div class="exn">Жим лёжа</div><div class="sub">Прошлый раз 100 × 8 · рекорд 105</div>
+        <div class="r done"><span class="i">1</span><span class="v">100</span><span class="u">кг</span><span class="x">×</span><span class="v">8</span></div>
+        <div class="r live"><span class="i">2</span><span class="v">100</span><span class="u">кг</span><span class="x">×</span><span class="v">8</span></div>
+        <div class="r next"><span class="i">3</span><span class="v">100</span><span class="u">кг</span><span class="x">×</span><span class="v">8</span></div>
+        <div class="r next"><span class="i">4</span><span class="v">100</span><span class="u">кг</span><span class="x">×</span><span class="v">8</span></div>
+        <div class="cnt"><span>кнопок в строках: 0</span><span style="color:var(--good)">тихо</span></div>
+        <div class="sheet"><div class="cap">ВЕС</div>
+          <div class="scrub"><span class="ar">◄</span><span class="big">100</span><span class="ar">►</span></div>
+          <div class="hint">веди пальцем по цифре · шаг 2.5 · быстрее ведёшь — крупнее шаг</div>
+          <div class="cta" style="margin-top:10px">Засчитать подход</div></div></div></div>
+    <div class="taps">Ноль экранов, ноль кнопок. Но жест <b>невидим новичку</b>.</div></div>
+
+  <!-- C -->
+  <div class="col"><div class="tag"><span class="k">C</span><span class="nm">Крупные пресеты</span></div>
+    <div class="ph"><div class="st"><span>9:41</span><span>▮▮</span></div>
+      <div class="bd"><div class="exn">Жим лёжа</div><div class="sub">Прошлый раз 100 × 8 · рекорд 105</div>
+        <div class="r done"><span class="i">1</span><span class="v">100</span><span class="u">кг</span><span class="x">×</span><span class="v">8</span></div>
+        <div class="r live"><span class="i">2</span><span class="v">100</span><span class="u">кг</span><span class="x">×</span><span class="v">8</span></div>
+        <div class="r next"><span class="i">3</span><span class="v">100</span><span class="u">кг</span><span class="x">×</span><span class="v">8</span></div>
+        <div class="r next"><span class="i">4</span><span class="v">100</span><span class="u">кг</span><span class="x">×</span><span class="v">8</span></div>
+        <div class="cnt"><span>кнопок в строках: 0</span><span style="color:var(--good)">тихо</span></div>
+        <div class="sheet"><div class="cap">ВЕС · ЧАЩЕ ВСЕГО</div>
+          <div class="chips"><span class="chip">95</span><span class="chip">97.5</span><span class="chip on">100</span><span class="chip">102.5</span><span class="chip">105</span></div>
+          <div class="chips" style="margin-top:6px"><span class="chip" style="color:var(--t3)">другое число…</span></div>
+          <div class="cta" style="margin-top:10px">Засчитать подход</div></div></div></div>
+    <div class="taps">Нужный вес — <b>1 тап</b>. Нестандартный — через «другое число».</div></div>
+
+  <!-- D -->
+  <div class="col"><div class="tag"><span class="k">D</span><span class="nm">Свайп по строке</span></div>
+    <div class="ph"><div class="st"><span>9:41</span><span>▮▮</span></div>
+      <div class="bd"><div class="exn">Жим лёжа</div><div class="sub">Прошлый раз 100 × 8 · рекорд 105</div>
+        <div class="r done"><span class="i">1</span><span class="v">100</span><span class="u">кг</span><span class="x">×</span><span class="v">8</span></div>
+        <div class="r live swipe"><div class="track">✓ засчитано</div>
+          <span class="i" style="position:relative">2</span><span class="v" style="position:relative">100</span>
+          <span class="u" style="position:relative">кг</span><span class="x" style="position:relative">×</span>
+          <span class="v" style="position:relative">8</span></div>
+        <div class="r next"><span class="i">3</span><span class="v">100</span><span class="u">кг</span><span class="x">×</span><span class="v">8</span></div>
+        <div class="r next"><span class="i">4</span><span class="v">100</span><span class="u">кг</span><span class="x">×</span><span class="v">8</span></div>
+        <div class="cnt"><span>кнопок на экране: 0</span><span style="color:var(--good)">совсем тихо</span></div>
+        <div style="position:absolute;left:14px;right:14px;bottom:14px">
+          <div style="font-size:10.5px;color:var(--t3);text-align:center">свайп вправо — засчитать · тап по цифре — изменить</div></div></div></div>
+    <div class="taps">Самый чистый экран вообще. Но <b>без единой видимой кнопки</b> — новичок растеряется.</div></div>
+</div>
+
+<table>
+  <tr><th>Критерий</th><th>Было</th><th>A · барабан</th><th>B · протяжка</th><th>C · пресеты</th><th>D · свайп</th></tr>
+  <tr><td>Кнопок в строке подхода</td><td class="n">5</td><td class="y">0</td><td class="y">0</td><td class="y">0</td><td class="y">0</td></tr>
+  <tr><td>Тапов, если вес не меняется</td><td class="n">1 (мелкая цель)</td><td class="y">1</td><td class="y">1</td><td class="y">1</td><td class="y">1 свайп</td></tr>
+  <tr><td>Тапов сменить 100 → 92.5</td><td class="n">3</td><td class="y">1 тап + прокрут</td><td class="y">1 протяжка</td><td class="y">1</td><td>1 + механика</td></tr>
+  <tr><td>Любое число (37.5, 123)</td><td class="y">да</td><td class="y">да</td><td class="y">да</td><td>через «другое»</td><td>через «другое»</td></tr>
+  <tr><td>Понятно без обучения</td><td class="y">да</td><td class="y">да</td><td class="n">нет</td><td class="y">да</td><td class="n">нет</td></tr>
+  <tr><td>Промах пальцем в зале</td><td class="n">часто</td><td class="y">редко</td><td>средне</td><td class="y">редко</td><td class="y">редко</td></tr>
+  <tr><td>Премиум-ощущение</td><td class="n">низкое</td><td class="y">высокое</td><td class="y">высокое</td><td>среднее</td><td class="y">высокое</td></tr>
+</table>
+<div class="vd"><b>Рекомендую A — барабан.</b> Он единственный закрывает всё сразу: в строках ноль кнопок, экран читается как журнал,
+  любое число доступно, механика знакома каждому по системным таймерам, а цель крупная — в зале не промахнёшься.
+  Протяжка (B) и свайп (D) выглядят ещё чище, но держатся на невидимых жестах: тот, кто их не угадал, решит, что приложение сломано.
+  Пресеты (C) хороши как <b>дополнение</b> к A — их можно положить прямо над барабаном.</div>
+
+<h2><span class="n">2</span>Тот же принцип в других местах</h2>
+<p class="lead" style="margin-bottom:14px">Ты сказал «и в подобных моментах» — вот где ещё сейчас стоят ±-кнопки и что с ними делать.</p>
+<div class="row">
+  <div class="col"><div class="tag cur"><span class="k">СЕЙЧАС</span><span class="nm">Цели КБЖУ</span></div>
+    <div class="ph"><div class="st"><span>9:41</span><span>▮▮</span></div>
+      <div class="bd"><div class="exn" style="font-size:15px">Дневные цели</div><div class="sub">Калории, белки, жиры, углеводы</div>
+        <div style="display:flex;align-items:center;gap:6px;background:var(--sf);border:1px solid var(--ln);border-radius:11px;padding:9px;margin-bottom:7px">
+          <span style="flex:1;font-size:12px;color:var(--t2)">Калории</span>
+          <span style="width:28px;height:30px;border-radius:7px;background:var(--el);border:1px solid var(--ln);display:flex;align-items:center;justify-content:center;color:var(--t2)">−</span>
+          <span style="width:56px;text-align:center;font-weight:700">2400</span>
+          <span style="width:28px;height:30px;border-radius:7px;background:var(--el);border:1px solid var(--ln);display:flex;align-items:center;justify-content:center;color:var(--t2)">+</span></div>
+        <div style="display:flex;align-items:center;gap:6px;background:var(--sf);border:1px solid var(--ln);border-radius:11px;padding:9px;margin-bottom:7px">
+          <span style="flex:1;font-size:12px;color:var(--t2)">Белки</span>
+          <span style="width:28px;height:30px;border-radius:7px;background:var(--el);border:1px solid var(--ln);display:flex;align-items:center;justify-content:center;color:var(--t2)">−</span>
+          <span style="width:56px;text-align:center;font-weight:700">180</span>
+          <span style="width:28px;height:30px;border-radius:7px;background:var(--el);border:1px solid var(--ln);display:flex;align-items:center;justify-content:center;color:var(--t2)">+</span></div>
+        <div style="display:flex;align-items:center;gap:6px;background:var(--sf);border:1px solid var(--ln);border-radius:11px;padding:9px;margin-bottom:7px">
+          <span style="flex:1;font-size:12px;color:var(--t2)">Жиры</span>
+          <span style="width:28px;height:30px;border-radius:7px;background:var(--el);border:1px solid var(--ln);display:flex;align-items:center;justify-content:center;color:var(--t2)">−</span>
+          <span style="width:56px;text-align:center;font-weight:700">70</span>
+          <span style="width:28px;height:30px;border-radius:7px;background:var(--el);border:1px solid var(--ln);display:flex;align-items:center;justify-content:center;color:var(--t2)">+</span></div>
+        <div class="cnt"><span>кнопок: 8 на четыре числа</span><span style="color:var(--bad)">шумно</span></div></div></div>
+    <div class="taps">Та же болезнь.</div></div>
+
+  <div class="col"><div class="tag win"><span class="k">СТАНЕТ</span><span class="nm">Строки-данные + барабан</span></div>
+    <div class="ph"><div class="st"><span>9:41</span><span>▮▮</span></div>
+      <div class="bd"><div class="exn" style="font-size:15px">Дневные цели</div><div class="sub">Тап по числу — изменить</div>
+        <div class="r tap" style="justify-content:space-between"><span style="font-size:12px;color:var(--t2)">Калории</span><span><span class="v">2400</span><span class="u"> ккал</span></span></div>
+        <div class="r tap" style="justify-content:space-between"><span style="font-size:12px;color:var(--t2)">Белки</span><span><span class="v">180</span><span class="u"> г</span></span></div>
+        <div class="r tap" style="justify-content:space-between"><span style="font-size:12px;color:var(--t2)">Жиры</span><span><span class="v">70</span><span class="u"> г</span></span></div>
+        <div class="r tap" style="justify-content:space-between"><span style="font-size:12px;color:var(--t2)">Углеводы</span><span><span class="v">250</span><span class="u"> г</span></span></div>
+        <div class="cnt"><span>кнопок: 0</span><span style="color:var(--good)">тихо</span></div>
+        <div class="sheet"><div class="cap">КАЛОРИИ</div>
+          <div class="wheel" style="height:96px"><div class="wsel"></div>
+            <div class="wcol"><span class="o">2200</span><span class="o2">2300</span><span class="c">2400</span><span class="o2">2500</span><span class="o">2600</span></div></div>
+          <div class="cta" style="margin-top:4px">Готово</div></div></div></div>
+    <div class="taps">Один и тот же приём — <b>везде</b>.</div></div>
+
+  <div class="col" style="width:auto;max-width:430px;padding-top:30px">
+    <div style="background:var(--sf);border:1px solid var(--ln);border-radius:14px;padding:16px">
+      <div style="font-size:12px;color:var(--gold);font-weight:800;letter-spacing:.6px;margin-bottom:9px">ГДЕ ЕЩЁ УБИРАЕМ ±</div>
+      <div style="font-size:12.5px;color:var(--t2);line-height:1.75">
+        · Вес и повторы в подходе<br>
+        · Цели КБЖУ и вода<br>
+        · Вес тела и замеры<br>
+        · Время отдыха<br>
+        · Порция продукта в дневнике<br>
+        · Подходы и повторы при создании программы<br>
+        · Интервал напоминаний
+      </div>
+      <div style="font-size:12px;color:var(--t3);margin-top:12px;padding-top:11px;border-top:1px solid var(--ln)">
+        Везде один компонент: <b style="color:var(--tx)">строка-данные + барабан снизу</b>.
+        Меньше кода, меньше кнопок, одинаковое поведение по всему приложению.
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2><span class="n">3</span>Итог</h2>
+<div class="vd" style="border-left-color:var(--gold);border-color:rgba(212,176,122,.35)">
+  <b style="color:var(--gold)">Одна механика на всё приложение: строка показывает данные, барабан снизу их меняет.</b>
+  В журнале подходов было 20 кнопок — станет 0. В целях КБЖУ было 8 — станет 0.
+  Значения и так подставлены из прошлого раза, поэтому обычный подход закрывается <b>одним тапом внизу экрана</b>,
+  а барабан нужен только когда вес реально поменялся. Пресеты (вариант C) можно положить прямо над барабаном — тогда
+  типовой вес это тоже один тап, а барабан остаётся для любого числа.
+</div>
+
+</div></body></html>
