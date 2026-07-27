@@ -1,12 +1,29 @@
 import React, { useEffect, useRef, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, withSequence, Easing, cancelAnimation } from 'react-native-reanimated';
-import Svg, { Circle } from 'react-native-svg';
+import { View, Text, StyleSheet } from 'react-native';
+import Animated, {
+  useSharedValue, useAnimatedStyle, withRepeat, withTiming, withSpring, Easing, cancelAnimation,
+} from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useThemeColors } from '../../../store';
-import { useSafeTop } from '../../../hooks/useSafeTop';
+import { useSafeBottom } from '../../../hooks/useSafeBottom';
+import { AnimatedPressable, Icon } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
+
+/**
+ * Rest between sets — a bar at the bottom, not a wall over the screen.
+ *
+ * It used to be a full-width gold panel pinned to the top with a 180pt ring
+ * and a 48pt countdown, covering the set list entirely. For one to three
+ * minutes, several times per exercise, the app showed nothing but a number.
+ * You could not check what you just lifted, see what was coming, or fix a
+ * mistyped set — and the only way out was a double tap nobody was told about.
+ *
+ * The bar keeps what mattered — a countdown readable from a bench, the pulse
+ * and haptics in the last five seconds — and gives back the screen. When the
+ * rest is between exercises it also shows what is next, with a way to swap it,
+ * because that is exactly the minute in which you decide.
+ */
 
 interface Props {
   isResting: boolean;
@@ -16,6 +33,8 @@ interface Props {
   onAddTime: (seconds: number) => void;
   nextExerciseName?: string | null;
   isLastSetOfExercise?: boolean;
+  /** Offered only between exercises, where changing the plan makes sense. */
+  onSubstitute?: () => void;
 }
 
 function formatTime(sec: number) {
@@ -24,25 +43,23 @@ function formatTime(sec: number) {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-const SEGMENTS = 60;
-
-export const RestTimerOverlay: React.FC<Props> = ({ isResting, restTime, restTotal, onSkip, onAddTime, nextExerciseName, isLastSetOfExercise }) => {
+export const RestTimerOverlay: React.FC<Props> = ({
+  isResting, restTime, restTotal, onSkip, onAddTime,
+  nextExerciseName, isLastSetOfExercise, onSubstitute,
+}) => {
   const colors = useThemeColors();
-  const safeTop = useSafeTop();
+  const safeBottom = useSafeBottom();
   const lastVibrationRef = useRef<number>(-1);
-  const lastTapRef = useRef<number>(0);
 
-  // PHILOSOPHY §5 state-as-event: the timer is not a static number that
-  // counts down silently. Last 5 seconds — the number pulses (breathing
-  // scale). At 0 — full-screen flash. Standing between sets, you feel
-  // the moment when it's time to go without looking at the screen.
   const pulse = useSharedValue(1);
-  const flash = useSharedValue(0);
+  const slide = useSharedValue(160);
   const isUrgent = restTime <= 5 && restTime > 0;
 
+  // PHILOSOPHY §5 state-as-event: the last five seconds breathe, so you feel
+  // the moment to stand up without watching the screen.
   useEffect(() => {
     if (isUrgent) {
-      pulse.value = withRepeat(withTiming(1.15, { duration: 500, easing: Easing.inOut(Easing.sin) }), -1, true);
+      pulse.value = withRepeat(withTiming(1.1, { duration: 500, easing: Easing.inOut(Easing.sin) }), -1, true);
     } else {
       cancelAnimation(pulse);
       pulse.value = withTiming(1, { duration: 200 });
@@ -50,28 +67,17 @@ export const RestTimerOverlay: React.FC<Props> = ({ isResting, restTime, restTot
   }, [isUrgent]);
 
   useEffect(() => {
-    if (restTime === 0 && isResting) {
-      flash.value = withSequence(
-        withTiming(1, { duration: 100 }),
-        withTiming(0, { duration: 300 }),
-      );
-    }
-  }, [restTime, isResting]);
+    slide.value = withSpring(isResting ? 0 : 160, { damping: 18, stiffness: 160 });
+  }, [isResting]);
 
-  // Cancel both animations on unmount. Without this, an unmount while the
-  // pulse is mid-`withRepeat(-1)` (timer at 1-5s, user leaves the screen)
-  // leaks an infinite animation loop driving an orphaned shared value.
-  useEffect(() => {
-    return () => {
-      cancelAnimation(pulse);
-      cancelAnimation(flash);
-    };
-  }, []);
+  // Without this, unmounting mid-`withRepeat(-1)` leaks an infinite loop
+  // driving an orphaned shared value.
+  useEffect(() => () => { cancelAnimation(pulse); cancelAnimation(slide); }, []);
 
   const pulseStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulse.value }] }));
-  const flashStyle = useAnimatedStyle(() => ({ opacity: flash.value }));
+  const slideStyle = useAnimatedStyle(() => ({ transform: [{ translateY: slide.value }] }));
 
-  // Vibration every 10s + final countdown at 5/4/3/2/1
+  // Vibration every 10s + final countdown at 5/4/3/2/1.
   useEffect(() => {
     if (!isResting) return;
     const isAlmostDone = restTime <= 5 && restTime > 0;
@@ -89,140 +95,120 @@ export const RestTimerOverlay: React.FC<Props> = ({ isResting, restTime, restTot
     }
   }, [restTime, isResting]);
 
-  // Double-tap to skip
-  const handleDoubleTap = useCallback(() => {
-    const now = Date.now();
-    if (now - lastTapRef.current < 350) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-      onSkip();
-    }
-    lastTapRef.current = now;
+  const handleAdd = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onAddTime(30);
+  }, [onAddTime]);
+
+  const handleSkip = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    onSkip();
   }, [onSkip]);
 
   if (!isResting) return null;
 
-  const progress = restTotal > 0 ? restTime / restTotal : 0;
-  // Color shifts to warning/amber when ≤ 5s — Direction A warning token (warm amber).
-  // `isUrgent` already computed above (used for pulse trigger).
-  const ringColor = isUrgent ? colors.warning : '#FFF';
-  const bgColor = isUrgent ? colors.warning : colors.primary;
-
-  // Circular progress ring dimensions
-  const ringSize = 180;
-  const ringStrokeWidth = 6;
-  const ringRadius = (ringSize - ringStrokeWidth) / 2;
-  const ringCircumference = ringRadius * 2 * Math.PI;
-  const ringDashoffset = ringCircumference - Math.min(Math.max(progress, 0), 1) * ringCircumference;
+  const progress = restTotal > 0 ? Math.min(1, Math.max(0, restTime / restTotal)) : 0;
+  const accent = isUrgent ? colors.warning : colors.primary;
+  const showNext = !!isLastSetOfExercise && !!nextExerciseName;
 
   return (
-    <>
-    {/* Full-screen flash at restTime === 0 — state-as-event for the moment
-        when rest ends. 100ms in, 300ms out — feels like a heartbeat. */}
     <Animated.View
-      pointerEvents="none"
       style={[
-        StyleSheet.absoluteFillObject,
-        { backgroundColor: colors.primary, zIndex: 11 },
-        flashStyle,
+        styles.dock,
+        slideStyle,
+        { backgroundColor: colors.surfaceElevated, borderTopColor: colors.border, paddingBottom: safeBottom + spacing.sm },
       ]}
-    />
-    <TouchableOpacity
-      activeOpacity={1}
-      onPress={handleDoubleTap}
-      style={{
-        position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10,
-        backgroundColor: bgColor, alignItems: 'center',
-        paddingTop: safeTop + 20, paddingBottom: spacing.xxxl,
-      }}
     >
-      <Text style={[typography.captionMedium, { color: 'rgba(255,255,255,0.7)', letterSpacing: 2 }]}>
-        ОТДЫХ{isUrgent ? ' — ГОТОВЬСЯ!' : ''}
-      </Text>
-      <Text style={[typography.caption, { color: 'rgba(255,255,255,0.4)', marginTop: 2 }]}>
-        двойной тап — пропустить
-      </Text>
-
-      <View style={{ width: ringSize, height: ringSize, alignItems: 'center', justifyContent: 'center', marginVertical: spacing.xl }}>
-        {/* SVG circular progress ring */}
-        <Svg width={ringSize} height={ringSize} style={{ position: 'absolute', transform: [{ rotate: '-90deg' }] }}>
-          <Circle
-            cx={ringSize / 2} cy={ringSize / 2} r={ringRadius}
-            stroke="rgba(255,255,255,0.15)" strokeWidth={ringStrokeWidth} fill="none"
-          />
-          <Circle
-            cx={ringSize / 2} cy={ringSize / 2} r={ringRadius}
-            stroke={ringColor} strokeWidth={ringStrokeWidth} fill="none"
-            strokeDasharray={ringCircumference} strokeDashoffset={ringDashoffset}
-            strokeLinecap="round"
-          />
-        </Svg>
-
-        {/* Progress dots (inner, decorative) */}
-        {Array.from({ length: SEGMENTS }).map((_, i) => {
-          const angle = (i / SEGMENTS) * 360 - 90;
-          const rad = (angle * Math.PI) / 180;
-          const isActive = i / SEGMENTS <= progress;
-          const cx = ringSize / 2 + Math.cos(rad) * 68;
-          const cy = ringSize / 2 + Math.sin(rad) * 68;
-          return (
-            <View key={i} style={{
-              position: 'absolute', left: cx - 2, top: cy - 2,
-              width: 4, height: 4, borderRadius: 2,
-              backgroundColor: isActive ? (isUrgent ? 'rgba(251,191,36,0.8)' : 'rgba(255,255,255,0.6)') : 'rgba(255,255,255,0.1)',
-            }} />
-          );
-        })}
-
-        {/* hero countdown — 48pt is intentional; typography.number (32pt)
-            is too small for at-a-glance reads from a bench. */}
-        <Animated.Text
-          style={[
-            { fontSize: 48, fontWeight: '800', color: isUrgent ? '#FEF3C7' : '#FFF' },
-            pulseStyle,
-          ]}
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          minimumFontScale={0.6}
-        >
-          {formatTime(restTime)}
-        </Animated.Text>
+      {/* Time left as a single hairline. The ring was 180pt of screen for
+          information a 3pt line carries just as well. */}
+      <View style={[styles.track, { backgroundColor: colors.border }]}>
+        <View style={[styles.fill, { backgroundColor: accent, width: `${progress * 100}%` }]} />
       </View>
 
-      <Text style={[typography.caption, { color: 'rgba(255,255,255,0.5)', marginTop: spacing.xs }]}>
-        {Math.round((1 - progress) * 100)}% отдыха
-      </Text>
-
-      {/* Next exercise hint when resting between exercises */}
-      {isLastSetOfExercise && nextExerciseName && (
-        <Text
-          style={[typography.bodySemibold, { color: 'rgba(255,255,255,0.8)', marginTop: spacing.md, textAlign: 'center', paddingHorizontal: spacing.xl }]}
-          numberOfLines={2}
-        >
-          {'Следующее упражнение: '}{nextExerciseName}
-        </Text>
+      {showNext && (
+        <View style={styles.nextRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={[typography.metaLabel, { color: colors.textTertiary }]}>СЛЕДУЮЩЕЕ УПРАЖНЕНИЕ</Text>
+            <Text style={[typography.bodySemibold, { color: colors.text, marginTop: 1 }]} numberOfLines={1}>
+              {nextExerciseName}
+            </Text>
+          </View>
+          {!!onSubstitute && (
+            <AnimatedPressable
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onSubstitute(); }}
+              haptic={false}
+              scaleDown={0.94}
+              style={styles.swap as any}
+              accessibilityRole="button"
+              accessibilityLabel="Заменить следующее упражнение"
+            >
+              <Text style={[typography.smallMedium, { color: colors.primary }]}>Заменить</Text>
+            </AnimatedPressable>
+          )}
+        </View>
       )}
 
-      <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.lg, flexWrap: 'wrap', justifyContent: 'center' }}>
-        <TouchableOpacity
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onAddTime(15); }}
-          style={{ paddingVertical: spacing.md, paddingHorizontal: spacing.xl, borderRadius: borderRadius.md, backgroundColor: 'rgba(255,255,255,0.2)' }}
+      <View style={styles.bar}>
+        <View style={{ flex: 1 }}>
+          <Text style={[typography.metaLabel, { color: colors.textTertiary }]}>
+            {isUrgent ? 'ГОТОВЬСЯ' : 'ОТДЫХ'}
+          </Text>
+          <Animated.Text
+            style={[styles.clock, pulseStyle, { color: accent }]}
+            allowFontScaling={false}
+            numberOfLines={1}
+          >
+            {formatTime(restTime)}
+          </Animated.Text>
+        </View>
+
+        <AnimatedPressable
+          onPress={handleAdd}
+          haptic={false}
+          scaleDown={0.92}
+          style={[styles.add, { borderColor: colors.border, backgroundColor: colors.surface }] as any}
+          accessibilityRole="button"
+          accessibilityLabel="Добавить 30 секунд отдыха"
         >
-          <Text style={[typography.buttonSmall, { color: '#FFF' }]} numberOfLines={1}>+15с</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onAddTime(30); }}
-          style={{ paddingVertical: spacing.md, paddingHorizontal: spacing.xl, borderRadius: borderRadius.md, backgroundColor: 'rgba(255,255,255,0.2)' }}
+          <Text style={[typography.smallMedium, { color: colors.textSecondary }]} allowFontScaling={false}>+30с</Text>
+        </AnimatedPressable>
+
+        <AnimatedPressable
+          onPress={handleSkip}
+          haptic={false}
+          scaleDown={0.96}
+          style={[styles.skip, { backgroundColor: accent }] as any}
+          accessibilityRole="button"
+          accessibilityLabel="Пропустить отдых и перейти дальше"
         >
-          <Text style={[typography.buttonSmall, { color: '#FFF' }]} numberOfLines={1}>+30с</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onSkip(); }}
-          style={{ paddingVertical: spacing.md, paddingHorizontal: spacing.xl, borderRadius: borderRadius.md, backgroundColor: '#FFF' }}
-        >
-          <Text style={[typography.buttonSmall, { color: colors.primary }]} numberOfLines={1}>Пропустить</Text>
-        </TouchableOpacity>
+          <Text style={[typography.bodySemibold, { color: colors.textInverse }]}>Дальше</Text>
+          <Icon name="chev" size={16} color={colors.textInverse} />
+        </AnimatedPressable>
       </View>
-    </TouchableOpacity>
-    </>
+    </Animated.View>
   );
 };
+
+const styles = StyleSheet.create({
+  dock: {
+    position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 10,
+    borderTopWidth: 1, paddingHorizontal: spacing.lg,
+  },
+  track: { height: 3, marginHorizontal: -spacing.lg },
+  fill: { height: 3 },
+  nextRow: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    paddingTop: spacing.md, paddingBottom: spacing.xs,
+  },
+  swap: { minHeight: 40, paddingHorizontal: spacing.sm, alignItems: 'center', justifyContent: 'center' },
+  bar: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingTop: spacing.sm },
+  clock: { fontSize: 30, fontWeight: '800', letterSpacing: -0.5, marginTop: -2 },
+  add: {
+    minWidth: 56, minHeight: 44, borderRadius: borderRadius.md, borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  skip: {
+    minHeight: 48, paddingHorizontal: spacing.lg, borderRadius: borderRadius.md,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2,
+  },
+});

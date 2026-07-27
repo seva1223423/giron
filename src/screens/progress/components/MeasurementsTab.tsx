@@ -3,7 +3,7 @@ import {
   View, Text, TouchableOpacity, Modal, TextInput, ScrollView,
   StyleSheet, Alert, Platform,
 } from 'react-native';
-import { Card, FadeIn, Button, PaywallModal } from '../../../components';
+import { Card, FadeIn, Button, PaywallModal, AnimatedPressable, NumberSheet } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { useMeasurementsStore, BodyMeasurement } from '../../../store';
@@ -48,6 +48,7 @@ export const MeasurementsTab: React.FC<Props> = ({ colors }) => {
   // Form state
   const [formDate, setFormDate] = useState(localDateStr(new Date()));
   const [formValues, setFormValues] = useState<Record<string, string>>({});
+  const [editing, setEditing] = useState<string | null>(null);
   const [formNotes, setFormNotes] = useState('');
 
   const allSorted = useMemo(
@@ -233,21 +234,69 @@ export const MeasurementsTab: React.FC<Props> = ({ colors }) => {
                 placeholderTextColor={colors.textTertiary}
               />
 
+              {/* Seven numeric keyboards became seven values. A measurement
+                  changes by a centimetre or two, so the wheel opens on what
+                  you measured last time — usually a flick away from the
+                  answer, and nothing at all to type. */}
               <View style={styles.formGrid}>
-                {FIELDS.map((f) => (
-                  <View key={f.key} style={{ width: '48%' }}>
-                    <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: 4 }]}>{f.label} (см)</Text>
-                    <TextInput
-                      value={formValues[f.key] ?? ''}
-                      onChangeText={(v) => setFormValues((prev) => ({ ...prev, [f.key]: v }))}
-                      placeholder="—"
-                      placeholderTextColor={colors.textTertiary}
-                      keyboardType="numeric"
-                      style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]}
-                    />
-                  </View>
-                ))}
+                {FIELDS.map((f) => {
+                  const shown = formValues[f.key];
+                  return (
+                    <AnimatedPressable
+                      key={f.key}
+                      onPress={() => { haptic.selection(); setEditing(f.key as string); }}
+                      haptic={false}
+                      scaleDown={0.97}
+                      style={[styles.formCell, { backgroundColor: colors.inputBackground, borderColor: colors.border }] as any}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${f.label}: ${shown || 'не заполнено'}. Нажми, чтобы ввести`}
+                    >
+                      <Text style={[typography.caption, { color: colors.textSecondary }]} numberOfLines={1}>{f.label}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+                        <Text
+                          style={[typography.h4, { color: shown ? colors.text : colors.textTertiary }]}
+                          allowFontScaling={false}
+                        >
+                          {shown || '—'}
+                        </Text>
+                        {!!shown && (
+                          <Text style={[typography.caption, { color: colors.textTertiary, marginLeft: 3 }]}>см</Text>
+                        )}
+                      </View>
+                    </AnimatedPressable>
+                  );
+                })}
               </View>
+
+              {editing && (() => {
+                const field = FIELDS.find((f) => f.key === editing)!;
+                // Prefer what is being typed, then the last recorded value,
+                // then a neutral 60 cm so the wheel never opens on zero.
+                const current = parseFloat((formValues[editing] ?? '').replace(',', '.'))
+                  || (latest?.[field.key] as number | undefined)
+                  || 60;
+                return (
+                  <NumberSheet
+                    visible
+                    onClose={() => setEditing(null)}
+                    title={field.label}
+                    primary={{
+                      label: field.label,
+                      value: current,
+                      onChange: (v) => setFormValues((prev) => ({ ...prev, [editing]: String(v) })),
+                      min: 10, max: 200, step: 0.5, unit: 'см',
+                    }}
+                    presets={latest?.[field.key] != null ? [latest[field.key] as number] : []}
+                    confirmLabel="Готово"
+                    onConfirm={() => {
+                      // Opening the wheel and confirming without scrolling should
+                      // still record the value the user was looking at.
+                      setFormValues((prev) => ({ ...prev, [editing]: prev[editing] ?? String(current) }));
+                      setEditing(null);
+                    }}
+                  />
+                );
+              })()}
 
               <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: 6 }]}>Заметки</Text>
               <TextInput
@@ -277,6 +326,10 @@ const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   sheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: spacing.xl, paddingBottom: Platform.OS === 'ios' ? 40 : spacing.xl, maxHeight: '90%' },
   input: { borderWidth: 1, borderRadius: borderRadius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, marginBottom: spacing.md, fontSize: 15 },
-  formGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  formGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: spacing.sm },
+  formCell: {
+    width: '47%', minHeight: 60, borderRadius: borderRadius.md, borderWidth: 1,
+    paddingHorizontal: spacing.md, justifyContent: 'center',
+  },
   paywallRow: { borderTopWidth: 1, paddingTop: spacing.md, marginTop: spacing.sm },
 });

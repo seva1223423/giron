@@ -3,7 +3,8 @@ import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, Alert 
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useSafeTop } from '../../../hooks/useSafeTop';
 import { useThemeColors, useWorkoutStore } from '../../../store';
-import { Card, Button, FadeIn, Icon, HitTarget } from '../../../components';
+import { Card, Button, FadeIn, Icon, HitTarget, NumberSheet } from '../../../components';
+import { buildPresets } from '../../../utils/wheel';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { Exercise, Workout, WorkoutExercise, WorkoutSet } from '../../../types';
@@ -11,6 +12,17 @@ import { startWorkoutSafe } from '../../../utils/startWorkoutSafe';
 
 interface ExConfig { sets: number; reps: number; rest: number; }
 const DEFAULT_CONFIG: ExConfig = { sets: 4, reps: 10, rest: 90 };
+
+/**
+ * The three numbers that describe an exercise. Each used to sit between a
+ * pair of 28pt ± buttons — six per card, thirty-six on a six-exercise
+ * workout. They are values now; tapping one opens the wheel.
+ */
+const FIELDS = [
+  { label: 'Подходы',     field: 'sets' as const, min: 1,  max: 20,  step: 1,  fmt: (v: number) => String(v) },
+  { label: 'Повторения', field: 'reps' as const, min: 1,  max: 50,  step: 1,  fmt: (v: number) => String(v) },
+  { label: 'Отдых',       field: 'rest' as const, min: 15, max: 300, step: 15, fmt: (v: number) => `${v}с` },
+];
 
 interface Props {
   selectedExercises: Exercise[];
@@ -138,6 +150,9 @@ export const ConfigureStepView: React.FC<InnerProps & { navigation: any }> = ({
   const haptic = useHaptic();
   const safeTop = useSafeTop();
   const colors = useThemeColors();
+  // One sheet for the whole list — only one number is ever being edited.
+  const [editing, setEditing] = useState<{ exId: string; field: 'sets' | 'reps' | 'rest' } | null>(null);
+  const editSpec = editing ? FIELDS.find((f) => f.field === editing.field)! : null;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -208,39 +223,21 @@ export const ConfigureStepView: React.FC<InnerProps & { navigation: any }> = ({
                 </View>
 
                 <View style={styles.steppersRow}>
-                  {([
-                    { label: 'Подходы', field: 'sets' as const, min: 1, max: 20, step: 1, fmt: (v: number) => String(v) },
-                    { label: 'Повторения', field: 'reps' as const, min: 1, max: 50, step: 1, fmt: (v: number) => String(v) },
-                    { label: 'Отдых', field: 'rest' as const, min: 15, max: 300, step: 15, fmt: (v: number) => `${v}с` },
-                  ]).map((s, si) => (
+                  {FIELDS.map((s, si) => (
                     <React.Fragment key={s.field}>
                       {si > 0 && <View style={[styles.stepperDivider, { backgroundColor: colors.divider }]} />}
-                      <View style={styles.stepperGroup}>
-                        <Text style={[typography.caption, { color: colors.textTertiary }]}>{s.label}</Text>
-                        <View style={styles.stepper}>
-                          <HitTarget
-                            onPress={() => { haptic.selection(); onUpdateConfig(ex.id, { [s.field]: Math.max(s.min, cfg[s.field] - s.step) }); }}
-                            accessibilityRole="button"
-                            accessibilityLabel={`Уменьшить ${s.label.toLowerCase()}`}
-                          >
-                            <View style={[styles.stepBtn, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}>
-                              <Text style={[typography.bodySemibold, { color: colors.text }]}>−</Text>
-                            </View>
-                          </HitTarget>
-                          <Text style={[typography.bodySemibold, { color: colors.text, minWidth: s.field === 'rest' ? 32 : 24, textAlign: 'center' }]}>
+                      <HitTarget
+                        onPress={() => { haptic.selection(); setEditing({ exId: ex.id, field: s.field }); }}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${s.label}: ${s.fmt(cfg[s.field])}. Нажми, чтобы изменить`}
+                      >
+                        <View style={styles.stepperGroup}>
+                          <Text style={[typography.caption, { color: colors.textTertiary }]}>{s.label}</Text>
+                          <Text style={[typography.h4, { color: colors.text }]} allowFontScaling={false}>
                             {s.fmt(cfg[s.field])}
                           </Text>
-                          <HitTarget
-                            onPress={() => { haptic.selection(); onUpdateConfig(ex.id, { [s.field]: Math.min(s.max, cfg[s.field] + s.step) }); }}
-                            accessibilityRole="button"
-                            accessibilityLabel={`Увеличить ${s.label.toLowerCase()}`}
-                          >
-                            <View style={[styles.stepBtn, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}>
-                              <Text style={[typography.bodySemibold, { color: colors.text }]}>+</Text>
-                            </View>
-                          </HitTarget>
                         </View>
-                      </View>
+                      </HitTarget>
                     </React.Fragment>
                   ))}
                 </View>
@@ -290,6 +287,26 @@ export const ConfigureStepView: React.FC<InnerProps & { navigation: any }> = ({
           hapticStyle="medium"
         />
       </View>
+
+      {editing && editSpec && (
+        <NumberSheet
+          visible
+          onClose={() => setEditing(null)}
+          title={editSpec.label}
+          primary={{
+            label: editSpec.label,
+            value: getConfig(editing.exId)[editing.field],
+            onChange: (v) => onUpdateConfig(editing.exId, { [editing.field]: v }),
+            min: editSpec.min,
+            max: editSpec.max,
+            step: editSpec.step,
+            unit: editing.field === 'rest' ? 'сек' : undefined,
+          }}
+          presets={buildPresets(getConfig(editing.exId)[editing.field], editSpec.step, editSpec.min)}
+          confirmLabel="Готово"
+          onConfirm={() => setEditing(null)}
+        />
+      )}
     </View>
   );
 };
@@ -360,9 +377,7 @@ const styles = StyleSheet.create({
   configRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md },
   moveBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   steppersRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  stepperGroup: { flex: 1, alignItems: 'center', gap: 4 },
-  stepper: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  stepBtn: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  stepperGroup: { flex: 1, alignItems: 'center', gap: 2, minHeight: 52, justifyContent: 'center' },
   stepperDivider: { width: 1, height: 36, marginHorizontal: spacing.xs },
   supersetBtn: { flexDirection: 'row', alignSelf: 'center', alignItems: 'center', gap: spacing.xs, paddingVertical: spacing.xs, paddingHorizontal: spacing.lg, borderRadius: borderRadius.full, borderWidth: 1, marginVertical: spacing.xs, marginBottom: spacing.sm },
   bottomBar: { borderTopWidth: 1, paddingHorizontal: spacing.xl, paddingVertical: spacing.md, paddingBottom: spacing.lg },

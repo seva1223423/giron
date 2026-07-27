@@ -16,6 +16,8 @@ interface PreviousSets {
 }
 
 interface Props {
+  /** Extra space below the list — the rest bar docks over it while resting. */
+  bottomInset?: number;
   currentExercise: WorkoutExercise;
   currentExerciseIndex: number;
   workout: Workout;
@@ -28,7 +30,7 @@ interface Props {
 }
 
 export const SetsSection: React.FC<Props> = ({
-  currentExercise, currentExerciseIndex, workout, previousSets, navigation, onCompleteSet, onRpeSelected,
+  currentExercise, currentExerciseIndex, workout, previousSets, navigation, onCompleteSet, onRpeSelected, bottomInset,
 }) => {
   const haptic = useHaptic();
   const { colors } = useThemeStore();
@@ -103,7 +105,7 @@ export const SetsSection: React.FC<Props> = ({
     // number pad has no "Done" key, which made it happen constantly.
     // 27 other screens already set this (audit R9).
     <ScrollView
-      contentContainerStyle={{ padding: spacing.xl, paddingBottom: spacing.huge * 2 }}
+      contentContainerStyle={{ padding: spacing.xl, paddingBottom: spacing.huge * 2 + (bottomInset ?? 0) }}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >

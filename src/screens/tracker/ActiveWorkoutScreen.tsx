@@ -425,10 +425,17 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     ]);
   };
 
-  const handleSubstitute = () => {
-    const primaryMuscle = currentExercise.exercise?.primaryMuscles?.[0];
+  /**
+   * Swap an exercise for a similar one. Takes an index because the rest bar
+   * offers this for the NEXT exercise — the minute between sets is exactly
+   * when you decide the cable machine is occupied.
+   */
+  const handleSubstituteAt = (index: number) => {
+    const target = workout.exercises[index];
+    if (!target) return;
+    const primaryMuscle = target.exercise?.primaryMuscles?.[0];
     const alternatives = localExercises
-      .filter((ex) => ex.id !== currentExercise.exerciseId && ex.primaryMuscles?.includes(primaryMuscle as any))
+      .filter((ex) => ex.id !== target.exerciseId && ex.primaryMuscles?.includes(primaryMuscle as any))
       .slice(0, 3);
 
     if (alternatives.length === 0) {
@@ -443,7 +450,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     const buttons = alternatives.map((ex) => ({
       text: ex.name,
       onPress: () => {
-        const swapped = replaceExerciseInWorkout(currentExerciseIndex, ex);
+        const swapped = replaceExerciseInWorkout(index, ex);
         if (swapped) {
           Alert.alert('Заменено', `Упражнение заменено на "${ex.name}"`);
         } else {
@@ -467,20 +474,6 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
         onFinish={handleFinish}
       />
 
-      <RestTimerOverlay
-        isResting={isResting}
-        restTime={restTime}
-        restTotal={restTotal}
-        onSkip={skipRest}
-        onAddTime={(sec) => {
-          setRestTime((r) => r + sec);
-          setRestTotal((t) => t + sec);
-          restEndAtRef.current += sec * 1000;
-        }}
-        nextExerciseName={nextExerciseName}
-        isLastSetOfExercise={restingAfterLastSet}
-      />
-
       {/* Overall progress bar */}
       <View style={{ paddingHorizontal: spacing.xl, backgroundColor: colors.surface }}>
         <View style={{ height: 3, borderRadius: 1.5, backgroundColor: colors.border }}>
@@ -494,7 +487,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
         totalExercises={workout.exercises.length}
         onPrev={prevExercise}
         onNext={nextExercise}
-        onSubstitute={handleSubstitute}
+        onSubstitute={() => handleSubstituteAt(currentExerciseIndex)}
         hasSessionPR={currentExHasSessionPR}
         navigation={navigation}
       />
@@ -514,6 +507,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
       <GestureDetector gesture={swipeGesture}>
         <ReanimatedAnimated.View style={[{ flex: 1 }, exerciseAnimStyle]}>
           <SetsSection
+            bottomInset={isResting ? (restingAfterLastSet ? 168 : 112) : 0}
             currentExercise={currentExercise}
             currentExerciseIndex={currentExerciseIndex}
             workout={workout}
@@ -524,6 +518,22 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
           />
         </ReanimatedAnimated.View>
       </GestureDetector>
+
+      {/* Docked last so it draws over the set list rather than replacing it. */}
+      <RestTimerOverlay
+        isResting={isResting}
+        restTime={restTime}
+        restTotal={restTotal}
+        onSkip={skipRest}
+        onAddTime={(sec) => {
+          setRestTime((r) => r + sec);
+          setRestTotal((t) => t + sec);
+          restEndAtRef.current += sec * 1000;
+        }}
+        nextExerciseName={nextExerciseName}
+        isLastSetOfExercise={restingAfterLastSet}
+        onSubstitute={() => handleSubstituteAt(currentExerciseIndex + 1)}
+      />
 
       <PRToast toast={prToast} />
     </KeyboardAvoidingView>

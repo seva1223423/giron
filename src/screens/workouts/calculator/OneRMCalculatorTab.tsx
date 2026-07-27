@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, TouchableOpacity, TextInput, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useThemeColors } from '../../../store';
-import { Card } from '../../../components';
+import { Card, AnimatedPressable, NumberSheet } from '../../../components';
+import { buildPresets } from '../../../utils/wheel';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 
@@ -15,12 +16,13 @@ function calcLander(w: number, r: number) { return r === 1 ? w : r >= 38 ? w : (
 export const OneRMCalculatorTab: React.FC = () => {
   const haptic = useHaptic();
   const colors = useThemeColors();
-  const [rmWeight, setRmWeight] = useState('100');
-  const [rmReps, setRmReps] = useState('5');
+  const [rmWeight, setRmWeight] = useState(100);
+  const [rmReps, setRmReps] = useState(5);
+  const [editing, setEditing] = useState(false);
 
   const results = useMemo(() => {
-    const w = parseFloat(rmWeight.replace(',', '.')) || 0;
-    const r = parseInt(rmReps, 10) || 1;
+    const w = rmWeight;
+    const r = rmReps || 1;
     if (w <= 0 || r <= 0) return null;
     const epley = calcEpley(w, r);
     const brzycki = calcBrzycki(w, r);
@@ -28,46 +30,36 @@ export const OneRMCalculatorTab: React.FC = () => {
     return { epley, brzycki, lander, avg: (epley + brzycki + lander) / 3 };
   }, [rmWeight, rmReps]);
 
-  const adjustReps = (delta: number) => {
-    haptic.selection();
-    const next = Math.max(1, Math.min(30, (parseInt(rmReps, 10) || 1) + delta));
-    setRmReps(String(next));
-  };
-
   return (
     <View>
       <Card style={{ marginBottom: spacing.lg }}>
         <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: spacing.md }]}>ВВЕДИ РАБОЧИЙ ВЕС И ПОВТОРЕНИЯ</Text>
-        <View style={{ flexDirection: 'row', gap: spacing.md }}>
-          <View style={{ flex: 1 }}>
-            <Text style={[typography.caption, { color: colors.textTertiary, marginBottom: spacing.xs }]}>Вес (кг)</Text>
-            <TextInput
-              style={[styles.bigInput, { color: colors.text, borderColor: colors.inputBorder, backgroundColor: colors.inputBackground }]}
-              value={rmWeight}
-              onChangeText={setRmWeight}
-              keyboardType="decimal-pad"
-              selectTextOnFocus
-            />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[typography.caption, { color: colors.textTertiary, marginBottom: spacing.xs }]}>Повторения</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-              <TouchableOpacity onPress={() => adjustReps(-1)} style={[styles.adjustBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                <Text style={[typography.h4, { color: colors.primary }]}>−</Text>
-              </TouchableOpacity>
-              <TextInput
-                style={[{ flex: 1 }, styles.bigInput, { color: colors.text, borderColor: colors.inputBorder, backgroundColor: colors.inputBackground }]}
-                value={rmReps}
-                onChangeText={(v) => setRmReps(v.replace(/[^0-9]/g, ''))}
-                keyboardType="number-pad"
-                selectTextOnFocus
-              />
-              <TouchableOpacity onPress={() => adjustReps(1)} style={[styles.adjustBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                <Text style={[typography.h4, { color: colors.primary }]}>+</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
+        <AnimatedPressable
+          onPress={() => { haptic.selection(); setEditing(true); }}
+          haptic={false}
+          scaleDown={0.98}
+          style={[styles.entry, { borderColor: colors.inputBorder, backgroundColor: colors.inputBackground }] as any}
+          accessibilityRole="button"
+          accessibilityLabel={`${rmWeight} килограмм на ${rmReps} повторений. Нажми, чтобы изменить`}
+        >
+          <Text style={[typography.number, { color: colors.text }]} allowFontScaling={false}>{rmWeight}</Text>
+          <Text style={[typography.caption, { color: colors.textTertiary, marginLeft: 3, marginRight: spacing.sm }]}>кг</Text>
+          <Text style={[typography.h4, { color: colors.textTertiary }]}>×</Text>
+          <Text style={[typography.number, { color: colors.text, marginLeft: spacing.sm }]} allowFontScaling={false}>{rmReps}</Text>
+        </AnimatedPressable>
+
+        {editing && (
+          <NumberSheet
+            visible
+            onClose={() => setEditing(false)}
+            title="Вес и повторения"
+            primary={{ label: 'Вес', value: rmWeight, onChange: setRmWeight, min: 0, max: 400, step: 0.5, unit: 'кг' }}
+            secondary={{ label: 'Повторения', value: rmReps, onChange: setRmReps, min: 1, max: 30, step: 1 }}
+            presets={buildPresets(rmWeight, 2.5)}
+            confirmLabel="Готово"
+            onConfirm={() => setEditing(false)}
+          />
+        )}
       </Card>
 
       {results && (
@@ -122,6 +114,8 @@ export const OneRMCalculatorTab: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  bigInput: { fontSize: 28, fontWeight: '800', textAlign: 'center', paddingVertical: spacing.sm, borderRadius: borderRadius.lg, borderWidth: 1.5 },
-  adjustBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5 },
+  entry: {
+    flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center',
+    minHeight: 64, borderRadius: borderRadius.md, borderWidth: 1,
+  },
 });

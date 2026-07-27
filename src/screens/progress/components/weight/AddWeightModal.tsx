@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Modal, Alert, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, Alert, ActivityIndicator, StyleSheet } from 'react-native';
 import { useThemeColors } from '../../../../store';
-import { Card } from '../../../../components';
+import { Card, NumberWheel } from '../../../../components';
 import { typography } from '../../../../theme';
 import { spacing, borderRadius } from '../../../../theme/spacing';
 import { userService } from '../../../../services';
@@ -11,25 +11,33 @@ interface Props {
   visible: boolean;
   onClose: () => void;
   onSaved: () => void;
+  /** Last recorded weight — the wheel opens there, so a typical entry is a
+   *  flick of one or two notches rather than a number typed from scratch. */
+  initialKg?: number;
 }
 
-export const AddWeightModal: React.FC<Props> = ({ visible, onClose, onSaved }) => {
+/** Body weight moves in fractions of a kilo, so the wheel does too. */
+const MIN_KG = 30;
+const MAX_KG = 250;
+const STEP_KG = 0.1;
+
+export const AddWeightModal: React.FC<Props> = ({ visible, onClose, onSaved, initialKg }) => {
   const haptic = useHaptic();
   const colors = useThemeColors();
-  const [newWeight, setNewWeight] = useState('');
+  const [kg, setKg] = useState<number>(initialKg ?? 80);
   const [saving, setSaving] = useState(false);
 
+  // Reopening after a new entry should start from the new weight, not the one
+  // this component happened to mount with.
+  React.useEffect(() => {
+    if (visible && initialKg != null) setKg(initialKg);
+  }, [visible, initialKg]);
+
   const handleSave = async () => {
-    const kg = parseFloat(newWeight.replace(',', '.'));
-    if (!kg || kg < 20 || kg > 300) {
-      Alert.alert('Ошибка', 'Введи корректный вес (20–300 кг)');
-      return;
-    }
     setSaving(true);
     try {
       await userService.addWeight(kg);
       haptic.success();
-      setNewWeight('');
       onSaved();
     } catch {
       Alert.alert('Ошибка', 'Не удалось сохранить вес');
@@ -43,21 +51,18 @@ export const AddWeightModal: React.FC<Props> = ({ visible, onClose, onSaved }) =
       <View style={styles.overlay}>
         <Card style={styles.card}>
           <Text style={[typography.h3, { color: colors.text, marginBottom: spacing.md }]}>Записать вес</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-            <TextInput
-              style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
-              value={newWeight}
-              onChangeText={setNewWeight}
-              placeholder="85.5"
-              placeholderTextColor={colors.inputPlaceholder}
-              keyboardType="decimal-pad"
-              autoFocus
-              maxLength={6}
-            />
-            <Text style={[typography.h4, { color: colors.textSecondary }]}>кг</Text>
-          </View>
+          <NumberWheel
+            value={kg}
+            onChange={setKg}
+            min={MIN_KG}
+            max={MAX_KG}
+            step={STEP_KG}
+            unit="кг"
+            label="Вес"
+            format={(v) => v.toFixed(1)}
+          />
           <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.xl }}>
-            <TouchableOpacity onPress={() => { onClose(); setNewWeight(''); }} style={[styles.btn, { backgroundColor: colors.surface, flex: 1 }]}>
+            <TouchableOpacity onPress={onClose} style={[styles.btn, { backgroundColor: colors.surface, flex: 1 }]}>
               <Text style={[typography.bodyMedium, { color: colors.textSecondary }]}>Отмена</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={handleSave} disabled={saving} style={[styles.btn, { backgroundColor: colors.primary, flex: 1 }]}>
@@ -73,6 +78,5 @@ export const AddWeightModal: React.FC<Props> = ({ visible, onClose, onSaved }) =
 const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', paddingHorizontal: spacing.xl },
   card: { padding: spacing.xl },
-  input: { flex: 1, height: 52, borderRadius: borderRadius.lg, borderWidth: 1, paddingHorizontal: spacing.lg, fontSize: 28, fontWeight: '700', textAlign: 'center' },
   btn: { height: 48, borderRadius: borderRadius.lg, alignItems: 'center', justifyContent: 'center' },
 });

@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, TextInput, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { useThemeColors, useNutritionStore, useAuthStore } from '../../../store';
 import { useHaptic } from '../../../hooks/useHaptic';
-import { Card, AnimatedPressable } from '../../../components';
+import { Card, AnimatedPressable, NumberSheet } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 
@@ -27,7 +27,8 @@ export const WaterTracker: React.FC<Props> = ({ selectedDate }) => {
 
   const [excessWarning, setExcessWarning] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [customAmount, setCustomAmount] = useState('');
+  const [customOpen, setCustomOpen] = useState(false);
+  const [customMl, setCustomMl] = useState(300);
 
   const waterPercent = waterTarget > 0 ? dayLog.waterMl / waterTarget : 0;
   const remaining = Math.max(0, waterTarget - dayLog.waterMl);
@@ -97,34 +98,30 @@ export const WaterTracker: React.FC<Props> = ({ selectedDate }) => {
         ))}
       </View>
 
-      {/* Custom amount row */}
-      <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
-        <TextInput
-          style={[styles.customInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]}
-          value={customAmount}
-          onChangeText={setCustomAmount}
-          placeholder="Свой объём, мл"
-          placeholderTextColor={colors.inputPlaceholder}
-          keyboardType="numeric"
-          maxLength={5}
-          returnKeyType="done"
-          selectTextOnFocus
-          onSubmitEditing={() => {
-            const ml = parseInt(customAmount, 10);
-            if (ml > 0 && ml <= 3000) { handleAddWater(ml); setCustomAmount(''); }
-          }}
+      {/* Any other amount. Was a numeric field plus a + button; typing a
+          number on a phone in a gym is the slowest possible way to say 350. */}
+      <AnimatedPressable
+        onPress={() => { haptic.selection(); setCustomOpen(true); }}
+        haptic={false}
+        scaleDown={0.98}
+        style={[styles.customRow, { borderColor: colors.inputBorder }] as any}
+        accessibilityRole="button"
+        accessibilityLabel="Добавить свой объём воды"
+      >
+        <Text style={[typography.smallMedium, { color: colors.info }]}>Свой объём</Text>
+      </AnimatedPressable>
+
+      {customOpen && (
+        <NumberSheet
+          visible
+          onClose={() => setCustomOpen(false)}
+          title="Сколько воды"
+          primary={{ label: 'Объём', value: customMl, onChange: setCustomMl, min: 50, max: 3000, step: 50, unit: 'мл' }}
+          presets={[200, 250, 330, 500, 750]}
+          confirmLabel="Добавить"
+          onConfirm={() => { handleAddWater(customMl); setCustomOpen(false); }}
         />
-        <TouchableOpacity
-          style={[styles.customBtn, { backgroundColor: parseInt(customAmount, 10) > 0 ? colors.info : colors.border }]}
-          disabled={!(parseInt(customAmount, 10) > 0)}
-          onPress={() => {
-            const ml = parseInt(customAmount, 10);
-            if (ml > 0 && ml <= 3000) { handleAddWater(ml); setCustomAmount(''); }
-          }}
-        >
-          <Text style={{ color: colors.textInverse, fontWeight: '700', fontSize: 14 }}>+</Text>
-        </TouchableOpacity>
-      </View>
+      )}
 
       {/* Day history — tap × on any row to remove that entry. The total
           waterMl decrements automatically. Most-recent entries on top. */}
@@ -197,8 +194,10 @@ export const WaterTracker: React.FC<Props> = ({ selectedDate }) => {
 const styles = StyleSheet.create({
   waterBtn: { paddingVertical: spacing.sm, paddingHorizontal: spacing.sm, borderRadius: borderRadius.md, borderWidth: 1, alignItems: 'center' },
   waterBar: { height: 8, borderRadius: borderRadius.full, marginTop: spacing.md, overflow: 'hidden' },
-  customInput: { flex: 1, height: 36, borderRadius: borderRadius.md, borderWidth: 1, paddingHorizontal: spacing.md, fontSize: 14 },
-  customBtn: { width: 36, height: 36, borderRadius: borderRadius.md, alignItems: 'center', justifyContent: 'center' },
+  customRow: {
+    minHeight: 44, borderRadius: borderRadius.md, borderWidth: 1, borderStyle: 'dashed',
+    alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm,
+  },
   removeBtn: {
     paddingHorizontal: spacing.sm,
     paddingVertical: 3,

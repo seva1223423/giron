@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, TouchableOpacity, TextInput, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useThemeColors } from '../../../store';
-import { Card, Button } from '../../../components';
+import { Card, Button, AnimatedPressable, NumberSheet } from '../../../components';
+import { buildPresets } from '../../../utils/wheel';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { calculatePlates, PLATE_SIZES } from '../../../utils/plates';
@@ -62,49 +63,44 @@ interface Props {
 export const PlateCalculatorTab: React.FC<Props> = ({ initialWeight, onApplyWeight }) => {
   const haptic = useHaptic();
   const colors = useThemeColors();
-  const [targetWeight, setTargetWeight] = useState(initialWeight != null ? String(initialWeight) : '100');
+  const [weight, setWeight] = useState<number>(initialWeight ?? 100);
+  const [editing, setEditing] = useState(false);
   const [barbellIdx, setBarbellIdx] = useState(0);
 
   const barbell = BARBELL_OPTIONS[barbellIdx];
-  const plates = useMemo(() => calculatePlates(parseFloat(targetWeight.replace(',', '.')) || 0, barbell.weight), [targetWeight, barbell.weight]);
+  const plates = useMemo(() => calculatePlates(weight, barbell.weight), [weight, barbell.weight]);
   const totalPlatesWeight = useMemo(() => { let s = 0; plates.forEach((c, sz) => { s += c * sz * 2; }); return s; }, [plates]);
   const actualWeight = barbell.weight + totalPlatesWeight;
-
-  const adjustWeight = (delta: number) => {
-    haptic.selection();
-    const next = Math.max(0, Math.round(((parseFloat(targetWeight.replace(',', '.')) || 0) + delta) * 4) / 4);
-    setTargetWeight(String(next));
-  };
 
   return (
     <>
       <Card style={{ marginBottom: spacing.lg }}>
         <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: spacing.sm }]}>ЦЕЛЕВОЙ ВЕС</Text>
-        <View style={styles.weightRow}>
-          <TouchableOpacity onPress={() => adjustWeight(-2.5)} style={[styles.adjustBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[typography.h3, { color: colors.primary }]}>−</Text>
-          </TouchableOpacity>
-          <View style={styles.weightInputWrap}>
-            <TextInput
-              style={[styles.weightInput, { color: colors.text, borderColor: colors.inputBorder, backgroundColor: colors.inputBackground }]}
-              value={targetWeight}
-              onChangeText={setTargetWeight}
-              keyboardType="decimal-pad"
-              selectTextOnFocus
-            />
-            <Text style={[typography.h4, { color: colors.textSecondary }]}>кг</Text>
-          </View>
-          <TouchableOpacity onPress={() => adjustWeight(2.5)} style={[styles.adjustBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[typography.h3, { color: colors.primary }]}>+</Text>
-          </TouchableOpacity>
-        </View>
-        <View style={styles.quickBtns}>
-          {[-10, -5, -2.5, 2.5, 5, 10].map((d) => (
-            <TouchableOpacity key={d} onPress={() => adjustWeight(d)} style={[styles.quickBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Text style={[typography.small, { color: d > 0 ? colors.success : colors.error, fontWeight: '700' }]}>{d > 0 ? `+${d}` : d}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        {/* Two ± buttons, a keyboard field and six delta chips — nine
+            controls to say one number. Now the number IS the control. */}
+        <AnimatedPressable
+          onPress={() => { haptic.selection(); setEditing(true); }}
+          haptic={false}
+          scaleDown={0.98}
+          style={[styles.target, { borderColor: colors.inputBorder, backgroundColor: colors.inputBackground }] as any}
+          accessibilityRole="button"
+          accessibilityLabel={`Целевой вес ${weight} кг. Нажми, чтобы изменить`}
+        >
+          <Text style={[typography.number, { color: colors.text, fontSize: 40 }]} allowFontScaling={false}>{weight}</Text>
+          <Text style={[typography.h4, { color: colors.textSecondary, marginLeft: 4 }]}>кг</Text>
+        </AnimatedPressable>
+
+        {editing && (
+          <NumberSheet
+            visible
+            onClose={() => setEditing(false)}
+            title="Целевой вес"
+            primary={{ label: 'Вес на штанге', value: weight, onChange: setWeight, min: 0, max: 400, step: 0.5, unit: 'кг' }}
+            presets={buildPresets(weight, 2.5)}
+            confirmLabel="Готово"
+            onConfirm={() => setEditing(false)}
+          />
+        )}
       </Card>
 
       <Card style={{ marginBottom: spacing.lg }}>
@@ -159,7 +155,7 @@ export const PlateCalculatorTab: React.FC<Props> = ({ initialWeight, onApplyWeig
             <Text style={[typography.caption, { color: colors.textSecondary }]}>итого кг</Text>
           </View>
         </View>
-        {Math.abs(actualWeight - (parseFloat(targetWeight.replace(',', '.')) || 0)) > 0.1 && parseFloat(targetWeight.replace(',', '.')) > 0 && (
+        {Math.abs(actualWeight - weight) > 0.1 && weight > 0 && (
           <Text style={[typography.small, { color: colors.warning || colors.accent, textAlign: 'center', marginTop: spacing.sm }]}>
             Точный вес: {actualWeight} кг (ближайший возможный)
           </Text>
@@ -182,10 +178,10 @@ export const PlateCalculatorTab: React.FC<Props> = ({ initialWeight, onApplyWeig
           {[60, 80, 100, 120, 140, 160, 180, 200].map((w) => (
             <TouchableOpacity
               key={w}
-              onPress={() => { haptic.selection(); setTargetWeight(String(w)); }}
-              style={[styles.presetBtn, { backgroundColor: parseFloat(targetWeight.replace(',', '.')) === w ? colors.primary : colors.surface, borderColor: parseFloat(targetWeight.replace(',', '.')) === w ? colors.primary : colors.border }]}
+              onPress={() => { haptic.selection(); setWeight(w); }}
+              style={[styles.presetBtn, { backgroundColor: weight === w ? colors.primary : colors.surface, borderColor: weight === w ? colors.primary : colors.border }]}
             >
-              <Text style={[typography.smallMedium, { color: parseFloat(targetWeight.replace(',', '.')) === w ? '#fff' : colors.text }]}>{w}</Text>
+              <Text style={[typography.smallMedium, { color: weight === w ? '#fff' : colors.text }]}>{w}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -195,12 +191,10 @@ export const PlateCalculatorTab: React.FC<Props> = ({ initialWeight, onApplyWeig
 };
 
 const styles = StyleSheet.create({
-  weightRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md },
-  adjustBtn: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5 },
-  weightInputWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
-  weightInput: { flex: 1, minWidth: 80, maxWidth: 140, textAlign: 'center', fontSize: 36, fontWeight: '800', paddingVertical: spacing.sm, borderRadius: borderRadius.lg, borderWidth: 1.5 },
-  quickBtns: { flexDirection: 'row', gap: spacing.sm, justifyContent: 'center', flexWrap: 'wrap' },
-  quickBtn: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: borderRadius.md, borderWidth: 1 },
+  target: {
+    flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center',
+    minHeight: 76, borderRadius: 14, borderWidth: 1.5,
+  },
   barbellRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.md, borderRadius: borderRadius.md, borderWidth: 1, marginBottom: spacing.xs },
   barVisual: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.lg, height: 100 },
   platesSide: { flexDirection: 'row', alignItems: 'center' },

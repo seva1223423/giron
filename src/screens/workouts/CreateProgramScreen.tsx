@@ -38,7 +38,8 @@ import {
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
 import { useThemeColors, useWorkoutStore } from '../../store';
-import { Icon, HitTarget, FadeIn, Spinner } from '../../components';
+import { Icon, HitTarget, FadeIn, Spinner, AnimatedPressable, NumberSheet } from '../../components';
+import { buildPresets } from '../../utils/wheel';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { workoutService } from '../../services/workoutService';
@@ -691,55 +692,52 @@ interface StepperProps {
   accessibilityLabel: string;
 }
 
+/**
+ * Duration and days-per-week. Two ± buttons each became one large value:
+ * a program is four to twelve weeks, and stepping there one week at a time
+ * was never the point — you already know the number you want.
+ */
 const Stepper: React.FC<StepperProps> = ({ value, min, max, suffix, onChange, accessibilityLabel }) => {
   const colors = useThemeColors();
-  const canDecrement = value > min;
-  const canIncrement = value < max;
+  const haptic = useHaptic();
+  const [open, setOpen] = useState(false);
 
   return (
-    <View
-      style={[
-        styles.stepper,
-        {
-          backgroundColor: colors.card,
-          borderColor: colors.border,
-        },
-      ]}
-      accessibilityLabel={accessibilityLabel}
-    >
-      <HitTarget>
-        <TouchableOpacity
-          onPress={() => canDecrement && onChange(-1)}
-          disabled={!canDecrement}
-          accessibilityRole="button"
-          accessibilityLabel="Меньше"
-          accessibilityState={{ disabled: !canDecrement }}
-          style={[styles.stepperButton, { opacity: canDecrement ? 1 : 0.3 }]}
-        >
-          <Text style={[typography.h3, { color: colors.text }]}>−</Text>
-        </TouchableOpacity>
-      </HitTarget>
-      <View style={{ flex: 1, alignItems: 'center' }}>
-        <Text style={[typography.numberSmall, { color: colors.text }]}>
-          {value}
-        </Text>
-        <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>
-          {suffix}
-        </Text>
-      </View>
-      <HitTarget>
-        <TouchableOpacity
-          onPress={() => canIncrement && onChange(1)}
-          disabled={!canIncrement}
-          accessibilityRole="button"
-          accessibilityLabel="Больше"
-          accessibilityState={{ disabled: !canIncrement }}
-          style={[styles.stepperButton, { opacity: canIncrement ? 1 : 0.3 }]}
-        >
-          <Text style={[typography.h3, { color: colors.text }]}>+</Text>
-        </TouchableOpacity>
-      </HitTarget>
-    </View>
+    <>
+      <AnimatedPressable
+        onPress={() => { haptic.selection(); setOpen(true); }}
+        haptic={false}
+        scaleDown={0.98}
+        style={[styles.stepper, { backgroundColor: colors.card, borderColor: colors.border }] as any}
+        accessibilityRole="button"
+        accessibilityLabel={`${accessibilityLabel}: ${value} ${suffix}. Нажми, чтобы изменить`}
+      >
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text style={[typography.numberSmall, { color: colors.text }]} allowFontScaling={false}>{value}</Text>
+          <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>{suffix}</Text>
+        </View>
+      </AnimatedPressable>
+
+      {open && (
+        <NumberSheet
+          visible
+          onClose={() => setOpen(false)}
+          title={accessibilityLabel}
+          primary={{
+            label: accessibilityLabel,
+            value,
+            // The call sites take a delta, so hand them the difference.
+            onChange: (v) => onChange(v - value),
+            min,
+            max,
+            step: 1,
+          }}
+          presets={buildPresets(value, 1, min)}
+          confirmLabel="Готово"
+          onConfirm={() => setOpen(false)}
+        />
+      )}
+    </>
   );
 };
 
@@ -1286,12 +1284,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: spacing.sm,
     minHeight: 64,
-  },
-  stepperButton: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   stickyBar: {
     paddingHorizontal: spacing.xl,

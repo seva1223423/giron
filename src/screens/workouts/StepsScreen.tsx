@@ -7,14 +7,13 @@ import {
   TouchableOpacity,
   RefreshControl,
   Modal,
-  TextInput,
   Alert,
   Linking,
 } from 'react-native';
 import { useThemeColors, useSettingsStore, useAuthStore } from '../../store';
 import { useSafeTop } from '../../hooks/useSafeTop';
 import { useHaptic } from '../../hooks/useHaptic';
-import { Icon, Card, FadeIn, ProgressRing, Button } from '../../components';
+import { Icon, Card, FadeIn, ProgressRing, Button, AnimatedPressable, NumberSheet } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { usePedometer } from '../../hooks/usePedometer';
@@ -81,6 +80,7 @@ export const StepsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [goalDraft, setGoalDraft] = useState(String(stepsDailyGoal));
+  const [editing, setEditing] = useState<'goal' | 'stride' | null>(null);
   const [strideDraft, setStrideDraft] = useState(String(strideLengthCm));
 
   // Round 240 Phase E — pull daily step totals synced from HealthKit/
@@ -487,35 +487,74 @@ export const StepsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               Настройки шагомера
             </Text>
 
-            <Text style={[typography.smallMedium, { color: colors.textSecondary, marginBottom: spacing.xs }]}>
-              Дневная цель, шагов
-            </Text>
-            <TextInput
-              value={goalDraft}
-              onChangeText={setGoalDraft}
-              keyboardType="number-pad"
-              maxLength={5}
-              style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface }]}
-            />
+            {/* Two number-pad fields became two values. A step goal is picked
+                from a handful of round numbers, not typed digit by digit. */}
+            <AnimatedPressable
+              onPress={() => { haptic.selection(); setEditing('goal'); }}
+              haptic={false}
+              scaleDown={0.985}
+              style={[styles.settingRow, { borderColor: colors.border, backgroundColor: colors.surface }] as any}
+              accessibilityRole="button"
+              accessibilityLabel={`Дневная цель ${goalDraft} шагов. Нажми, чтобы изменить`}
+            >
+              <Text style={[typography.smallMedium, { color: colors.textSecondary, flex: 1 }]}>Дневная цель</Text>
+              <Text style={[typography.h4, { color: colors.text }]} allowFontScaling={false}>{goalDraft}</Text>
+              <Text style={[typography.caption, { color: colors.textTertiary, marginLeft: 3 }]}>шагов</Text>
+            </AnimatedPressable>
             <Text style={[typography.caption, { color: colors.textTertiary, marginTop: 4, marginBottom: spacing.md }]}>
               ВОЗ рекомендует от 7000. Для активного образа — 10000–12000.
             </Text>
 
-            <Text style={[typography.smallMedium, { color: colors.textSecondary, marginBottom: spacing.xs }]}>
-              Длина шага, см
-            </Text>
-            <TextInput
-              value={strideDraft}
-              onChangeText={setStrideDraft}
-              keyboardType="number-pad"
-              maxLength={3}
-              style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface }]}
-            />
+            <AnimatedPressable
+              onPress={() => { haptic.selection(); setEditing('stride'); }}
+              haptic={false}
+              scaleDown={0.985}
+              style={[styles.settingRow, { borderColor: colors.border, backgroundColor: colors.surface }] as any}
+              accessibilityRole="button"
+              accessibilityLabel={`Длина шага ${strideDraft} сантиметров. Нажми, чтобы изменить`}
+            >
+              <Text style={[typography.smallMedium, { color: colors.textSecondary, flex: 1 }]}>Длина шага</Text>
+              <Text style={[typography.h4, { color: colors.text }]} allowFontScaling={false}>{strideDraft}</Text>
+              <Text style={[typography.caption, { color: colors.textTertiary, marginLeft: 3 }]}>см</Text>
+            </AnimatedPressable>
             <Text style={[typography.caption, { color: colors.textTertiary, marginTop: 4, marginBottom: spacing.lg }]}>
               {user?.heightCm
                 ? `Из роста ${user.heightCm} см: ~${Math.round(user.heightCm * 0.413)} см. Используется для оценки километража.`
                 : 'Среднее значение для взрослых — 75 см. Используется для оценки км.'}
             </Text>
+
+            {editing === 'goal' && (
+              <NumberSheet
+                visible
+                onClose={() => setEditing(null)}
+                title="Дневная цель"
+                primary={{
+                  label: 'Шагов в день',
+                  value: parseInt(goalDraft, 10) || 8000,
+                  onChange: (v) => setGoalDraft(String(v)),
+                  min: 1000, max: 30000, step: 500,
+                }}
+                presets={[5000, 7000, 8000, 10000, 12000]}
+                confirmLabel="Готово"
+                onConfirm={() => setEditing(null)}
+              />
+            )}
+            {editing === 'stride' && (
+              <NumberSheet
+                visible
+                onClose={() => setEditing(null)}
+                title="Длина шага"
+                primary={{
+                  label: 'Длина шага',
+                  value: parseInt(strideDraft, 10) || 75,
+                  onChange: (v) => setStrideDraft(String(v)),
+                  min: 40, max: 120, step: 1, unit: 'см',
+                }}
+                presets={user?.heightCm ? [Math.round(user.heightCm * 0.413)] : [75]}
+                confirmLabel="Готово"
+                onConfirm={() => setEditing(null)}
+              />
+            )}
 
             <Button title="Сохранить" onPress={saveGoals} fullWidth size="lg" />
             <TouchableOpacity onPress={() => setShowGoalModal(false)} style={{ alignItems: 'center', paddingVertical: spacing.md }}>
@@ -652,11 +691,8 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     borderWidth: 1,
   },
-  input: {
-    borderWidth: 1,
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 12,
-    fontSize: 17,
+  settingRow: {
+    flexDirection: 'row', alignItems: 'baseline', minHeight: 52,
+    borderRadius: 12, borderWidth: 1, paddingHorizontal: 16,
   },
 });

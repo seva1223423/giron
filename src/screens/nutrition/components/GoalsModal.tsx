@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, TextInput, Modal, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useThemeColors, useNutritionStore, useAuthStore } from '../../../store';
-import { Button } from '../../../components';
+import { Button, AnimatedPressable, NumberSheet } from '../../../components';
+import { buildPresets } from '../../../utils/wheel';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { isFemale } from '../../../utils/gender';
@@ -28,6 +29,23 @@ const GOAL_PRESETS: Array<{ key: PresetKey; label: string; emoji: string; desc: 
   { key: 'strength', label: 'Сила', emoji: '🏋️', desc: `+${GOAL_CAL_DELTAS.strength} ккал/TDEE` },
   { key: 'endurance', label: 'Выносливость', emoji: '🏃', desc: `+${GOAL_CAL_DELTAS.endurance} ккал/TDEE` },
 ];
+
+/** The four daily targets, with a sensible ceiling and grain for each. */
+type MacroKey = 'calories' | 'protein' | 'fats' | 'carbs';
+const MACRO_FIELDS: Array<{ key: MacroKey; label: string; unit: string; max: number; step: number }> = [
+  { key: 'calories', label: 'Калории', unit: 'ккал', max: 6000, step: 10 },
+  { key: 'protein',  label: 'Белки',   unit: 'г',    max: 400,  step: 5 },
+  { key: 'fats',     label: 'Жиры',     unit: 'г',    max: 250,  step: 5 },
+  { key: 'carbs',    label: 'Углеводы', unit: 'г',    max: 700,  step: 5 },
+];
+
+/** A stored target is a string; the wheel needs a number. */
+const numeric = (v: string) => Math.round(parseFloat(v.replace(',', '.')) || 0);
+
+function fieldColor(key: MacroKey, colors: any): string {
+  return key === 'calories' ? colors.calories : key === 'protein' ? colors.protein
+    : key === 'fats' ? colors.fats : colors.carbs;
+}
 
 type ProfileLike = { weightKg?: number; heightCm?: number; gender?: string; dateOfBirth?: string } | null;
 
@@ -71,6 +89,12 @@ export const GoalsModal: React.FC<Props> = ({ visible, onClose, selectedDate }) 
   const [goalFats, setGoalFats] = useState(dayLog.targetFats?.toString() || '70');
   const [goalCarbs, setGoalCarbs] = useState(dayLog.targetCarbs?.toString() || '250');
   const [selectedGoal, setSelectedGoal] = useState<PresetKey | null>(null);
+  const [editing, setEditing] = useState<MacroKey | null>(null);
+
+  const fieldValue = (k: MacroKey) =>
+    k === 'calories' ? goalCalories : k === 'protein' ? goalProtein : k === 'fats' ? goalFats : goalCarbs;
+  const fieldSetter = (k: MacroKey) =>
+    k === 'calories' ? setGoalCalories : k === 'protein' ? setGoalProtein : k === 'fats' ? setGoalFats : setGoalCarbs;
 
   const { bmr, tdee } = useMemo(() => calcBMR(user), [user?.weightKg, user?.heightCm, user?.gender, user?.dateOfBirth]);
 
@@ -154,25 +178,52 @@ export const GoalsModal: React.FC<Props> = ({ visible, onClose, selectedDate }) 
               </View>
             </ScrollView>
 
-            {/* Manual fields */}
-            {[
-              { label: 'Калории (ккал)', value: goalCalories, setter: setGoalCalories, color: colors.calories },
-              { label: 'Белки (г)', value: goalProtein, setter: setGoalProtein, color: colors.protein },
-              { label: 'Жиры (г)', value: goalFats, setter: setGoalFats, color: colors.fats },
-              { label: 'Углеводы (г)', value: goalCarbs, setter: setGoalCarbs, color: colors.carbs },
-            ].map(({ label, value, setter, color }) => (
-              <View key={label} style={{ marginBottom: spacing.md }}>
-                <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: spacing.xs }]}>{label}</Text>
-                <TextInput
-                  style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: color + '60', color: colors.text }]}
-                  value={value}
-                  onChangeText={(v) => { setter(v); setSelectedGoal(null); }}
-                  keyboardType="numeric"
-                  selectTextOnFocus
-                  placeholderTextColor={colors.inputPlaceholder}
+            {/* The four numbers. They were keyboard fields — four taps to
+                focus, a numeric keypad over half the sheet, and no sense of
+                what a reasonable value even is. Tapping one opens the wheel
+                with sane presets around the current figure. */}
+            {MACRO_FIELDS.map(({ key, label, unit, max, step }) => {
+              const value = numeric(fieldValue(key));
+              return (
+                <AnimatedPressable
+                  key={key}
+                  onPress={() => setEditing(key)}
+                  haptic={false}
+                  scaleDown={0.985}
+                  style={[styles.field, { backgroundColor: colors.inputBackground, borderColor: fieldColor(key, colors) + '60' }] as any}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${label}: ${value}. Нажми, чтобы изменить`}
+                >
+                  <Text style={[typography.caption, { color: colors.textSecondary, flex: 1 }]}>{label}</Text>
+                  <Text style={[typography.h4, { color: fieldColor(key, colors) }]} allowFontScaling={false}>{value}</Text>
+                  <Text style={[typography.caption, { color: colors.textTertiary, marginLeft: 3 }]}>{unit}</Text>
+                </AnimatedPressable>
+              );
+            })}
+
+            {editing && (() => {
+              const spec = MACRO_FIELDS.find((f) => f.key === editing)!;
+              const current = numeric(fieldValue(editing));
+              return (
+                <NumberSheet
+                  visible
+                  onClose={() => setEditing(null)}
+                  title={spec.label}
+                  primary={{
+                    label: spec.label,
+                    value: current,
+                    onChange: (v) => { fieldSetter(editing)(String(v)); setSelectedGoal(null); },
+                    min: 0,
+                    max: spec.max,
+                    step: spec.step,
+                    unit: spec.unit,
+                  }}
+                  presets={buildPresets(current, spec.step * 5, 0)}
+                  confirmLabel="Готово"
+                  onConfirm={() => setEditing(null)}
                 />
-              </View>
-            ))}
+              );
+            })()}
 
             <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.sm }}>
               <Button title="Отмена" variant="outline" onPress={onClose} style={{ flex: 1 }} />
@@ -188,6 +239,10 @@ export const GoalsModal: React.FC<Props> = ({ visible, onClose, selectedDate }) 
 const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
   sheet: { borderTopLeftRadius: borderRadius.xl, borderTopRightRadius: borderRadius.xl, padding: spacing.xl, paddingBottom: 48, maxHeight: '92%' },
-  input: { height: 48, borderRadius: borderRadius.md, borderWidth: 1, paddingHorizontal: spacing.lg, fontSize: 16, fontWeight: '600' },
+  field: {
+    flexDirection: 'row', alignItems: 'baseline', minHeight: 52,
+    borderRadius: borderRadius.md, borderWidth: 1,
+    paddingHorizontal: spacing.lg, marginBottom: spacing.sm,
+  },
   presetBtn: { width: 90, alignItems: 'center', paddingVertical: spacing.sm, paddingHorizontal: spacing.xs, borderRadius: borderRadius.md, borderWidth: 1 },
 });

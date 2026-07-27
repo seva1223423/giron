@@ -200,6 +200,7 @@ export const WeightTab: React.FC<WeightTabProps> = ({ colors, user }) => {
       />
 
       <AddWeightModal
+        initialKg={weightHistory.length > 0 ? weightHistory[weightHistory.length - 1].weightKg : user?.weightKg}
         visible={showWeightModal}
         onClose={() => setShowWeightModal(false)}
         onSaved={() => { setShowWeightModal(false); fetchWeightHistory(); }}
