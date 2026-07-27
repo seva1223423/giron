@@ -103,7 +103,7 @@ router.get('/programs', authenticate, async (req: AuthRequest, res: Response) =>
         workouts: {
           include: {
             exercises: {
-              include: { exercise: { select: EXERCISE_LIST_SELECT }, sets: true },
+              include: { exercise: { select: EXERCISE_LIST_SELECT }, sets: { orderBy: { setNumber: 'asc' } } },
               orderBy: { order: 'asc' },
             },
           },
@@ -296,7 +296,7 @@ router.post('/start', authenticate, async (req: AuthRequest, res: Response) => {
       },
       include: {
         exercises: {
-          include: { exercise: true, sets: true },
+          include: { exercise: true, sets: { orderBy: { setNumber: 'asc' } } },
           orderBy: { order: 'asc' },
         },
       },
@@ -370,7 +370,7 @@ router.post('/sync', authenticate, async (req: AuthRequest, res: Response) => {
       },
       include: {
         exercises: {
-          include: { exercise: true, sets: true },
+          include: { exercise: true, sets: { orderBy: { setNumber: 'asc' } } },
           orderBy: { order: 'asc' },
         },
       },
@@ -417,7 +417,7 @@ router.post('/sync', authenticate, async (req: AuthRequest, res: Response) => {
                 })),
               },
             },
-            include: { exercises: { include: { exercise: true, sets: true }, orderBy: { order: 'asc' } } },
+            include: { exercises: { include: { exercise: true, sets: { orderBy: { setNumber: 'asc' } } }, orderBy: { order: 'asc' } } },
           });
           return res.status(201).json(fallback);
         } catch (e2: any) {
@@ -447,7 +447,7 @@ router.post('/:id/complete', authenticate, async (req: AuthRequest, res: Respons
     // Verify ownership
     const workout = await prisma.workout.findUnique({
       where: { id },
-      include: { exercises: { include: { sets: true } } },
+      include: { exercises: { include: { sets: { orderBy: { setNumber: 'asc' } } } } },
     });
     if (!workout || workout.userId !== req.userId) {
       return res.status(404).json({ error: 'Тренировка не найдена' });
@@ -472,7 +472,7 @@ router.post('/:id/complete', authenticate, async (req: AuthRequest, res: Respons
     // Refetch sets after update
     const refreshed = await prisma.workout.findUnique({
       where: { id },
-      include: { exercises: { include: { sets: true } } },
+      include: { exercises: { include: { sets: { orderBy: { setNumber: 'asc' } } } } },
     });
     const totalVolume = (refreshed?.exercises ?? [])
       .reduce(
@@ -506,7 +506,7 @@ router.post('/:id/complete', authenticate, async (req: AuthRequest, res: Respons
       where: { id },
       include: {
         exercises: {
-          include: { exercise: true, sets: true },
+          include: { exercise: true, sets: { orderBy: { setNumber: 'asc' } } },
           orderBy: { order: 'asc' },
         },
       },
@@ -604,7 +604,7 @@ router.get('/history', authenticate, async (req: AuthRequest, res: Response) => 
         where,
         include: {
           exercises: {
-            include: { exercise: { select: EXERCISE_LIST_SELECT }, sets: true },
+            include: { exercise: { select: EXERCISE_LIST_SELECT }, sets: { orderBy: { setNumber: 'asc' } } },
             orderBy: { order: 'asc' },
           },
         },

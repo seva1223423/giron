@@ -91,6 +91,15 @@ function clearStoreUserData() {
     stores.useThemeStore?.getState().resetToDefaults();
     stores.useSettingsStore?.getState().resetToDefaults();
   } catch { /* best effort */ }
+
+  // Stores are only half the picture: several screens write straight to
+  // AsyncStorage under their own keys, and those survived logout — including
+  // the previous account's progress photos and body measurements (audit R33).
+  // Fire-and-forget: these keys are independent of the throttled store
+  // snapshots flushed right after, so there is nothing to race.
+  import('../utils/screenOwnedStorage')
+    .then((m) => m.clearScreenOwnedStorage())
+    .catch(() => { /* best effort */ });
 }
 
 export const useAuthStore = create<AuthStore>()(
