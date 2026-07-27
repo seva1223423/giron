@@ -39,7 +39,9 @@ interface Props {
   /** True if this is the first uncompleted set — the row gets a gold
    *  left-border + faint tint so the user's eye lands here. PHILOSOPHY §3. */
   isActive?: boolean;
-  onComplete: (reps: number, weight: number) => void;
+  /** isCorrection = the set was ALREADY completed and the user is fixing the
+   *  numbers. The caller must not restart the rest timer or auto-advance. */
+  onComplete: (reps: number, weight: number, isCorrection?: boolean) => void;
   onRpeChange: (rpe: number) => void;
   onRemove?: () => void;
   onTypeChange?: (type: string) => void;
@@ -85,7 +87,7 @@ const TouchableArea: React.FC<{ onPress: () => void; completed: boolean; colors:
   <Pressable
     onPress={onPress}
     accessibilityRole="button"
-    accessibilityLabel={completed ? 'Сет выполнен' : 'Отметить сет выполненным'}
+    accessibilityLabel={completed ? 'Сет выполнен — нажми, чтобы сохранить исправленные цифры' : 'Отметить сет выполненным'}
     style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
   >
     <Icon name="check" size={20} color={completed ? colors.textInverse : colors.textSecondary} strokeWidth={3} />
@@ -105,7 +107,13 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
   const setTypeConfig = buildSetTypeConfig(colors);
 
   const handleComplete = useCallback(() => {
-    if (set.completed) return;
+    // A completed set used to be frozen here: tapping ✓ again returned
+    // immediately, so a mis-tap that logged 0 kg could never be corrected —
+    // the wrong number stayed in history and in the PR maths forever (audit
+    // W2). The inputs were always editable; only saving was blocked.
+    // Re-confirming now saves the corrected values, and the caller is told
+    // this is a correction so it does not restart rest or jump exercises.
+    const isCorrection = !!set.completed;
     let finalWeight = Math.max(0, parseFloat(weight.replace(',', '.')) || 0);
     let finalReps = Math.max(0, parseInt(reps, 10) || 0);
     if (finalWeight === 0 && prevSet?.weight) {
@@ -116,9 +124,10 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
       finalReps = prevSet.reps;
       setReps(String(prevSet.reps));
     }
-    onComplete(finalReps, finalWeight);
-    setShowRpe(true);
-  }, [weight, reps, prevSet, onComplete]);
+    onComplete(finalReps, finalWeight, isCorrection);
+    // RPE is asked once, when the set is first logged — not again on a fix.
+    if (!isCorrection) setShowRpe(true);
+  }, [weight, reps, prevSet, onComplete, set.completed]);
 
   const completed1RM = set.completed && set.weight && set.reps
     ? estimate1RM(set.weight, set.reps)

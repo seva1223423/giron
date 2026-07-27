@@ -26,6 +26,19 @@ interface MenuGroup {
 
 const GROUPS: MenuGroup[] = [
   {
+    // These three screens are fully built and registered in the navigator, but
+    // nothing rendered a way in: HistoryTab — the only component that linked to
+    // them — is exported and never used, and this menu (which WorkoutsScreen
+    // claims holds them) did not list them. Finished work no user could reach
+    // (audit U7 / W9).
+    title: 'ЖУРНАЛ',
+    items: [
+      { icon: 'chart', label: 'История тренировок', screen: 'WorkoutHistory' },
+      { icon: 'grid', label: 'Календарь', screen: 'WorkoutCalendar' },
+      { icon: 'trophy', label: 'Личные рекорды', screen: 'PersonalRecords' },
+    ],
+  },
+  {
     title: 'ИНСТРУМЕНТЫ',
     items: [
       { icon: 'target', label: '1ПМ калькулятор', screen: 'OneRMCalculator' },

@@ -332,9 +332,26 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     }
   };
 
-  const handleCompleteSet = (setIndex: number, reps: number, weight: number) => {
+  const handleCompleteSet = (setIndex: number, reps: number, weight: number, isCorrection = false) => {
     haptic.medium();
     completeSet(currentExerciseIndex, setIndex, { reps, weight });
+
+    // Correcting an already-logged set is not "finishing a set": the user is
+    // fixing a typo, often several sets back. Restarting the rest timer or
+    // jumping to the next superset exercise would be wrong and disorienting.
+    // PR detection below still runs — a corrected heavier lift is a real PR.
+    if (isCorrection) {
+      if (weight > 0 && reps > 0) {
+        const correctedRM = estimateOneRepMax(weight, reps);
+        const bestSoFar = Math.max(bestRMs[currentExercise.exerciseId] ?? 0, sessionBestRef.current[currentExercise.exerciseId] ?? 0);
+        if (correctedRM > bestSoFar) {
+          showPrToast(currentExercise.exercise?.name ?? 'Упражнение', Math.round(correctedRM), bestSoFar > 0 ? Math.round(bestSoFar) : undefined);
+          setSessionPRs((prev) => new Set(prev).add(currentExercise.exerciseId));
+          sessionBestRef.current[currentExercise.exerciseId] = correctedRM;
+        }
+      }
+      return;
+    }
 
     // PR detection — compare against max(historical, session running). Without the
     // session part, back-to-back PRs on the same exercise would each compute against

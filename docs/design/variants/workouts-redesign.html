@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Giron — редизайн раздела «Тренировки»</title>
+<style>
+  :root{
+    --bg:#0E0E0F; --surface:#17171A; --elev:#1E1E22; --gold:#D4B07A; --gold-dim:#8a7350;
+    --text:#F4F1EA; --t2:#A8A49C; --t3:#6B6860; --line:rgba(255,255,255,.08);
+    --good:#9AC28C; --warn:#E8A36A; --bad:#E07A6B;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,'Segoe UI',Roboto,sans-serif}
+  body{background:#0a0a0b;color:var(--text);padding:26px 20px 60px;line-height:1.45}
+  .wrap{max-width:1500px;margin:0 auto}
+  h1{font-size:26px;font-weight:800;letter-spacing:-.4px}
+  .lead{color:var(--t2);font-size:13.5px;margin:6px 0 4px;max-width:900px}
+  .note{display:inline-block;font-size:11px;color:var(--gold);border:1px solid rgba(212,176,122,.35);
+        background:rgba(212,176,122,.08);padding:3px 10px;border-radius:20px;margin-top:10px}
+  h2{font-size:18px;font-weight:800;margin:38px 0 4px;padding-top:22px;border-top:1px solid var(--line)}
+  h2 .num{color:var(--gold);margin-right:8px}
+  .sub{color:var(--t2);font-size:13px;margin-bottom:18px;max-width:1000px}
+
+  /* принципы */
+  .principles{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin:18px 0 6px}
+  .pr{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px}
+  .pr b{display:block;font-size:12.5px;color:var(--gold);margin-bottom:5px;text-transform:uppercase;letter-spacing:.6px}
+  .pr span{font-size:12.5px;color:var(--t2)}
+  .pr i{font-style:normal;color:var(--text)}
+
+  /* ряд макетов */
+  .row{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start}
+  .col{width:300px;flex:0 0 auto}
+  .tag{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .tag .k{font-size:11px;font-weight:800;letter-spacing:.7px;padding:3px 9px;border-radius:6px;
+          background:rgba(212,176,122,.14);color:var(--gold);border:1px solid rgba(212,176,122,.3)}
+  .tag .n{font-size:13px;font-weight:700}
+  .cur .k{background:rgba(224,122,107,.14);color:var(--bad);border-color:rgba(224,122,107,.3)}
+  .win .k{background:rgba(154,194,140,.16);color:var(--good);border-color:rgba(154,194,140,.35)}
+
+  /* телефон */
+  .ph{position:relative;width:300px;height:600px;background:var(--bg);border:2px solid #26262b;
+      border-radius:26px;overflow:hidden;display:flex;flex-direction:column}
+  .st{height:26px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;
+      font-size:10px;color:var(--t3);flex:0 0 auto}
+  .body{flex:1;overflow:hidden;position:relative;padding:0 12px}
+  .hdr{font-size:19px;font-weight:800;padding:4px 2px 10px}
+
+  /* зона большого пальца */
+  .thumb{position:absolute;left:0;right:0;bottom:0;height:38%;pointer-events:none;
+         background:linear-gradient(to top,rgba(154,194,140,.20),rgba(154,194,140,0));z-index:5}
+  .thumb::after{content:'зона большого пальца';position:absolute;left:8px;bottom:6px;font-size:9px;
+                color:rgba(154,194,140,.9);letter-spacing:.4px}
+  .ow{position:absolute;left:0;right:0;top:0;height:22%;pointer-events:none;
+      background:linear-gradient(to bottom,rgba(224,122,107,.18),rgba(224,122,107,0));z-index:5}
+  .ow::after{content:'неудобно дотянуться';position:absolute;right:8px;top:6px;font-size:9px;
+             color:rgba(224,122,107,.95)}
+
+  /* элементы UI */
+  .seg{display:flex;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px;margin-bottom:12px}
+  .seg div{flex:1;text-align:center;font-size:11.5px;font-weight:700;padding:8px 0;border-radius:9px;color:var(--t2)}
+  .seg div.on{background:var(--gold);color:#17171A}
+  .lbl{font-size:10px;letter-spacing:.9px;color:var(--t3);font-weight:700;margin:12px 2px 7px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:11px 12px;margin-bottom:8px}
+  .card .t{font-size:13px;font-weight:700}
+  .card .m{font-size:11px;color:var(--t2);margin-top:3px}
+  .chev{float:right;color:var(--t3);font-size:15px;line-height:1}
+  .cta{background:var(--gold);color:#17171A;font-weight:800;font-size:14px;text-align:center;
+       padding:15px;border-radius:14px}
+  .cta.sec{background:transparent;color:var(--gold);border:1.5px solid rgba(212,176,122,.45)}
+  .bottom{position:absolute;left:12px;right:12px;bottom:12px;z-index:6}
+  .fab{position:absolute;right:14px;bottom:14px;width:56px;height:56px;border-radius:28px;background:var(--gold);
+       color:#17171A;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;z-index:6}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+  .chip{font-size:11px;padding:6px 11px;border-radius:20px;border:1px solid var(--line);color:var(--t2);background:var(--surface)}
+  .chip.on{background:rgba(212,176,122,.16);color:var(--gold);border-color:rgba(212,176,122,.4)}
+  .search{display:flex;align-items:center;gap:8px;background:var(--elev);border:1px solid var(--line);
+          border-radius:12px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:var(--t3)}
+  .big{background:linear-gradient(135deg,rgba(212,176,122,.16),rgba(212,176,122,.04));
+       border:1px solid rgba(212,176,122,.32);border-radius:16px;padding:14px;margin-bottom:10px}
+  .big .t{font-size:15px;font-weight:800}
+  .big .m{font-size:11.5px;color:var(--t2);margin-top:4px}
+  .rowx{display:flex;gap:8px}
+  .rowx>*{flex:1}
+  .step{display:flex;align-items:center;gap:8px;margin-bottom:9px}
+  .step .n{width:22px;height:22px;border-radius:11px;background:var(--elev);border:1px solid var(--line);
+           font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;color:var(--t2);flex:0 0 auto}
+  .step.done .n{background:var(--gold);color:#17171A;border-color:var(--gold)}
+  .step .s{font-size:12px}
+  .bar{height:3px;background:var(--elev);border-radius:2px;overflow:hidden;margin:2px 0 12px}
+  .bar i{display:block;height:100%;background:var(--gold)}
+  .tabbar{display:flex;border-top:1px solid var(--line);background:rgba(20,20,24,.9);flex:0 0 auto}
+  .tabbar div{flex:1;text-align:center;font-size:9px;color:var(--t3);padding:8px 0 10px}
+  .tabbar div.on{color:var(--gold)}
+  .tabbar .ic{font-size:15px;display:block;margin-bottom:2px}
+
+  /* сравнение */
+  table{width:100%;border-collapse:collapse;margin-top:14px;font-size:13px}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--gold);font-size:11px;letter-spacing:.7px;text-transform:uppercase;font-weight:800}
+  td.y{color:var(--good)} td.n{color:var(--bad)}
+  .verdict{margin-top:14px;background:var(--surface);border:1px solid rgba(154,194,140,.3);
+           border-left:3px solid var(--good);border-radius:12px;padding:13px 15px;font-size:13px}
+  .verdict b{color:var(--good)}
+  .taps{font-size:11px;color:var(--t2);margin-top:8px}
+  .taps b{color:var(--text)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Раздел «Тренировки» — варианты редизайна</h1>
+  <p class="lead">Три экрана, по три варианта каждый, рядом для сравнения. Цвета и текст настоящие (Direction A: графит + золото).
+     Зелёная подсветка снизу — зона, куда большой палец достаёт без перехвата телефона; красная сверху — куда дотянуться неудобно.</p>
+  <div class="note">Это макет, не приложение. Выбираешь вариант — реализую в коде.</div>
+
+  <!-- ПРИНЦИПЫ -->
+  <h2><span class="num">0</span>Из чего исходим</h2>
+  <p class="sub">Не «на вкус», а по исследованиям мобильных интерфейсов и по тому, за что хвалят лидеров жанра.</p>
+  <div class="principles">
+    <div class="pr"><b>Зона большого пальца</b><span>49% держат телефон одной рукой. Нижние <i>25–40%</i> экрана — единственная зона без перехвата. Главное действие живёт там.</span></div>
+    <div class="pr"><b>Переход на низ работает</b><span>Одноручное использование <i>34% → 61%</i>, оценка в сторе <i>3.7 → 4.6</i> после переноса навигации вниз.</span></div>
+    <div class="pr"><b>Логирование ≤ 3 шагов</b><span>Скучное и долгое логирование = <i>+40%</i> к вероятности бросить приложение. Цель зала: подход в один тап.</span></div>
+    <div class="pr"><b>Чему учат Strong и Hevy</b><span><i>Strong</i> хвалят за скорость: интерфейс исходит из того, что ты в зале и таймер идёт. <i>Hevy</i> — за вид и шаблоны.</span></div>
+    <div class="pr"><b>Цель Giron</b><span>Взять <i>скорость Strong</i> и <i>премиум-вид Hevy</i>, добавив то, чего нет у обоих — ИИ-тренер прямо в потоке.</span></div>
+    <div class="pr"><b>Касания 44–48pt</b><span>Меньше — промахи пальцем. Особенно важно потными руками в зале.</span></div>
+  </div>
+
+  <!-- ЭКРАН 1 -->
+  <h2><span class="num">1</span>Главный экран «Тренировки»</h2>
+  <p class="sub">Сейчас: три вкладки сверху (Начать / Программы / Библиотека), внутри — списки. Главное действие «начать тренировку» не выделено и живёт в верхней половине.</p>
+
+  <div class="row">
+    <!-- A: сейчас -->
+    <div class="col">
+      <div class="tag cur"><span class="k">A · СЕЙЧАС</span><span class="n">Три вкладки сверху</span></div>
+      <div class="ph">
+        <div class="st"><span>9:41</span><span>▮▮▮</span></div>
+        <div class="ow"></div><div class="thumb"></div>
+        <div class="body">
+          <div class="hdr">Тренировки</div>
+          <div class="seg"><div class="on">Начать</div><div>Программы</div><div>Библиотека</div></div>
+          <div class="lbl">ПРОДОЛЖИТЬ</div>
+          <div class="card"><span class="chev">›</span><div class="t">Грудь + трицепс</div><div class="m">Начата 12 минут назад</div></div>
+          <div class="lbl">МОИ ШАБЛОНЫ</div>
+          <div class="card"><span class="chev">›</span><div class="t">Ноги — база</div><div class="m">5 упражнений · ~55 мин</div></div>
+          <div class="card"><span class="chev">›</span><div class="t">Спина + бицепс</div><div class="m">6 упражнений · ~60 мин</div></div>
+          <div class="lbl">ГОТОВЫЕ КОМПЛЕКСЫ</div>
+          <div class="card"><span class="chev">›</span><div class="t">Full Body для новичка</div><div class="m">3 дня в неделю</div></div>
+        </div>
+        <div class="tabbar"><div><span class="ic">◫</span>Главная</div><div class="on"><span class="ic">◧</span>Трен.</div><div><span class="ic">◑</span>Питание</div><div><span class="ic">◈</span>ИИ</div><div><span class="ic">◉</span>Профиль</div></div>
+      </div>
+      <div class="taps">Начать тренировку: <b>2–3 тапа</b>, оба в верхней половине.</div>
+    </div>
+
+    <!-- B -->
+    <div class="col">
+      <div class="tag"><span class="k">B</span><span class="n">Большая кнопка снизу</span></div>
+      <div class="ph">
+        <div class="st"><span>9:41</span><span>▮▮▮</span></div>
+        <div class="thumb"></div>
+        <div class="body">
+          <div class="hdr">Тренировки</div>
+          <div class="big"><div class="t">Продолжить: Грудь + трицепс</div><div class="m">12 минут назад · 3 из 5 упражнений</div></div>
+          <div class="lbl">БЫСТРЫЙ СТАРТ</div>
+          <div class="card"><span class="chev">›</span><div class="t">Ноги — база</div><div class="m">5 упражнений · ~55 мин</div></div>
+          <div class="card"><span class="chev">›</span><div class="t">Спина + бицепс</div><div class="m">6 упражнений · ~60 мин</div></div>
+          <div class="card"><span class="chev">›</span><div class="t">Full Body для новичка</div><div class="m">Готовый комплекс · 3 дня</div></div>
+        </div>
+        <div class="bottom"><div class="cta">Начать тренировку</div></div>
+        <div class="tabbar" style="opacity:.35"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div>
+      </div>
+      <div class="taps">Начать: <b>1 тап</b> в зоне пальца. Вкладки убраны — всё на одном экране.</div>
+    </div>
+
+    <!-- C -->
+    <div class="col">
+      <div class="tag win"><span class="k">C · рекоменд.</span><span class="n">Две кнопки снизу + сегменты</span></div>
+      <div class="ph">
+        <div class="st"><span>9:41</span><span>▮▮▮</span></div>
+        <div class="thumb"></div>
+        <div class="body">
+          <div class="hdr">Тренировки</div>
+          <div class="search">🔍 Найти упражнение или программу</div>
+          <div class="big"><div class="t">Грудь + трицепс</div><div class="m">Продолжить · 3 из 5 упражнений</div></div>
+          <div class="lbl">МОИ ШАБЛОНЫ</div>
+          <div class="card"><span class="chev">›</span><div class="t">Ноги — база</div><div class="m">5 упражнений · ~55 мин</div></div>
+          <div class="card"><span class="chev">›</span><div class="t">Спина + бицепс</div><div class="m">6 упражнений · ~60 мин</div></div>
+        </div>
+        <div class="bottom">
+          <div class="rowx"><div class="cta">Начать</div><div class="cta sec">Программы</div></div>
+        </div>
+        <div class="tabbar" style="opacity:.35"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div>
+      </div>
+      <div class="taps">Начать: <b>1 тап</b>. Поиск сверху (нужен редко), действия снизу (нужны всегда).</div>
+    </div>
+
+    <!-- D -->
+    <div class="col">
+      <div class="tag"><span class="k">D</span><span class="n">Список + круглая кнопка</span></div>
+      <div class="ph">
+        <div class="st"><span>9:41</span><span>▮▮▮</span></div>
+        <div class="thumb"></div>
+        <div class="body">
+          <div class="hdr">Тренировки</div>
+          <div class="chips"><span class="chip on">Все</span><span class="chip">Мои</span><span class="chip">Готовые</span><span class="chip">Недавние</span></div>
+          <div class="card"><span class="chev">›</span><div class="t">Грудь + трицепс</div><div class="m">Продолжить · 12 мин назад</div></div>
+          <div class="card"><span class="chev">›</span><div class="t">Ноги — база</div><div class="m">5 упражнений · ~55 мин</div></div>
+          <div class="card"><span class="chev">›</span><div class="t">Спина + бицепс</div><div class="m">6 упражнений · ~60 мин</div></div>
+          <div class="card"><span class="chev">›</span><div class="t">Full Body для новичка</div><div class="m">3 дня в неделю</div></div>
+        </div>
+        <div class="fab">+</div>
+        <div class="tabbar" style="opacity:.35"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div>
+      </div>
+      <div class="taps">Одна лента с фильтрами. Круглая кнопка = «создать», не «начать».</div>
+    </div>
+  </div>
+
+  <table>
+    <tr><th>Критерий</th><th>A · сейчас</th><th>B</th><th>C</th><th>D</th></tr>
+    <tr><td>Тапов до старта тренировки</td><td class="n">2–3</td><td class="y">1</td><td class="y">1</td><td>2</td></tr>
+    <tr><td>Главное действие в зоне пальца</td><td class="n">нет</td><td class="y">да</td><td class="y">да</td><td class="n">нет (кнопка = создать)</td></tr>
+    <tr><td>Видно всё без переключения вкладок</td><td class="n">нет</td><td class="y">да</td><td class="y">да</td><td class="y">да</td></tr>
+    <tr><td>Куда делись «Программы» и «Библиотека»</td><td>вкладки</td><td class="n">спрятаны</td><td>кнопка + поиск</td><td>фильтры</td></tr>
+    <tr><td>Премиум-ощущение</td><td>среднее</td><td class="y">высокое</td><td class="y">высокое</td><td>среднее</td></tr>
+  </table>
+  <div class="verdict"><b>Вывод:</b> B и C побеждают по эргономике. У B нет очевидного пути к программам и библиотеке — риск, что их перестанут находить.
+     <b>C</b> закрывает это: поиск сверху, вторая кнопка «Программы» рядом с главной. D красив, но его круглая кнопка означает «создать», а не «начать» — самое частое действие снова наверху.</div>
+
+  <!-- ЭКРАН 2 -->
+  <h2><span class="num">2</span>Поиск и подбор программы</h2>
+  <p class="sub">Сейчас: кнопка «Создать программу» и общий список «Готовые программы» — 25 штук подряд, без фильтров и без подсказки, какая подойдёт именно тебе.</p>
+
+  <div class="row">
+    <div class="col">
+      <div class="tag cur"><span class="k">A · СЕЙЧАС</span><span class="n">Один длинный список</span></div>
+      <div class="ph">
+        <div class="st"><span>9:41</span><span>▮▮▮</span></div>
+        <div class="ow"></div><div class="thumb"></div>
+        <div class="body">
+          <div class="hdr">Программы</div>
+          <div class="cta" style="margin-bottom:12px">Создать программу</div>
+          <div class="lbl">ГОТОВЫЕ ПРОГРАММЫ</div>
+          <div class="card"><span class="chev">›</span><div class="t">Full Body для новичка</div><div class="m">3 дня · 8 недель</div></div>
+          <div class="card"><span class="chev">›</span><div class="t">Push Pull Legs</div><div class="m">6 дней · 12 недель</div></div>
+          <div class="card"><span class="chev">›</span><div class="t">Верх / низ</div><div class="m">4 дня · 10 недель</div></div>
+          <div class="card"><span class="chev">›</span><div class="t">Сила 5×5</div><div class="m">3 дня · 12 недель</div></div>
+        </div>
+        <div class="tabbar" style="opacity:.35"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div>
+      </div>
+      <div class="taps">25 программ подряд. <b>Как выбрать — непонятно.</b></div>
+    </div>
+
+    <div class="col">
+      <div class="tag"><span class="k">B</span><span class="n">Фильтры-чипы</span></div>
+      <div class="ph">
+        <div class="st"><span>9:41</span><span>▮▮▮</span></div>
+        <div class="thumb"></div>
+        <div class="body">
+          <div class="hdr">Программы</div>
+          <div class="search">🔍 Поиск программы</div>
+          <div class="chips"><span class="chip on">Все</span><span class="chip">Масса</span><span class="chip">Сила</span><span class="chip">Похудение</span></div>
+          <div class="chips"><span class="chip">2 дня</span><span class="chip on">3 дня</span><span class="chip">4+</span><span class="chip">Новичок</span></div>
+          <div class="card"><span class="chev">›</span><div class="t">Full Body для новичка</div><div class="m">3 дня · 8 недель · масса</div></div>
+          <div class="card"><span class="chev">›</span><div class="t">Сила 5×5</div><div class="m">3 дня · 12 недель · сила</div></div>
+          <div class="card"><span class="chev">›</span><div class="t">Верх / низ</div><div class="m">3 дня · 10 недель</div></div>
+        </div>
+        <div class="tabbar" style="opacity:.35"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div>
+      </div>
+      <div class="taps">Знакомо и быстро. Но фильтры сверху — <b>вне зоны пальца</b>.</div>
+    </div>
+
+    <div class="col">
+      <div class="tag win"><span class="k">C · рекоменд.</span><span class="n">«Подобрать за 3 вопроса»</span></div>
+      <div class="ph">
+        <div class="st"><span>9:41</span><span>▮▮▮</span></div>
+        <div class="thumb"></div>
+        <div class="body">
+          <div class="hdr">Программы</div>
+          <div class="big"><div class="t">Подобрать под меня</div><div class="m">3 вопроса — цель, дни, опыт. ИИ соберёт программу</div></div>
+          <div class="lbl">ПОПУЛЯРНОЕ СЕЙЧАС</div>
+          <div class="card"><span class="chev">›</span><div class="t">Full Body для новичка</div><div class="m">3 дня · 8 недель · масса</div></div>
+          <div class="card"><span class="chev">›</span><div class="t">Push Pull Legs</div><div class="m">6 дней · 12 недель</div></div>
+          <div class="lbl">ВСЕ ПРОГРАММЫ · 25</div>
+          <div class="card"><span class="chev">›</span><div class="t">Сила 5×5</div><div class="m">3 дня · 12 недель</div></div>
+        </div>
+        <div class="bottom"><div class="rowx"><div class="cta">Подобрать</div><div class="cta sec">Фильтры</div></div></div>
+        <div class="tabbar" style="opacity:.35"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div>
+      </div>
+      <div class="taps">Новичку — «подобрать», опытному — «фильтры». Обе кнопки <b>в зоне пальца</b>.</div>
+    </div>
+
+    <div class="col">
+      <div class="tag"><span class="k">D</span><span class="n">Карточки-обложки</span></div>
+      <div class="ph">
+        <div class="st"><span>9:41</span><span>▮▮▮</span></div>
+        <div class="thumb"></div>
+        <div class="body">
+          <div class="hdr">Программы</div>
+          <div class="big" style="height:96px"><div class="t">Push Pull Legs</div><div class="m">6 дней · 12 недель · для опытных</div></div>
+          <div class="big" style="height:96px;background:linear-gradient(135deg,rgba(154,194,140,.14),rgba(154,194,140,.03));border-color:rgba(154,194,140,.3)">
+            <div class="t">Full Body для новичка</div><div class="m">3 дня · 8 недель · старт с нуля</div></div>
+          <div class="big" style="height:96px;background:linear-gradient(135deg,rgba(232,163,106,.14),rgba(232,163,106,.03));border-color:rgba(232,163,106,.3)">
+            <div class="t">Сила 5×5</div><div class="m">3 дня · 12 недель · присед/жим/тяга</div></div>
+        </div>
+        <div class="tabbar" style="opacity:.35"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div>
+      </div>
+      <div class="taps">Самый «журнальный» вид. Но на экран влезает <b>3 программы вместо 6</b>.</div>
+    </div>
+  </div>
+
+  <table>
+    <tr><th>Критерий</th><th>A · сейчас</th><th>B</th><th>C</th><th>D</th></tr>
+    <tr><td>Новичок понимает, что выбрать</td><td class="n">нет</td><td>частично</td><td class="y">да</td><td>частично</td></tr>
+    <tr><td>Опытный быстро отфильтрует</td><td class="n">нет</td><td class="y">да</td><td class="y">да</td><td class="n">нет</td></tr>
+    <tr><td>Программ видно на экране</td><td>6</td><td>5</td><td>5</td><td class="n">3</td></tr>
+    <tr><td>Управление в зоне пальца</td><td class="n">нет</td><td class="n">нет</td><td class="y">да</td><td>—</td></tr>
+    <tr><td>Использует сильную сторону Giron (ИИ)</td><td class="n">нет</td><td class="n">нет</td><td class="y">да</td><td class="n">нет</td></tr>
+  </table>
+  <div class="verdict"><b>Вывод:</b> <b>C</b> — единственный вариант, который решает главную проблему: человек не знает, какая из 25 программ ему нужна.
+     Он же продаёт ИИ-тренера в момент, когда тот реально полезен. Фильтры из B никуда не деваются — они за второй кнопкой.</div>
+
+  <!-- ЭКРАН 3 -->
+  <h2><span class="num">3</span>Составление программы</h2>
+  <p class="sub">Сейчас: мастер на 1361 строку кода — Далее → День → Упражнения → Сохранить. Пока не пройдёшь все шаги, ничего не получишь.</p>
+
+  <div class="row">
+    <div class="col">
+      <div class="tag cur"><span class="k">A · СЕЙЧАС</span><span class="n">Мастер по шагам</span></div>
+      <div class="ph">
+        <div class="st"><span>9:41</span><span>▮▮▮</span></div>
+        <div class="ow"></div><div class="thumb"></div>
+        <div class="body">
+          <div class="hdr">Новая программа</div>
+          <div class="bar"><i style="width:33%"></i></div>
+          <div class="step done"><span class="n">1</span><span class="s">Название и цель</span></div>
+          <div class="step"><span class="n">2</span><span class="s">Дни недели</span></div>
+          <div class="step"><span class="n">3</span><span class="s">Упражнения на каждый день</span></div>
+          <div class="card" style="margin-top:14px"><div class="t">Название</div><div class="m">Моя программа</div></div>
+          <div class="card"><div class="t">Цель</div><div class="m">Набор массы</div></div>
+          <div class="bottom" style="bottom:64px"><div class="cta">Далее</div></div>
+        </div>
+        <div class="tabbar" style="opacity:.35"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div>
+      </div>
+      <div class="taps">Результат виден <b>только в конце</b>. Бросил на шаге 2 — не осталось ничего.</div>
+    </div>
+
+    <div class="col">
+      <div class="tag win"><span class="k">B · рекоменд.</span><span class="n">Готовый каркас + правка</span></div>
+      <div class="ph">
+        <div class="st"><span>9:41</span><span>▮▮▮</span></div>
+        <div class="thumb"></div>
+        <div class="body">
+          <div class="hdr">Моя программа</div>
+          <div class="chips"><span class="chip on">Пн</span><span class="chip on">Ср</span><span class="chip on">Пт</span><span class="chip">Сб</span></div>
+          <div class="lbl">ПОНЕДЕЛЬНИК · ГРУДЬ</div>
+          <div class="card"><span class="chev">✎</span><div class="t">Жим лёжа</div><div class="m">4 × 8 · 60 кг</div></div>
+          <div class="card"><span class="chev">✎</span><div class="t">Разводка гантелей</div><div class="m">3 × 12</div></div>
+          <div class="card" style="border-style:dashed;color:var(--t3)"><div class="t" style="color:var(--gold)">+ Добавить упражнение</div></div>
+          <div class="lbl">СРЕДА · СПИНА</div>
+          <div class="card"><span class="chev">✎</span><div class="t">Подтягивания</div><div class="m">4 × макс</div></div>
+        </div>
+        <div class="bottom"><div class="rowx"><div class="cta">Сохранить</div><div class="cta sec">ИИ соберёт</div></div></div>
+        <div class="tabbar" style="opacity:.35"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div>
+      </div>
+      <div class="taps">Программа <b>существует сразу</b> — правишь готовое. Бросил — она уже сохранена.</div>
+    </div>
+
+    <div class="col">
+      <div class="tag"><span class="k">C</span><span class="n">Разговор с ИИ</span></div>
+      <div class="ph">
+        <div class="st"><span>9:41</span><span>▮▮▮</span></div>
+        <div class="thumb"></div>
+        <div class="body">
+          <div class="hdr">Собрать программу</div>
+          <div class="card" style="background:var(--elev)"><div class="m" style="color:var(--gold);margin:0 0 4px">Iron Coach</div><div class="t" style="font-weight:500;font-size:12.5px">Сколько дней в неделю готов тренироваться?</div></div>
+          <div class="chips" style="justify-content:flex-end"><span class="chip on">3 дня</span></div>
+          <div class="card" style="background:var(--elev)"><div class="m" style="color:var(--gold);margin:0 0 4px">Iron Coach</div><div class="t" style="font-weight:500;font-size:12.5px">Цель — масса, сила или похудение?</div></div>
+          <div class="chips" style="justify-content:flex-end"><span class="chip">Масса</span><span class="chip">Сила</span><span class="chip">Похудеть</span></div>
+        </div>
+        <div class="bottom"><div class="cta sec">Пропустить и собрать вручную</div></div>
+        <div class="tabbar" style="opacity:.35"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div>
+      </div>
+      <div class="taps">Самый «вау». Но каждый вопрос — <b>запрос к ИИ</b>: деньги и ожидание.</div>
+    </div>
+
+    <div class="col">
+      <div class="tag"><span class="k">D</span><span class="n">Один экран-конструктор</span></div>
+      <div class="ph">
+        <div class="st"><span>9:41</span><span>▮▮▮</span></div>
+        <div class="ow"></div><div class="thumb"></div>
+        <div class="body">
+          <div class="hdr">Новая программа</div>
+          <div class="card"><div class="t">Название</div><div class="m">Моя программа</div></div>
+          <div class="rowx" style="margin-bottom:8px">
+            <div class="card" style="margin:0"><div class="t">Дней</div><div class="m">3</div></div>
+            <div class="card" style="margin:0"><div class="t">Цель</div><div class="m">Масса</div></div>
+            <div class="card" style="margin:0"><div class="t">Недель</div><div class="m">8</div></div>
+          </div>
+          <div class="lbl">ДНИ</div>
+          <div class="card"><span class="chev">›</span><div class="t">День 1 — Грудь</div><div class="m">0 упражнений — нажми, чтобы добавить</div></div>
+          <div class="card"><span class="chev">›</span><div class="t">День 2 — Спина</div><div class="m">0 упражнений</div></div>
+        </div>
+        <div class="bottom"><div class="cta">Сохранить программу</div></div>
+        <div class="tabbar" style="opacity:.35"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div>
+      </div>
+      <div class="taps">Всё на одном экране, без шагов. Но перед тобой <b>пустые дни</b> — надо всё заполнить.</div>
+    </div>
+  </div>
+
+  <table>
+    <tr><th>Критерий</th><th>A · сейчас</th><th>B</th><th>C</th><th>D</th></tr>
+    <tr><td>Есть результат, если бросил на середине</td><td class="n">нет</td><td class="y">да</td><td class="n">нет</td><td>частично</td></tr>
+    <tr><td>Тапов до готовой программы</td><td class="n">10+</td><td class="y">1–2</td><td>4–5</td><td>8+</td></tr>
+    <tr><td>Не пугает пустотой</td><td class="n">нет</td><td class="y">да</td><td class="y">да</td><td class="n">нет</td></tr>
+    <tr><td>Стоит денег за вызовы ИИ</td><td class="y">нет</td><td class="y">нет</td><td class="n">да</td><td class="y">нет</td></tr>
+    <tr><td>Сложность реализации</td><td>—</td><td>средняя</td><td class="n">высокая</td><td>низкая</td></tr>
+  </table>
+  <div class="verdict"><b>Вывод:</b> <b>B</b> сильнее всех: программа создаётся сразу из выбранного сплита, и человек не строит с нуля, а правит готовое —
+     то, за что хвалят Strong («шаблон + быстрая правка»). Кнопка «ИИ соберёт» оставляет вау-эффект варианта C, но как выбор, а не как обязательный путь.</div>
+
+  <!-- ИТОГ -->
+  <h2><span class="num">4</span>Что рекомендую собрать</h2>
+  <div class="verdict" style="border-left-color:var(--gold);border-color:rgba(212,176,122,.35)">
+    <b style="color:var(--gold)">Связка 1C + 2C + 3B.</b> Главный экран — поиск сверху, «Начать» и «Программы» снизу в зоне пальца.
+    Программы — «Подобрать под меня» первым блоком, фильтры второй кнопкой. Составление — сразу готовый каркас на выбранные дни, правка вместо создания с нуля,
+    с кнопкой «ИИ соберёт» как ускорителем. Это даёт: <b>старт тренировки в 1 тап</b> (было 2–3), <b>понятный выбор программы</b> (было «25 штук подряд»)
+    и <b>программу за 1–2 тапа</b> (было 10+).
+  </div>
+
+</div>
+</body>
+</html>

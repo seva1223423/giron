@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
@@ -10,6 +10,8 @@ import { exercises as localExercises } from '../../data/exercises';
 import { ExerciseVideoCard, ExerciseStatsCard } from './exercise';
 import { exerciseVideoSource, exerciseThumbSource } from '../../config/store';
 import { estimateOneRepMax } from '../../utils/oneRepMax';
+import { workoutService } from '../../services';
+import type { Exercise } from '../../types';
 
 const MUSCLE_LABELS: Record<string, string> = {
   chest: 'Грудь', back: 'Спина', shoulders: 'Плечи', biceps: 'Бицепс',
@@ -40,17 +42,28 @@ export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = (
   const { exerciseId } = route.params ?? {};
   const colors = useThemeColors();
   const { workoutHistory, activeWorkout, addExerciseToWorkout, customExercises } = useWorkoutStore();
-  const allExercises = useMemo(() => [...customExercises, ...localExercises], [customExercises]);
+  // The library list replaces its data with workoutService.getExercises(), but
+  // this screen only ever searched the bundled file — so opening any exercise
+  // that exists only on the server showed "Упражнение не найдено" (audit W8).
+  const [serverExercises, setServerExercises] = useState<Exercise[]>([]);
+  const [lookingUp, setLookingUp] = useState(false);
+  const allExercises = useMemo(
+    () => [...customExercises, ...localExercises, ...serverExercises],
+    [customExercises, serverExercises],
+  );
 
   const exercise = allExercises.find((e) => e.id === exerciseId);
-  if (!exercise) {
-    return (
-      <View style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]}>
-        <Text style={[typography.h3, { color: colors.text }]}>Упражнение не найдено</Text>
-        <Button title="Назад" onPress={() => navigation.goBack()} style={{ marginTop: spacing.xl }} />
-      </View>
-    );
-  }
+
+  useEffect(() => {
+    if (exercise || !exerciseId) return;
+    let alive = true;
+    setLookingUp(true);
+    workoutService.getExercises()
+      .then((list) => { if (alive) setServerExercises(list); })
+      .catch(() => { /* offline — the not-found screen below is the honest answer */ })
+      .finally(() => { if (alive) setLookingUp(false); });
+    return () => { alive = false; };
+  }, [exercise, exerciseId]);
 
   const exerciseHistory = useMemo(() =>
     workoutHistory
@@ -100,15 +113,30 @@ export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = (
   }, [exerciseHistory]);
 
   // Similar exercises: same primary muscle, different exercise, same category
-  const similarExercises = useMemo(() =>
-    allExercises
+  const similarExercises = useMemo(() => {
+    if (!exercise) return [];
+    return allExercises
       .filter((e) =>
         e.id !== exerciseId &&
         e.category === exercise.category &&
         e.primaryMuscles.some((m) => exercise.primaryMuscles.includes(m))
       )
-      .slice(0, 5),
-  [allExercises, exerciseId, exercise]);
+      .slice(0, 5);
+  }, [allExercises, exerciseId, exercise]);
+
+  // The early return lives HERE, below every hook. It used to sit above four
+  // useMemo calls, so the hook order changed between renders the moment the
+  // exercise resolved — a rules-of-hooks violation that React can crash on.
+  if (!exercise) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={[typography.h3, { color: colors.text }]}>
+          {lookingUp ? 'Загружаем упражнение…' : 'Упражнение не найдено'}
+        </Text>
+        <Button title="Назад" onPress={() => navigation.goBack()} style={{ marginTop: spacing.xl }} />
+      </View>
+    );
+  }
 
   const difficultyColor = DIFFICULTY_COLORS[exercise.difficulty] || colors.textSecondary;
 

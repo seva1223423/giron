@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Giron — тренировки: варианты после большого аудита</title>
+<style>
+  :root{--bg:#0E0E0F;--sf:#17171A;--el:#1E1E22;--gold:#D4B07A;--tx:#F4F1EA;--t2:#A8A49C;--t3:#6B6860;
+        --ln:rgba(255,255,255,.08);--good:#9AC28C;--warn:#E8A36A;--bad:#E07A6B}
+  *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,'Segoe UI',Roboto,sans-serif}
+  body{background:#0a0a0b;color:var(--tx);padding:26px 20px 70px;line-height:1.45}
+  .wrap{max-width:1560px;margin:0 auto}
+  h1{font-size:26px;font-weight:800;letter-spacing:-.4px}
+  .lead{color:var(--t2);font-size:13.5px;margin:7px 0;max-width:940px}
+  .note{display:inline-block;font-size:11px;color:var(--gold);border:1px solid rgba(212,176,122,.35);
+        background:rgba(212,176,122,.08);padding:3px 10px;border-radius:20px;margin-top:8px}
+  h2{font-size:18px;font-weight:800;margin:40px 0 3px;padding-top:22px;border-top:1px solid var(--ln)}
+  h2 .n{color:var(--gold);margin-right:8px}
+  .prob{background:rgba(224,122,107,.08);border:1px solid rgba(224,122,107,.25);border-left:3px solid var(--bad);
+        border-radius:10px;padding:10px 13px;font-size:12.5px;color:var(--t2);margin:10px 0 18px;max-width:1100px}
+  .prob b{color:var(--bad)}
+  .row{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start}
+  .col{width:296px;flex:0 0 auto}
+  .tag{display:flex;align-items:center;gap:8px;margin-bottom:8px;min-height:24px}
+  .tag .k{font-size:10.5px;font-weight:800;letter-spacing:.6px;padding:3px 8px;border-radius:6px;
+          background:rgba(212,176,122,.14);color:var(--gold);border:1px solid rgba(212,176,122,.3)}
+  .tag .nm{font-size:12.5px;font-weight:700}
+  .cur .k{background:rgba(224,122,107,.14);color:var(--bad);border-color:rgba(224,122,107,.3)}
+  .win .k{background:rgba(154,194,140,.16);color:var(--good);border-color:rgba(154,194,140,.35)}
+  .ph{position:relative;width:296px;height:590px;background:var(--bg);border:2px solid #26262b;border-radius:26px;
+      overflow:hidden;display:flex;flex-direction:column}
+  .st{height:24px;display:flex;align-items:center;justify-content:space-between;padding:0 13px;font-size:9.5px;color:var(--t3);flex:0 0 auto}
+  .bd{flex:1;overflow:hidden;position:relative;padding:0 12px}
+  .hd{font-size:18px;font-weight:800;padding:2px 2px 9px}
+  .thumb{position:absolute;left:0;right:0;bottom:0;height:38%;pointer-events:none;z-index:4;
+         background:linear-gradient(to top,rgba(154,194,140,.18),rgba(154,194,140,0))}
+  .thumb::after{content:'зона пальца';position:absolute;left:8px;bottom:5px;font-size:8.5px;color:rgba(154,194,140,.9)}
+  .ow{position:absolute;left:0;right:0;top:0;height:20%;pointer-events:none;z-index:4;
+      background:linear-gradient(to bottom,rgba(224,122,107,.16),rgba(224,122,107,0))}
+  .ow::after{content:'не дотянуться';position:absolute;right:8px;top:5px;font-size:8.5px;color:rgba(224,122,107,.95)}
+  .lb{font-size:9.5px;letter-spacing:.9px;color:var(--t3);font-weight:700;margin:11px 2px 6px}
+  .c{background:var(--sf);border:1px solid var(--ln);border-radius:13px;padding:10px 11px;margin-bottom:7px}
+  .c .t{font-size:12.5px;font-weight:700}
+  .c .m{font-size:10.5px;color:var(--t2);margin-top:3px}
+  .cv{float:right;color:var(--t3);font-size:14px;line-height:1}
+  .cta{background:var(--gold);color:#17171A;font-weight:800;font-size:13.5px;text-align:center;padding:14px;border-radius:13px}
+  .cta.s{background:transparent;color:var(--gold);border:1.5px solid rgba(212,176,122,.45)}
+  .cta.g{background:var(--el);color:var(--tx);border:1px solid var(--ln)}
+  .bot{position:absolute;left:12px;right:12px;bottom:11px;z-index:6}
+  .rw{display:flex;gap:7px}.rw>*{flex:1}
+  .hero{background:linear-gradient(135deg,rgba(212,176,122,.18),rgba(212,176,122,.04));
+        border:1px solid rgba(212,176,122,.34);border-radius:16px;padding:13px;margin-bottom:9px}
+  .hero .t{font-size:15px;font-weight:800}.hero .m{font-size:11px;color:var(--t2);margin-top:3px}
+  .chips{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:9px}
+  .chip{font-size:10.5px;padding:5px 10px;border-radius:18px;border:1px solid var(--ln);color:var(--t2);background:var(--sf)}
+  .chip.on{background:rgba(212,176,122,.16);color:var(--gold);border-color:rgba(212,176,122,.4)}
+  .tb{display:flex;border-top:1px solid var(--ln);background:rgba(20,20,24,.9);flex:0 0 auto;opacity:.4}
+  .tb div{flex:1;text-align:center;font-size:13px;color:var(--t3);padding:9px 0 11px}
+  .tb div.on{color:var(--gold)}
+  /* строка подхода */
+  .set{display:flex;align-items:center;gap:5px;background:var(--sf);border:1px solid var(--ln);
+       border-radius:11px;padding:7px 8px;margin-bottom:6px}
+  .set .no{width:20px;font-size:11px;color:var(--t3);text-align:center;flex:0 0 auto}
+  .stp{display:flex;align-items:center;gap:3px;flex:1}
+  .stp .b{width:26px;height:34px;border-radius:7px;background:var(--el);border:1px solid var(--ln);
+          display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--t2);flex:0 0 auto}
+  .stp .f{flex:1;height:34px;border-radius:7px;background:var(--el);border:1px solid var(--ln);
+          display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700}
+  .set .ok{width:34px;height:34px;border-radius:8px;background:rgba(154,194,140,.18);border:1px solid rgba(154,194,140,.4);
+           color:var(--good);display:flex;align-items:center;justify-content:center;font-size:15px;flex:0 0 auto}
+  .set.done{opacity:.45}
+  .set.live{border-color:rgba(212,176,122,.5);background:rgba(212,176,122,.07)}
+  .wide .f{font-size:15px}
+  .rest{position:absolute;left:12px;right:12px;bottom:11px;background:var(--el);border:1px solid rgba(212,176,122,.35);
+        border-radius:13px;padding:11px 13px;display:flex;align-items:center;justify-content:space-between;z-index:7}
+  .rest .tm{font-size:19px;font-weight:800;color:var(--gold)}
+  .restbig{position:absolute;inset:0;background:rgba(14,14,15,.96);z-index:7;display:flex;flex-direction:column;
+           align-items:center;justify-content:center;gap:10px}
+  .restbig .tm{font-size:52px;font-weight:800;color:var(--gold)}
+  table{width:100%;border-collapse:collapse;margin-top:13px;font-size:12.5px}
+  th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--ln);vertical-align:top}
+  th{color:var(--gold);font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;font-weight:800}
+  td.y{color:var(--good)}td.n{color:var(--bad)}
+  .vd{margin-top:13px;background:var(--sf);border:1px solid rgba(154,194,140,.3);border-left:3px solid var(--good);
+      border-radius:12px;padding:12px 14px;font-size:12.5px}
+  .vd b{color:var(--good)}
+  .taps{font-size:10.5px;color:var(--t2);margin-top:7px}.taps b{color:var(--tx)}
+</style>
+</head>
+<body><div class="wrap">
+
+<h1>Тренировки — варианты после большого аудита</h1>
+<p class="lead">Два разбора нашли 45 проблем по всему приложению и 31 в разделе тренировок. Здесь — варианты для пяти самых больных экранов.
+   Зелёным снизу подсвечена зона большого пальца, красным сверху — куда одной рукой не дотянуться.</p>
+<div class="note">Макет, не приложение. Выбираешь — реализую.</div>
+
+<!-- 1 -->
+<h2><span class="n">1</span>Что тренировать сегодня</h2>
+<div class="prob"><b>Проблема W1 (критично):</b> даже после активации программы приложение нигде не говорит, какой сегодня день и что делать.
+   Пользователь сам вспоминает, на чём остановился. Сейчас: 5–6 тапов и догадка. Должно быть: 1 тап.</div>
+<div class="row">
+  <div class="col"><div class="tag cur"><span class="k">СЕЙЧАС</span><span class="nm">Три вкладки, плана нет</span></div>
+    <div class="ph"><div class="st"><span>9:41</span><span>▮▮</span></div><div class="ow"></div><div class="thumb"></div>
+      <div class="bd"><div class="hd">Тренировки</div>
+        <div class="chips"><span class="chip on">Начать</span><span class="chip">Программы</span><span class="chip">Библиотека</span></div>
+        <div class="lb">МОИ ШАБЛОНЫ</div>
+        <div class="c"><span class="cv">›</span><div class="t">Ноги — база</div><div class="m">5 упражнений</div></div>
+        <div class="c"><span class="cv">›</span><div class="t">Спина + бицепс</div><div class="m">6 упражнений</div></div>
+        <div class="lb">ГОТОВЫЕ КОМПЛЕКСЫ</div>
+        <div class="c"><span class="cv">›</span><div class="t">Full Body</div><div class="m">3 дня в неделю</div></div></div>
+      <div class="tb"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div></div>
+    <div class="taps">Какой сегодня день программы — <b>нигде не сказано</b>.</div></div>
+
+  <div class="col"><div class="tag win"><span class="k">A · рекоменд.</span><span class="nm">Карточка «Сегодня»</span></div>
+    <div class="ph"><div class="st"><span>9:41</span><span>▮▮</span></div><div class="thumb"></div>
+      <div class="bd"><div class="hd">Сегодня</div>
+        <div class="hero"><div class="t">День 3 · Грудь и трицепс</div><div class="m">Неделя 2 из 8 · 5 упражнений · ~55 мин</div>
+          <div style="margin-top:9px;font-size:11px;color:var(--t2)">Жим лёжа · Разводка · Брусья · Французский · Разгибания</div></div>
+        <div class="lb">ЕСЛИ СЕГОДНЯ НЕ ПО ПЛАНУ</div>
+        <div class="c"><span class="cv">›</span><div class="t">Повторить прошлую</div><div class="m">Спина + бицепс · вчера</div></div>
+        <div class="c"><span class="cv">›</span><div class="t">Свободная тренировка</div><div class="m">Собрать на ходу</div></div></div>
+      <div class="bot"><div class="cta">Начать день 3</div></div>
+      <div class="tb"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div></div>
+    <div class="taps">Ответ на «что делать» — <b>сразу</b>. Старт — <b>1 тап</b> в зоне пальца.</div></div>
+
+  <div class="col"><div class="tag"><span class="k">B</span><span class="nm">Очередь программы</span></div>
+    <div class="ph"><div class="st"><span>9:41</span><span>▮▮</span></div><div class="thumb"></div>
+      <div class="bd"><div class="hd">Full Body · нед. 2</div>
+        <div class="c live" style="border-color:rgba(212,176,122,.5);background:rgba(212,176,122,.07)">
+          <div class="t">День 3 — сегодня</div><div class="m">Грудь и трицепс · 5 упражнений</div></div>
+        <div class="c"><div class="t" style="color:var(--t2)">День 4 — пятница</div><div class="m">Спина</div></div>
+        <div class="c"><div class="t" style="color:var(--t2)">День 5 — суббота</div><div class="m">Ноги</div></div>
+        <div class="lb">ПРОПУЩЕНО</div>
+        <div class="c" style="opacity:.55"><div class="t">День 2 — среда</div><div class="m">Наверстать?</div></div></div>
+      <div class="bot"><div class="cta">Начать день 3</div></div>
+      <div class="tb"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div></div>
+    <div class="taps">Видно всю программу и пропуски. Свободная тренировка — <b>второстепенна</b>.</div></div>
+
+  <div class="col"><div class="tag"><span class="k">C</span><span class="nm">Полоса недели</span></div>
+    <div class="ph"><div class="st"><span>9:41</span><span>▮▮</span></div><div class="thumb"></div>
+      <div class="bd"><div class="hd">Тренировки</div>
+        <div class="chips"><span class="chip">Пн</span><span class="chip" style="opacity:.5">Вт</span><span class="chip on">Ср</span>
+          <span class="chip" style="opacity:.5">Чт</span><span class="chip">Пт</span><span class="chip" style="opacity:.5">Сб</span><span class="chip" style="opacity:.5">Вс</span></div>
+        <div class="hero"><div class="t">Среда · Грудь и трицепс</div><div class="m">5 упражнений · ~55 мин</div></div>
+        <div class="lb">УПРАЖНЕНИЯ ДНЯ</div>
+        <div class="c"><div class="t">Жим лёжа</div><div class="m">4 × 8 · 60 кг</div></div>
+        <div class="c"><div class="t">Разводка гантелей</div><div class="m">3 × 12</div></div></div>
+      <div class="bot"><div class="cta">Начать</div></div>
+      <div class="tb"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div></div>
+    <div class="taps">Календарный вид. Но пропуск дня <b>ломает раскладку</b> по дням недели.</div></div>
+</div>
+<table>
+  <tr><th>Критерий</th><th>Сейчас</th><th>A</th><th>B</th><th>C</th></tr>
+  <tr><td>Отвечает «что тренировать сегодня»</td><td class="n">нет</td><td class="y">да</td><td class="y">да</td><td class="y">да</td></tr>
+  <tr><td>Тапов до старта</td><td class="n">5–6</td><td class="y">1</td><td class="y">1</td><td class="y">1</td></tr>
+  <tr><td>Работает без активной программы</td><td class="y">да</td><td class="y">да</td><td class="n">пусто</td><td>частично</td></tr>
+  <tr><td>Переживает пропущенный день</td><td>—</td><td class="y">да</td><td class="y">да</td><td class="n">нет</td></tr>
+  <tr><td>Свободная тренировка на виду</td><td class="y">да</td><td class="y">да</td><td class="n">нет</td><td class="n">нет</td></tr>
+</table>
+<div class="vd"><b>Вывод:</b> <b>A</b> — единственный, кто отвечает на главный вопрос и при этом не ломается, когда программы нет или день пропущен.
+  Очередь из B хороша, но делает свободную тренировку второсортной, а у нас половина людей ходит без программы.</div>
+
+<!-- 2 -->
+<h2><span class="n">2</span>Журнал подходов — ядро продукта</h2>
+<div class="prob"><b>Проблемы W3, W14, W2 (критично):</b> первый подход уходит за нижний край — над ним ~400pt подсказок.
+   Шаг веса жёстко ±2.5 без ускорения: до 100 кг это <b>40 тапов</b>. Засчитанный подход исправить нельзя — промах по галочке записывает 0 кг навсегда.</div>
+<div class="row">
+  <div class="col"><div class="tag cur"><span class="k">СЕЙЧАС</span><span class="nm">Подсказки сверху</span></div>
+    <div class="ph"><div class="st"><span>9:41</span><span>▮▮</span></div><div class="ow"></div><div class="thumb"></div>
+      <div class="bd"><div class="hd" style="font-size:15px">Жим лёжа</div>
+        <div class="hero"><div class="t">Подход 2 из 4</div><div class="m">Тап — редактировать</div></div>
+        <div class="c" style="font-size:10.5px;color:var(--t2)">Прошлый раз: 100 × 8</div>
+        <div class="c" style="font-size:10.5px;color:var(--t2)">Рекорд: 105 кг</div>
+        <div class="c" style="font-size:10.5px;color:var(--t2)">Совет: держи лопатки сведёнными</div>
+        <div class="set done"><span class="no">1</span><div class="stp"><span class="b">−</span><span class="f">100</span><span class="b">+</span></div>
+          <div class="stp"><span class="b">−</span><span class="f">8</span><span class="b">+</span></div><span class="ok">✓</span></div>
+        <div class="set live"><span class="no">2</span><div class="stp"><span class="b">−</span><span class="f">100</span><span class="b">+</span></div>
+          <div class="stp"><span class="b">−</span><span class="f">8</span><span class="b">+</span></div><span class="ok">✓</span></div></div>
+      <div class="tb"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div></div>
+    <div class="taps">Активный подход <b>у нижнего края</b>, поле веса зажато между ±.</div></div>
+
+  <div class="col"><div class="tag win"><span class="k">A · рекоменд.</span><span class="nm">Журнал сразу, подсказка — строкой</span></div>
+    <div class="ph"><div class="st"><span>9:41</span><span>▮▮</span></div><div class="thumb"></div>
+      <div class="bd"><div class="hd" style="font-size:15px">Жим лёжа <span style="font-size:11px;color:var(--t3);font-weight:500">· 2 из 4</span></div>
+        <div style="font-size:10.5px;color:var(--t2);margin-bottom:9px">Прошлый раз 100 × 8 · рекорд 105 кг</div>
+        <div class="set done wide"><span class="no">1</span><div class="stp"><span class="f">100</span></div><div class="stp"><span class="f">8</span></div><span class="ok">✓</span></div>
+        <div class="set live wide"><span class="no">2</span>
+          <div class="stp"><span class="b">−</span><span class="f">100</span><span class="b">+</span></div>
+          <div class="stp"><span class="b">−</span><span class="f">8</span><span class="b">+</span></div><span class="ok">✓</span></div>
+        <div class="set"><span class="no">3</span><div class="stp"><span class="f" style="color:var(--t3)">100</span></div><div class="stp"><span class="f" style="color:var(--t3)">8</span></div><span class="ok" style="opacity:.35">✓</span></div>
+        <div class="set"><span class="no">4</span><div class="stp"><span class="f" style="color:var(--t3)">100</span></div><div class="stp"><span class="f" style="color:var(--t3)">8</span></div><span class="ok" style="opacity:.35">✓</span></div>
+        <div class="chips" style="margin-top:8px"><span class="chip">92.5</span><span class="chip">95</span><span class="chip on">100</span><span class="chip">102.5</span><span class="chip">105</span></div></div>
+      <div class="bot"><div class="rw"><div class="cta">Засчитать подход</div><div class="cta g" style="flex:0 0 62px">⋯</div></div></div>
+      <div class="tb"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div></div>
+    <div class="taps">Все 4 подхода видно. Чипы весов — <b>нужный вес в 1 тап</b>. Готовые строки редактируются.</div></div>
+
+  <div class="col"><div class="tag"><span class="k">B</span><span class="nm">Липкая строка снизу</span></div>
+    <div class="ph"><div class="st"><span>9:41</span><span>▮▮</span></div><div class="thumb"></div>
+      <div class="bd"><div class="hd" style="font-size:15px">Жим лёжа</div>
+        <div class="set done wide"><span class="no">1</span><div class="stp"><span class="f">100</span></div><div class="stp"><span class="f">8</span></div><span class="ok">✓</span></div>
+        <div class="set done wide"><span class="no">2</span><div class="stp"><span class="f">100</span></div><div class="stp"><span class="f">8</span></div><span class="ok">✓</span></div>
+        <div class="set wide"><span class="no">3</span><div class="stp"><span class="f" style="color:var(--t3)">—</span></div><div class="stp"><span class="f" style="color:var(--t3)">—</span></div><span class="ok" style="opacity:.35">✓</span></div>
+        <div class="lb">СЛЕДУЮЩЕЕ</div>
+        <div class="c"><div class="t">Разводка гантелей</div><div class="m">3 × 12</div></div></div>
+      <div class="bot"><div style="background:var(--el);border:1px solid rgba(212,176,122,.4);border-radius:13px;padding:9px">
+        <div style="font-size:10px;color:var(--t3);margin-bottom:5px;text-align:center">ПОДХОД 3</div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <div class="stp"><span class="b">−</span><span class="f" style="font-size:17px">100</span><span class="b">+</span></div>
+          <div class="stp"><span class="b">−</span><span class="f" style="font-size:17px">8</span><span class="b">+</span></div>
+          <span class="ok" style="width:44px;height:38px">✓</span></div></div></div>
+      <div class="tb"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div></div>
+    <div class="taps">Ввод всегда внизу под пальцем. Но <b>две активные зоны</b> могут путать.</div></div>
+
+  <div class="col"><div class="tag"><span class="k">C</span><span class="nm">Крупный ввод во весь экран</span></div>
+    <div class="ph"><div class="st"><span>9:41</span><span>▮▮</span></div><div class="thumb"></div>
+      <div class="bd" style="display:flex;flex-direction:column;justify-content:center;text-align:center">
+        <div style="font-size:11px;color:var(--t3);letter-spacing:1px">ЖИМ ЛЁЖА · ПОДХОД 3 ИЗ 4</div>
+        <div style="font-size:56px;font-weight:800;color:var(--gold);margin:10px 0 2px">100</div>
+        <div style="font-size:12px;color:var(--t2);margin-bottom:14px">кг × 8 повторений</div>
+        <div class="chips" style="justify-content:center"><span class="chip">−2.5</span><span class="chip">−1.25</span><span class="chip">+1.25</span><span class="chip">+2.5</span></div>
+        <div style="font-size:10.5px;color:var(--t3);margin-top:8px">прошлый раз 100 × 8</div></div>
+      <div class="bot"><div class="rw"><div class="cta">Засчитать</div><div class="cta s" style="flex:0 0 88px">Пропустить</div></div></div>
+      <div class="tb"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div></div>
+    <div class="taps">Видно с вытянутой руки. Но теряется <b>картина упражнения целиком</b>.</div></div>
+</div>
+<table>
+  <tr><th>Критерий</th><th>Сейчас</th><th>A</th><th>B</th><th>C</th></tr>
+  <tr><td>Активный подход виден без прокрутки</td><td class="n">нет</td><td class="y">да</td><td class="y">да</td><td class="y">да</td></tr>
+  <tr><td>Тапов сменить вес на 92.5</td><td class="n">3</td><td class="y">1</td><td>3</td><td class="y">1</td></tr>
+  <tr><td>Можно исправить засчитанный подход</td><td class="n">нет</td><td class="y">да</td><td class="y">да</td><td class="n">нет</td></tr>
+  <tr><td>Видно, сколько осталось подходов</td><td>частично</td><td class="y">да</td><td class="y">да</td><td class="n">нет</td></tr>
+  <tr><td>Сложность переделки</td><td>—</td><td class="y">средняя</td><td>средняя</td><td class="n">высокая</td></tr>
+</table>
+<div class="vd"><b>Вывод:</b> <b>A</b> побеждает: подсказки сжимаются в одну строку, весь журнал помещается на экран,
+  а чипы весов убирают 40 тапов до нужного веса. Крупный ввод из C красив, но прячет остальные подходы — а именно по ним лифтер и ориентируется.</div>
+
+<!-- 3 -->
+<h2><span class="n">3</span>Таймер отдыха</h2>
+<div class="prob"><b>Проблема W13 (высокая):</b> оверлей отдыха закрывает ~430pt — шапку и панель упражнений.
+   Пока идёт отдых, нельзя ни посмотреть следующее упражнение, ни поменять его.</div>
+<div class="row">
+  <div class="col"><div class="tag cur"><span class="k">СЕЙЧАС</span><span class="nm">Оверлей во весь верх</span></div>
+    <div class="ph"><div class="st"><span>9:41</span><span>▮▮</span></div>
+      <div class="bd"><div class="restbig"><div style="font-size:11px;color:var(--t3);letter-spacing:1px">ОТДЫХ</div>
+        <div class="tm">1:24</div><div style="display:flex;gap:8px"><span class="chip">+30с</span><span class="chip">Пропустить</span></div></div></div>
+      <div class="tb"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div></div>
+    <div class="taps">Экран <b>заблокирован</b> на всю паузу.</div></div>
+
+  <div class="col"><div class="tag win"><span class="k">A · рекоменд.</span><span class="nm">Липкая полоса снизу</span></div>
+    <div class="ph"><div class="st"><span>9:41</span><span>▮▮</span></div><div class="thumb"></div>
+      <div class="bd"><div class="hd" style="font-size:15px">Жим лёжа</div>
+        <div class="set done wide"><span class="no">1</span><div class="stp"><span class="f">100</span></div><div class="stp"><span class="f">8</span></div><span class="ok">✓</span></div>
+        <div class="set done wide"><span class="no">2</span><div class="stp"><span class="f">100</span></div><div class="stp"><span class="f">8</span></div><span class="ok">✓</span></div>
+        <div class="lb">СЛЕДУЮЩЕЕ</div>
+        <div class="c"><span class="cv">›</span><div class="t">Разводка гантелей</div><div class="m">3 × 12 · заменить</div></div></div>
+      <div class="rest"><div><div style="font-size:9.5px;color:var(--t3)">ОТДЫХ</div><div class="tm">1:24</div></div>
+        <div style="display:flex;gap:6px"><span class="chip">+30с</span><span class="chip on">Дальше</span></div></div>
+      <div class="tb"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div></div>
+    <div class="taps">Отдых идёт, экран <b>живой</b>: можно поменять следующее упражнение.</div></div>
+
+  <div class="col"><div class="tag"><span class="k">B</span><span class="nm">Кольцо в шапке</span></div>
+    <div class="ph"><div class="st"><span>9:41</span><span>▮▮</span></div><div class="thumb"></div>
+      <div class="bd"><div style="display:flex;align-items:center;justify-content:space-between;padding:2px 2px 9px">
+          <div class="hd" style="padding:0;font-size:15px">Жим лёжа</div>
+          <div style="width:42px;height:42px;border-radius:21px;border:3px solid var(--gold);display:flex;
+                      align-items:center;justify-content:center;font-size:11px;font-weight:800;color:var(--gold)">1:24</div></div>
+        <div class="set done wide"><span class="no">1</span><div class="stp"><span class="f">100</span></div><div class="stp"><span class="f">8</span></div><span class="ok">✓</span></div>
+        <div class="set done wide"><span class="no">2</span><div class="stp"><span class="f">100</span></div><div class="stp"><span class="f">8</span></div><span class="ok">✓</span></div>
+        <div class="set live wide"><span class="no">3</span><div class="stp"><span class="b">−</span><span class="f">100</span><span class="b">+</span></div>
+          <div class="stp"><span class="b">−</span><span class="f">8</span><span class="b">+</span></div><span class="ok">✓</span></div></div>
+      <div class="tb"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div></div>
+    <div class="taps">Ничего не закрывает. Но таймер <b>в верхнем углу</b> — управлять неудобно.</div></div>
+
+  <div class="col"><div class="tag"><span class="k">C</span><span class="nm">Полный экран по желанию</span></div>
+    <div class="ph"><div class="st"><span>9:41</span><span>▮▮</span></div><div class="thumb"></div>
+      <div class="bd"><div class="hd" style="font-size:15px">Жим лёжа</div>
+        <div class="set done wide"><span class="no">1</span><div class="stp"><span class="f">100</span></div><div class="stp"><span class="f">8</span></div><span class="ok">✓</span></div>
+        <div class="set done wide"><span class="no">2</span><div class="stp"><span class="f">100</span></div><div class="stp"><span class="f">8</span></div><span class="ok">✓</span></div>
+        <div class="lb">СЛЕДУЮЩЕЕ</div>
+        <div class="c"><div class="t">Разводка гантелей</div><div class="m">3 × 12</div></div></div>
+      <div class="rest" style="justify-content:center;gap:10px"><span style="font-size:11px;color:var(--t2)">Отдых</span>
+        <span class="tm" style="font-size:16px">1:24</span><span class="chip">развернуть ⤢</span></div>
+      <div class="tb"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div></div>
+    <div class="taps">Компактно, при желании разворачивается. <b>Лишний тап</b> ради крупных цифр.</div></div>
+</div>
+<div class="vd"><b>Вывод:</b> <b>A</b>. Отдых — это пауза в тренировке, а не остановка приложения: именно в эти 90 секунд человек смотрит,
+  что дальше, и меняет упражнение. Полоса внизу и таймер показывает, и руки не связывает.</div>
+
+<!-- 4 -->
+<h2><span class="n">4</span>Сколько сущностей показывать</h2>
+<div class="prob"><b>Проблема W5 (критично):</b> пользователь встречает четыре имени одной идеи —
+   <b>программа</b>, <b>рутина</b>, <b>шаблон</b>, <b>недельный план</b>. Три отдельных списка, между ними ничего не переносится.
+   Плюс W4: недельный план теряет подходы и отдых — 3×5 с отдыхом 180с превращается в 4×10 с нулём.</div>
+<div class="row">
+  <div class="col"><div class="tag cur"><span class="k">СЕЙЧАС</span><span class="nm">Четыре понятия</span></div>
+    <div class="ph"><div class="st"><span>9:41</span><span>▮▮</span></div>
+      <div class="bd"><div class="hd">Что это всё?</div>
+        <div class="c"><div class="t">Программа</div><div class="m">Многонедельный план. Создаётся мастером</div></div>
+        <div class="c"><div class="t">Рутина</div><div class="m">Отдельный список. Только у неё прогрессия весов</div></div>
+        <div class="c"><div class="t">Шаблон</div><div class="m">Показан в «Начать». Это рутина? Непонятно</div></div>
+        <div class="c"><div class="t">Недельный план</div><div class="m">Пн/Ср/Пт. Теряет подходы и отдых</div></div>
+        <div class="c" style="border-color:rgba(224,122,107,.4);background:rgba(224,122,107,.06)">
+          <div class="t" style="color:var(--bad)">Одна тренировка живёт в двух местах</div>
+          <div class="m">и правки не переносятся</div></div></div>
+      <div class="tb"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div></div>
+    <div class="taps">Три списка вместо одного.</div></div>
+
+  <div class="col"><div class="tag win"><span class="k">A · рекоменд.</span><span class="nm">Две сущности</span></div>
+    <div class="ph"><div class="st"><span>9:41</span><span>▮▮</span></div><div class="thumb"></div>
+      <div class="bd"><div class="hd">Понятная модель</div>
+        <div class="hero"><div class="t">Тренировка</div><div class="m">Список упражнений с подходами. Можно запустить, повторить, сохранить</div></div>
+        <div class="hero" style="background:linear-gradient(135deg,rgba(154,194,140,.14),rgba(154,194,140,.03));border-color:rgba(154,194,140,.3)">
+          <div class="t">Программа</div><div class="m">Расписание из тренировок по дням + прогрессия весов</div></div>
+        <div class="lb">ЧТО ИСЧЕЗАЕТ</div>
+        <div class="c" style="opacity:.6"><div class="t">Рутина → это Тренировка</div></div>
+        <div class="c" style="opacity:.6"><div class="t">Шаблон → это Тренировка</div></div>
+        <div class="c" style="opacity:.6"><div class="t">Недельный план → это Программа</div></div></div>
+      <div class="tb"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div></div>
+    <div class="taps">Два слова вместо четырёх. Прогрессия — <b>у всех</b>, а не только у рутин.</div></div>
+
+  <div class="col"><div class="tag"><span class="k">B</span><span class="nm">Одна сущность</span></div>
+    <div class="ph"><div class="st"><span>9:41</span><span>▮▮</span></div><div class="thumb"></div>
+      <div class="bd"><div class="hd">Только тренировки</div>
+        <div class="hero"><div class="t">Тренировка</div><div class="m">Можно поставить на день недели. Несколько на разные дни = программа</div></div>
+        <div class="lb">МОИ ТРЕНИРОВКИ</div>
+        <div class="c"><span class="cv">Пн</span><div class="t">Грудь и трицепс</div><div class="m">5 упражнений</div></div>
+        <div class="c"><span class="cv">Ср</span><div class="t">Спина и бицепс</div><div class="m">6 упражнений</div></div>
+        <div class="c"><span class="cv">Пт</span><div class="t">Ноги</div><div class="m">5 упражнений</div></div></div>
+      <div class="tb"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div></div>
+    <div class="taps">Проще некуда. Но 25 готовых <b>многонедельных</b> программ так не описать.</div></div>
+
+  <div class="col"><div class="tag"><span class="k">C</span><span class="nm">Оставить как есть, переименовать</span></div>
+    <div class="ph"><div class="st"><span>9:41</span><span>▮▮</span></div>
+      <div class="bd"><div class="hd">Только слова</div>
+        <div class="c"><div class="t">Программа</div><div class="m">→ «Курс»</div></div>
+        <div class="c"><div class="t">Рутина</div><div class="m">→ «Моя тренировка»</div></div>
+        <div class="c"><div class="t">Шаблон</div><div class="m">→ убрать слово, это те же тренировки</div></div>
+        <div class="c"><div class="t">Недельный план</div><div class="m">→ «Расписание»</div></div>
+        <div class="c" style="border-color:rgba(232,163,106,.4);background:rgba(232,163,106,.06)">
+          <div class="t" style="color:var(--warn)">Дубли данных остаются</div><div class="m">правки по-прежнему не переносятся</div></div></div>
+      <div class="tb"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div></div>
+    <div class="taps">Дёшево и быстро. Но <b>корень проблемы не трогает</b>.</div></div>
+</div>
+<table>
+  <tr><th>Критерий</th><th>Сейчас</th><th>A · две</th><th>B · одна</th><th>C · переименовать</th></tr>
+  <tr><td>Слов, которые надо понять</td><td class="n">4</td><td class="y">2</td><td class="y">1</td><td class="n">4</td></tr>
+  <tr><td>Одна тренировка в одном месте</td><td class="n">нет</td><td class="y">да</td><td class="y">да</td><td class="n">нет</td></tr>
+  <tr><td>Поддерживает 25 готовых программ</td><td class="y">да</td><td class="y">да</td><td class="n">нет</td><td class="y">да</td></tr>
+  <tr><td>Прогрессия весов везде</td><td class="n">только рутины</td><td class="y">да</td><td class="y">да</td><td class="n">нет</td></tr>
+  <tr><td>Объём переделки</td><td>—</td><td>средний</td><td class="n">большой</td><td class="y">малый</td></tr>
+</table>
+<div class="vd"><b>Вывод:</b> <b>A — две сущности: «Тренировка» и «Программа».</b> Рутина, шаблон и недельный план — это они же под другими именами.
+  Одна сущность (B) не описывает многонедельный курс, а переименование (C) оставляет дубли и потерю подходов.</div>
+
+<!-- 5 -->
+<h2><span class="n">5</span>Создание программы</h2>
+<div class="prob"><b>Проблемы W6, W18, W19 (критично):</b> мастер может финишировать <b>пустой программой</b> — id дней не совпадают,
+   дни молча теряются. 17 тапов и на выходе ничего. Скопировать готовую программу нельзя. ИИ-тренер, который умеет больше мастера,
+   из вкладки «Программы» недоступен.</div>
+<div class="row">
+  <div class="col"><div class="tag cur"><span class="k">СЕЙЧАС</span><span class="nm">Мастер на 3 шага</span></div>
+    <div class="ph"><div class="st"><span>9:41</span><span>▮▮</span></div><div class="ow"></div><div class="thumb"></div>
+      <div class="bd"><div class="hd">Новая программа</div>
+        <div class="c"><div class="t">Название</div><div class="m">Моя программа</div></div>
+        <div class="c"><div class="t">Цель · Уровень · Дней · Недель</div><div class="m">5 решений до первого упражнения</div></div>
+        <div class="c" style="border-color:rgba(224,122,107,.4);background:rgba(224,122,107,.06)">
+          <div class="t" style="color:var(--bad)">На выходе — пустая программа</div><div class="m">дни теряются при сохранении</div></div></div>
+      <div class="bot" style="bottom:56px"><div class="cta">Далее</div></div>
+      <div class="tb"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div></div>
+    <div class="taps">17 тапов → <b>пусто</b>.</div></div>
+
+  <div class="col"><div class="tag win"><span class="k">A · рекоменд.</span><span class="nm">Взять готовую и изменить</span></div>
+    <div class="ph"><div class="st"><span>9:41</span><span>▮▮</span></div><div class="thumb"></div>
+      <div class="bd"><div class="hd">Своя программа</div>
+        <div class="lb">С ЧЕГО НАЧНЁМ</div>
+        <div class="hero"><div class="t">Взять готовую и изменить</div><div class="m">25 программ · поменяешь что угодно</div></div>
+        <div class="c"><span class="cv">›</span><div class="t">Из прошлой тренировки</div><div class="m">«Грудь и трицепс» — вчера</div></div>
+        <div class="c"><span class="cv">›</span><div class="t">Собрать с нуля</div><div class="m">Пустая программа</div></div></div>
+      <div class="bot"><div class="rw"><div class="cta">Выбрать готовую</div><div class="cta s" style="flex:0 0 92px">ИИ соберёт</div></div></div>
+      <div class="tb"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div></div>
+    <div class="taps">Копия готовой — <b>2 тапа</b>, и она сразу рабочая.</div></div>
+
+  <div class="col"><div class="tag"><span class="k">B</span><span class="nm">ИИ спрашивает три вещи</span></div>
+    <div class="ph"><div class="st"><span>9:41</span><span>▮▮</span></div><div class="thumb"></div>
+      <div class="bd"><div class="hd">Соберём программу</div>
+        <div class="c" style="background:var(--el)"><div class="m" style="color:var(--gold);margin:0 0 3px">Iron Coach</div>
+          <div class="t" style="font-weight:500;font-size:12px">Сколько дней в неделю?</div></div>
+        <div class="chips" style="justify-content:flex-end"><span class="chip on">3</span></div>
+        <div class="c" style="background:var(--el)"><div class="m" style="color:var(--gold);margin:0 0 3px">Iron Coach</div>
+          <div class="t" style="font-weight:500;font-size:12px">Цель?</div></div>
+        <div class="chips" style="justify-content:flex-end"><span class="chip">Масса</span><span class="chip">Сила</span><span class="chip">Похудеть</span></div></div>
+      <div class="bot"><div class="cta s">Собрать вручную</div></div>
+      <div class="tb"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div></div>
+    <div class="taps">Показывает силу продукта. Но <b>тратит лимит</b> и требует сети.</div></div>
+
+  <div class="col"><div class="tag"><span class="k">C</span><span class="nm">Сначала дни, потом название</span></div>
+    <div class="ph"><div class="st"><span>9:41</span><span>▮▮</span></div><div class="thumb"></div>
+      <div class="bd"><div class="hd">Своя программа</div>
+        <div class="chips"><span class="chip on">Пн</span><span class="chip">Вт</span><span class="chip on">Ср</span><span class="chip">Чт</span><span class="chip on">Пт</span></div>
+        <div class="lb">ПОНЕДЕЛЬНИК</div>
+        <div class="c"><span class="cv">✎</span><div class="t">Жим лёжа</div><div class="m">4 × 8 · 60 кг</div></div>
+        <div class="c" style="border-style:dashed"><div class="t" style="color:var(--gold)">+ Добавить упражнение</div></div>
+        <div class="lb">СРЕДА</div>
+        <div class="c" style="border-style:dashed"><div class="t" style="color:var(--gold)">+ Добавить упражнение</div></div></div>
+      <div class="bot"><div class="cta">Сохранить</div></div>
+      <div class="tb"><div>◫</div><div class="on">◧</div><div>◑</div><div>◈</div><div>◉</div></div></div>
+    <div class="taps">Никаких вопросов вперёд. Но <b>пустые дни</b> надо заполнять руками.</div></div>
+</div>
+<table>
+  <tr><th>Критерий</th><th>Сейчас</th><th>A</th><th>B</th><th>C</th></tr>
+  <tr><td>Тапов до рабочей программы</td><td class="n">17 → пусто</td><td class="y">2</td><td>4–5</td><td class="n">10+</td></tr>
+  <tr><td>Решения, которые новичок может принять</td><td class="n">нет</td><td class="y">да</td><td class="y">да</td><td>частично</td></tr>
+  <tr><td>Не зависит от сети и лимита ИИ</td><td class="y">да</td><td class="y">да</td><td class="n">нет</td><td class="y">да</td></tr>
+  <tr><td>Использует 25 уже готовых программ</td><td class="n">нет</td><td class="y">да</td><td class="n">нет</td><td class="n">нет</td></tr>
+</table>
+<div class="vd"><b>Вывод:</b> <b>A</b>. У нас уже лежат 25 готовых программ, которые сейчас нельзя даже активировать —
+  «взять готовую и изменить» превращает мёртвый контент в главный путь. Кнопка «ИИ соберёт» рядом оставляет вариант B тем, кто хочет вау.</div>
+
+<h2><span class="n">6</span>Итог</h2>
+<div class="vd" style="border-left-color:var(--gold);border-color:rgba(212,176,122,.35)">
+  <b style="color:var(--gold)">Связка: 1A + 2A + 3A + 4A + 5A.</b>
+  «Сегодня» отвечает, что тренировать. Журнал подходов помещается на экран, вес меняется в один тап, засчитанный подход можно исправить.
+  Отдых больше не блокирует экран. Из четырёх понятий остаются два — «Тренировка» и «Программа». Программа создаётся копией готовой за 2 тапа.
+  <br><br>Отдельно, вне макетов, но обязательно: <b>подключить три мёртвых экрана</b> (История, Календарь, Рекорды — они уже написаны),
+  <b>починить «Повторить тренировку»</b> и <b>рассинхрон библиотеки</b> (список берёт упражнения с сервера, деталь ищет в локальном файле → «Упражнение не найдено»).
+</div>
+
+</div></body></html>

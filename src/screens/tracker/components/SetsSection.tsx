@@ -21,7 +21,9 @@ interface Props {
   workout: Workout;
   previousSets: PreviousSets | null;
   navigation: any;
-  onCompleteSet: (setIndex: number, reps: number, weight: number) => void;
+  /** isCorrection = the set was already completed and the user is fixing the
+   *  numbers; the screen must not restart rest or auto-advance (audit W2). */
+  onCompleteSet: (setIndex: number, reps: number, weight: number, isCorrection?: boolean) => void;
   onRpeSelected?: (rpe: number) => void;
 }
 
@@ -230,7 +232,7 @@ export const SetsSection: React.FC<Props> = ({
             prevSet={previousSets?.sets[setIndex] ?? null}
             suggestedRpe={suggestedRpe}
             isActive={setIndex === activeSetIndex}
-            onComplete={(reps, weight) => onCompleteSet(setIndex, reps, weight)}
+            onComplete={(reps, weight, isCorrection) => onCompleteSet(setIndex, reps, weight, isCorrection)}
             onRpeChange={(rpe) => { updateSetData(currentExerciseIndex, setIndex, { rpe }); onRpeSelected?.(rpe); }}
             onRemove={currentExercise.sets.length > 1 ? () => { haptic.medium(); removeSet(currentExerciseIndex, setIndex); } : undefined}
             onTypeChange={(type) => updateSetData(currentExerciseIndex, setIndex, { type: type as any })}
