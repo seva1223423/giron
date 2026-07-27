@@ -25,7 +25,7 @@ export const ExercisesCard: React.FC<Props> = ({ workout }) => {
           <View key={ex.id}>
             <View style={[{ flexDirection: 'row', paddingVertical: spacing.md, gap: spacing.md }, i < workout.exercises.length - 1 && !isSuperset && { borderBottomWidth: 1, borderBottomColor: colors.divider }]}>
               {thumb !== undefined && (
-                <Image source={thumb} style={styles.thumb} />
+                <Image source={thumb} style={[styles.thumb, { backgroundColor: colors.surfaceElevated }]} />
               )}
               <View style={{ flex: 1 }}>
                 <Text style={[typography.bodySemibold, { color: colors.text }]} numberOfLines={1}>{ex.exercise?.name ?? ''}</Text>
@@ -61,5 +61,5 @@ export const ExercisesCard: React.FC<Props> = ({ workout }) => {
 };
 
 const styles = StyleSheet.create({
-  thumb: { width: 44, height: 44, borderRadius: borderRadius.sm, backgroundColor: '#0F0F1A' },
+  thumb: { width: 44, height: 44, borderRadius: borderRadius.sm },
 });

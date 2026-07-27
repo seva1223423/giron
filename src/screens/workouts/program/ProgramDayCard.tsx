@@ -54,7 +54,7 @@ export const ProgramDayCard: React.FC<Props> = ({ day, dayIndex, goalColor, isEx
             return (
               <View key={exIndex} style={[styles.exRow, exIndex < day.exercises.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.divider }]}>
                 {thumb !== undefined ? (
-                  <Image source={thumb} style={styles.exThumb} />
+                  <Image source={thumb} style={[styles.exThumb, { backgroundColor: colors.surfaceElevated }]} />
                 ) : (
                   <View style={[styles.exNumber, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}>
                     <Text style={[typography.captionMedium, { color: colors.textSecondary }]}>{exIndex + 1}</Text>
@@ -78,5 +78,5 @@ const styles = StyleSheet.create({
   divider: { height: 1, marginVertical: spacing.md },
   exRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.sm, gap: spacing.sm },
   exNumber: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  exThumb: { width: 40, height: 40, borderRadius: borderRadius.sm, backgroundColor: '#0F0F1A' },
+  exThumb: { width: 40, height: 40, borderRadius: borderRadius.sm },
 });

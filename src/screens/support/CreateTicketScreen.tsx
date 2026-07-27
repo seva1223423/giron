@@ -6,6 +6,8 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSupportStore } from '../../store/useSupportStore';
+import { useThemeColors } from '../../store';
+import { typography } from '../../theme';
 import type { TicketCategory } from '../../types';
 
 type RootStackParamList = {
@@ -24,6 +26,7 @@ const CATEGORIES: { value: TicketCategory; label: string; icon: string }[] = [
 
 export default function CreateTicketScreen() {
   const navigation = useNavigation<Nav>();
+  const colors = useThemeColors();
   const { createTicket, sending } = useSupportStore();
 
   const [subject, setSubject] = useState('');
@@ -47,57 +50,83 @@ export default function CreateTicketScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={styles.sectionLabel}>Тема обращения</Text>
+      <ScrollView
+        style={[styles.container, { backgroundColor: colors.background }]}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Тема обращения</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { backgroundColor: colors.surface, color: colors.text }]}
           placeholder="Кратко опишите проблему"
-          placeholderTextColor="#6B7280"
+          placeholderTextColor={colors.inputPlaceholder}
           value={subject}
           onChangeText={setSubject}
           maxLength={100}
+          accessibilityLabel="Тема обращения"
         />
 
-        <Text style={styles.sectionLabel}>Категория</Text>
+        <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Категория</Text>
         <View style={styles.categories}>
-          {CATEGORIES.map((c) => (
-            <TouchableOpacity
-              key={c.value}
-              style={[styles.categoryBtn, category === c.value && styles.categoryBtnActive]}
-              onPress={() => setCategory(c.value)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.categoryIcon}>{c.icon}</Text>
-              <Text style={[styles.categoryLabel, category === c.value && styles.categoryLabelActive]}>
-                {c.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          {CATEGORIES.map((c) => {
+            const selected = category === c.value;
+            return (
+              <TouchableOpacity
+                key={c.value}
+                style={[
+                  styles.categoryBtn,
+                  {
+                    backgroundColor: selected ? colors.surfaceElevated : colors.surface,
+                    borderColor: selected ? colors.primary : 'transparent',
+                  },
+                ]}
+                onPress={() => setCategory(c.value)}
+                activeOpacity={0.7}
+                accessibilityRole="radio"
+                accessibilityState={{ selected }}
+                accessibilityLabel={c.label}
+              >
+                <Text style={styles.categoryIcon}>{c.icon}</Text>
+                <Text
+                  style={[
+                    styles.categoryLabel,
+                    { color: selected ? colors.text : colors.textSecondary, fontWeight: selected ? '600' : '400' },
+                  ]}
+                >
+                  {c.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
-        <Text style={styles.sectionLabel}>Описание</Text>
+        <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Описание</Text>
         <TextInput
-          style={[styles.input, styles.textarea]}
+          style={[styles.input, styles.textarea, { backgroundColor: colors.surface, color: colors.text }]}
           placeholder="Подробно опишите проблему или вопрос..."
-          placeholderTextColor="#6B7280"
+          placeholderTextColor={colors.inputPlaceholder}
           value={message}
           onChangeText={setMessage}
           multiline
           numberOfLines={6}
           textAlignVertical="top"
           maxLength={2000}
+          accessibilityLabel="Описание проблемы"
         />
-        <Text style={styles.charCount}>{message.length} / 2000</Text>
+        <Text style={[styles.charCount, { color: colors.textTertiary }]}>{message.length} / 2000</Text>
 
         <TouchableOpacity
-          style={[styles.submitBtn, sending && styles.submitBtnDisabled]}
+          style={[styles.submitBtn, { backgroundColor: colors.primary }, sending && styles.submitBtnDisabled]}
           onPress={handleSubmit}
           disabled={sending}
           activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Отправить обращение"
+          accessibilityState={{ disabled: sending, busy: sending }}
         >
           {sending
-            ? <ActivityIndicator color="#FFFFFF" />
-            : <Text style={styles.submitText}>Отправить обращение</Text>
+            ? <ActivityIndicator color={colors.textInverse} />
+            : <Text style={[styles.submitText, { color: colors.textInverse }]}>Отправить обращение</Text>
           }
         </TouchableOpacity>
       </ScrollView>
@@ -105,42 +134,40 @@ export default function CreateTicketScreen() {
   );
 }
 
+// Colours and text styles come from the theme at the usage sites. This screen
+// previously imported neither: it hardcoded a black background, greys from a
+// palette the app no longer uses, and six arbitrary font sizes — so the whole
+// feedback flow rendered black-on-black in light mode and had no accessibility
+// props at all (audit R22).
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0F0F0F' },
+  container: { flex: 1 },
   content: { padding: 16, paddingBottom: 40 },
-  sectionLabel: { fontSize: 13, fontWeight: '600', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 24, marginBottom: 10 },
+  sectionLabel: { ...typography.captionMedium, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 24, marginBottom: 10 },
   input: {
-    backgroundColor: '#1C1C1E',
+    ...typography.body,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    fontSize: 15,
-    color: '#FFFFFF',
   },
   textarea: { minHeight: 120, paddingTop: 14 },
-  charCount: { fontSize: 12, color: '#6B7280', textAlign: 'right', marginTop: 6 },
+  charCount: { ...typography.caption, textAlign: 'right', marginTop: 6 },
   categories: { gap: 8 },
   categoryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1C1C1E',
     borderRadius: 12,
     padding: 14,
     borderWidth: 1,
-    borderColor: 'transparent',
     gap: 12,
   },
-  categoryBtnActive: { borderColor: '#D4B07A', backgroundColor: '#1E1E2E' },
   categoryIcon: { fontSize: 20 },
-  categoryLabel: { fontSize: 15, color: '#9CA3AF', flex: 1 },
-  categoryLabelActive: { color: '#FFFFFF', fontWeight: '600' },
+  categoryLabel: { ...typography.body, flex: 1 },
   submitBtn: {
-    backgroundColor: '#D4B07A',
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 32,
   },
   submitBtnDisabled: { opacity: 0.6 },
-  submitText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  submitText: { ...typography.bodySemibold },
 });

@@ -51,6 +51,23 @@ const MUSCLE_LABELS: Record<string, string> = {
   abs: 'Пресс', traps: 'Трапеции', lats: 'Широчайшие', lower_back: 'Поясница',
 };
 
+/**
+ * True when the surface behind the figure is dark.
+ *
+ * Replaces 21 comparisons against the literal '#0A0A0F' — a background colour
+ * that no longer exists in the theme, so the dark branch NEVER ran. In dark
+ * mode the head, hands and feet were painted near-white, and untrained muscles
+ * used the light "empty" tone, coming out BRIGHTER than trained ones: the heat
+ * map read backwards on the tab it appears on by default (audit R20).
+ * Deriving it from luminance keeps it correct through any future palette change.
+ */
+function isDarkSurface(hex: string): boolean {
+  const c = hex.replace('#', '');
+  if (c.length < 6) return false;
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(c.slice(i, i + 2), 16));
+  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 < 0.5;
+}
+
 // Color interpolation: from base (light grey) to hot (primary)
 function muscleColor(load: number, primary: string, bg: string): string {
   const t = intensity(load);
@@ -72,15 +89,15 @@ function muscleColor(load: number, primary: string, bg: string): string {
 // --- Front body SVG (simplified anatomical shapes) ---
 // ViewBox: 0 0 100 220
 const FrontBody: React.FC<{ load: Record<string, number>; primary: string; bgColor: string; borderColor: string }> = ({ load, primary, bgColor, borderColor }) => {
-  const c = (m: string) => muscleColor(load[m] ?? 0, primary, bgColor === '#0A0A0F' ? '#1e1e2e' : '#dde0ee');
+  const c = (m: string) => muscleColor(load[m] ?? 0, primary, isDarkSurface(bgColor) ? '#1e1e2e' : '#dde0ee');
   const stroke = borderColor;
   const sw = '0.8';
   return (
     <Svg viewBox="0 0 100 220" width="100%" height="100%">
       {/* Head */}
-      <Ellipse cx="50" cy="14" rx="11" ry="13" fill={bgColor === '#0A0A0F' ? '#2a2a3a' : '#e8e8f0'} stroke={stroke} strokeWidth={sw} />
+      <Ellipse cx="50" cy="14" rx="11" ry="13" fill={isDarkSurface(bgColor) ? '#2a2a3a' : '#e8e8f0'} stroke={stroke} strokeWidth={sw} />
       {/* Neck */}
-      <Rect x="45" y="25" width="10" height="7" rx="2" fill={bgColor === '#0A0A0F' ? '#2a2a3a' : '#e8e8f0'} stroke={stroke} strokeWidth={sw} />
+      <Rect x="45" y="25" width="10" height="7" rx="2" fill={isDarkSurface(bgColor) ? '#2a2a3a' : '#e8e8f0'} stroke={stroke} strokeWidth={sw} />
 
       {/* Shoulders */}
       <Ellipse cx="28" cy="38" rx="10" ry="7" fill={c('shoulders')} stroke={stroke} strokeWidth={sw} />
@@ -98,8 +115,8 @@ const FrontBody: React.FC<{ load: Record<string, number>; primary: string; bgCol
       <Ellipse cx="82" cy="81" rx="5" ry="11" fill={c('forearms')} stroke={stroke} strokeWidth={sw} />
 
       {/* Hands */}
-      <Ellipse cx="16" cy="97" rx="5" ry="6" fill={bgColor === '#0A0A0F' ? '#2a2a3a' : '#e8e8f0'} stroke={stroke} strokeWidth={sw} />
-      <Ellipse cx="84" cy="97" rx="5" ry="6" fill={bgColor === '#0A0A0F' ? '#2a2a3a' : '#e8e8f0'} stroke={stroke} strokeWidth={sw} />
+      <Ellipse cx="16" cy="97" rx="5" ry="6" fill={isDarkSurface(bgColor) ? '#2a2a3a' : '#e8e8f0'} stroke={stroke} strokeWidth={sw} />
+      <Ellipse cx="84" cy="97" rx="5" ry="6" fill={isDarkSurface(bgColor) ? '#2a2a3a' : '#e8e8f0'} stroke={stroke} strokeWidth={sw} />
 
       {/* Abs */}
       <Path d="M38,52 Q50,56 62,52 L62,92 Q50,96 38,92 Z" fill={c('abs')} stroke={stroke} strokeWidth={sw} />
@@ -117,31 +134,31 @@ const FrontBody: React.FC<{ load: Record<string, number>; primary: string; bgCol
       <Path d="M64,108 Q58,110 56,112 L57,155 Q62,158 66,154 L67,112 Z" fill={c('quadriceps')} stroke={stroke} strokeWidth={sw} />
 
       {/* Knees */}
-      <Ellipse cx="39" cy="158" rx="7" ry="5" fill={bgColor === '#0A0A0F' ? '#2a2a3a' : '#e8e8f0'} stroke={stroke} strokeWidth={sw} />
-      <Ellipse cx="61" cy="158" rx="7" ry="5" fill={bgColor === '#0A0A0F' ? '#2a2a3a' : '#e8e8f0'} stroke={stroke} strokeWidth={sw} />
+      <Ellipse cx="39" cy="158" rx="7" ry="5" fill={isDarkSurface(bgColor) ? '#2a2a3a' : '#e8e8f0'} stroke={stroke} strokeWidth={sw} />
+      <Ellipse cx="61" cy="158" rx="7" ry="5" fill={isDarkSurface(bgColor) ? '#2a2a3a' : '#e8e8f0'} stroke={stroke} strokeWidth={sw} />
 
       {/* Calves (front shin) */}
       <Path d="M33,163 Q37,165 42,163 L41,195 Q37,198 33,195 Z" fill={c('calves')} stroke={stroke} strokeWidth={sw} />
       <Path d="M67,163 Q63,165 58,163 L59,195 Q63,198 67,195 Z" fill={c('calves')} stroke={stroke} strokeWidth={sw} />
 
       {/* Feet */}
-      <Ellipse cx="38" cy="200" rx="8" ry="5" fill={bgColor === '#0A0A0F' ? '#2a2a3a' : '#e8e8f0'} stroke={stroke} strokeWidth={sw} />
-      <Ellipse cx="62" cy="200" rx="8" ry="5" fill={bgColor === '#0A0A0F' ? '#2a2a3a' : '#e8e8f0'} stroke={stroke} strokeWidth={sw} />
+      <Ellipse cx="38" cy="200" rx="8" ry="5" fill={isDarkSurface(bgColor) ? '#2a2a3a' : '#e8e8f0'} stroke={stroke} strokeWidth={sw} />
+      <Ellipse cx="62" cy="200" rx="8" ry="5" fill={isDarkSurface(bgColor) ? '#2a2a3a' : '#e8e8f0'} stroke={stroke} strokeWidth={sw} />
     </Svg>
   );
 };
 
 // --- Back body SVG ---
 const BackBody: React.FC<{ load: Record<string, number>; primary: string; bgColor: string; borderColor: string }> = ({ load, primary, bgColor, borderColor }) => {
-  const c = (m: string) => muscleColor(load[m] ?? 0, primary, bgColor === '#0A0A0F' ? '#1e1e2e' : '#dde0ee');
+  const c = (m: string) => muscleColor(load[m] ?? 0, primary, isDarkSurface(bgColor) ? '#1e1e2e' : '#dde0ee');
   const stroke = borderColor;
   const sw = '0.8';
   return (
     <Svg viewBox="0 0 100 220" width="100%" height="100%">
       {/* Head */}
-      <Ellipse cx="50" cy="14" rx="11" ry="13" fill={bgColor === '#0A0A0F' ? '#2a2a3a' : '#e8e8f0'} stroke={stroke} strokeWidth={sw} />
+      <Ellipse cx="50" cy="14" rx="11" ry="13" fill={isDarkSurface(bgColor) ? '#2a2a3a' : '#e8e8f0'} stroke={stroke} strokeWidth={sw} />
       {/* Neck */}
-      <Rect x="45" y="25" width="10" height="7" rx="2" fill={bgColor === '#0A0A0F' ? '#2a2a3a' : '#e8e8f0'} stroke={stroke} strokeWidth={sw} />
+      <Rect x="45" y="25" width="10" height="7" rx="2" fill={isDarkSurface(bgColor) ? '#2a2a3a' : '#e8e8f0'} stroke={stroke} strokeWidth={sw} />
 
       {/* Traps */}
       <Path d="M40,26 Q50,22 60,26 L64,36 Q50,32 36,36 Z" fill={c('traps')} stroke={stroke} strokeWidth={sw} />
@@ -166,8 +183,8 @@ const BackBody: React.FC<{ load: Record<string, number>; primary: string; bgColo
       <Ellipse cx="82" cy="81" rx="5" ry="11" fill={c('forearms')} stroke={stroke} strokeWidth={sw} />
 
       {/* Hands */}
-      <Ellipse cx="16" cy="97" rx="5" ry="6" fill={bgColor === '#0A0A0F' ? '#2a2a3a' : '#e8e8f0'} stroke={stroke} strokeWidth={sw} />
-      <Ellipse cx="84" cy="97" rx="5" ry="6" fill={bgColor === '#0A0A0F' ? '#2a2a3a' : '#e8e8f0'} stroke={stroke} strokeWidth={sw} />
+      <Ellipse cx="16" cy="97" rx="5" ry="6" fill={isDarkSurface(bgColor) ? '#2a2a3a' : '#e8e8f0'} stroke={stroke} strokeWidth={sw} />
+      <Ellipse cx="84" cy="97" rx="5" ry="6" fill={isDarkSurface(bgColor) ? '#2a2a3a' : '#e8e8f0'} stroke={stroke} strokeWidth={sw} />
 
       {/* Lower back */}
       <Path d="M38,76 Q50,80 62,76 L62,96 Q50,100 38,96 Z" fill={c('lower_back')} stroke={stroke} strokeWidth={sw} />
@@ -180,16 +197,16 @@ const BackBody: React.FC<{ load: Record<string, number>; primary: string; bgColo
       <Path d="M64,118 Q58,120 56,122 L57,158 Q62,162 67,158 L67,122 Z" fill={c('hamstrings')} stroke={stroke} strokeWidth={sw} />
 
       {/* Knees */}
-      <Ellipse cx="38" cy="160" rx="7" ry="5" fill={bgColor === '#0A0A0F' ? '#2a2a3a' : '#e8e8f0'} stroke={stroke} strokeWidth={sw} />
-      <Ellipse cx="62" cy="160" rx="7" ry="5" fill={bgColor === '#0A0A0F' ? '#2a2a3a' : '#e8e8f0'} stroke={stroke} strokeWidth={sw} />
+      <Ellipse cx="38" cy="160" rx="7" ry="5" fill={isDarkSurface(bgColor) ? '#2a2a3a' : '#e8e8f0'} stroke={stroke} strokeWidth={sw} />
+      <Ellipse cx="62" cy="160" rx="7" ry="5" fill={isDarkSurface(bgColor) ? '#2a2a3a' : '#e8e8f0'} stroke={stroke} strokeWidth={sw} />
 
       {/* Calves (back) */}
       <Path d="M33,165 Q38,172 42,165 L41,195 Q37,198 33,195 Z" fill={c('calves')} stroke={stroke} strokeWidth={sw} />
       <Path d="M67,165 Q62,172 58,165 L59,195 Q63,198 67,195 Z" fill={c('calves')} stroke={stroke} strokeWidth={sw} />
 
       {/* Feet */}
-      <Ellipse cx="38" cy="200" rx="8" ry="5" fill={bgColor === '#0A0A0F' ? '#2a2a3a' : '#e8e8f0'} stroke={stroke} strokeWidth={sw} />
-      <Ellipse cx="62" cy="200" rx="8" ry="5" fill={bgColor === '#0A0A0F' ? '#2a2a3a' : '#e8e8f0'} stroke={stroke} strokeWidth={sw} />
+      <Ellipse cx="38" cy="200" rx="8" ry="5" fill={isDarkSurface(bgColor) ? '#2a2a3a' : '#e8e8f0'} stroke={stroke} strokeWidth={sw} />
+      <Ellipse cx="62" cy="200" rx="8" ry="5" fill={isDarkSurface(bgColor) ? '#2a2a3a' : '#e8e8f0'} stroke={stroke} strokeWidth={sw} />
     </Svg>
   );
 };

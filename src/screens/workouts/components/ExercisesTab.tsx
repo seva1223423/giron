@@ -126,9 +126,9 @@ export const ExercisesTab: React.FC<Props> = ({ navigation }) => {
             onPress={() => { haptic.light(); navigation.navigate('ExerciseDetail', { exerciseId: ex.id }); }}
           >
             {thumb !== undefined ? (
-              <Image source={thumb} style={styles.cardThumb} />
+              <Image source={thumb} style={[styles.cardThumb, { backgroundColor: colors.surfaceElevated }]} />
             ) : (
-              <View style={[styles.cardThumb, styles.cardThumbPlaceholder]}>
+              <View style={[styles.cardThumb, styles.cardThumbPlaceholder, { backgroundColor: colors.surfaceElevated }]}>
                 <Text style={styles.cardThumbPlaceholderIcon}>{ex.type === 'cardio' ? '🏃' : '💪'}</Text>
               </View>
             )}
@@ -233,7 +233,10 @@ const styles = StyleSheet.create({
   searchInput: { height: 44, borderRadius: borderRadius.md, borderWidth: 1, paddingHorizontal: spacing.lg, fontSize: 16, marginBottom: spacing.md },
   filterChip: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: borderRadius.full, borderWidth: 1 },
   emptyState: { alignItems: 'center', paddingVertical: spacing.huge },
-  cardThumb: { width: 56, height: 56, borderRadius: borderRadius.sm, backgroundColor: '#0F0F1A' },
+  // Background comes from the theme at the usage site — the hardcoded
+  // #0F0F1A was a leftover of the old purple palette and rendered as a
+  // dark blue-black tile on cream cards in light mode (audit R21).
+  cardThumb: { width: 56, height: 56, borderRadius: borderRadius.sm },
   cardThumbPlaceholder: { alignItems: 'center', justifyContent: 'center' },
   cardThumbPlaceholderIcon: { fontSize: 22, opacity: 0.6 },
 });

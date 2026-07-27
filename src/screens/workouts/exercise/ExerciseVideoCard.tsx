@@ -70,7 +70,7 @@ export const ExerciseVideoCard: React.FC<Props> = ({
         <TouchableOpacity
           activeOpacity={0.92}
           onPress={openFullscreen}
-          style={styles.media}
+          style={[styles.media, { backgroundColor: colors.surfaceElevated }]}
           accessibilityRole="button"
           accessibilityLabel={`${exerciseName} — открыть видео в полном экране`}
         >
@@ -85,7 +85,7 @@ export const ExerciseVideoCard: React.FC<Props> = ({
           ) : posterSrc ? (
             <Image source={posterSrc} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
           ) : (
-            <View style={[StyleSheet.absoluteFillObject, styles.placeholder]}>
+            <View style={[StyleSheet.absoluteFillObject, styles.placeholder, { backgroundColor: colors.surfaceElevated }]}>
               <Text style={{ fontSize: 36, marginBottom: 8 }}>▶</Text>
               <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, fontWeight: '600' }}>Техника выполнения</Text>
             </View>
@@ -175,15 +175,15 @@ export const ExerciseVideoCard: React.FC<Props> = ({
 
 const styles = StyleSheet.create({
   card: { borderRadius: borderRadius.lg, borderWidth: 1, overflow: 'hidden', marginBottom: spacing.xl },
+  // Backgrounds come from the theme at the usage sites — #0F0F1A was a
+  // leftover of the old purple palette (audit R21).
   media: {
     height: CARD_HEIGHT,
-    backgroundColor: '#0F0F1A',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
   },
   placeholder: {
-    backgroundColor: '#0F0F1A',
     alignItems: 'center',
     justifyContent: 'center',
   },

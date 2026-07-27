@@ -153,7 +153,7 @@ export const ExerciseVideoModal: React.FC<Props> = ({
             {thumbUrl ? (
               <Image source={{ uri: thumbUrl }} style={styles.thumbnail} resizeMode="cover" />
             ) : (
-              <View style={[styles.thumbnail, styles.thumbnailPlaceholder]}>
+              <View style={[styles.thumbnail, styles.thumbnailPlaceholder, { backgroundColor: colors.surfaceElevated }]}>
                 <Text style={styles.placeholderIcon}>▶</Text>
                 <Text style={styles.placeholderText}>
                   {videoProvider === 'rutube' ? 'Открыть в Rutube' : features.youtubeVideos ? 'Найти в YouTube' : 'Найти в Rutube'}
@@ -291,7 +291,8 @@ const styles = StyleSheet.create({
   handle: { width: 36, height: 4, borderRadius: 2, alignSelf: 'center', marginTop: 10, marginBottom: 4 },
   thumbnailWrapper: { width: '100%', overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   thumbnail: { width: '100%', height: '100%' },
-  thumbnailPlaceholder: { backgroundColor: '#0F0F1A', alignItems: 'center', justifyContent: 'center' },
+  // Background from the theme at the usage site (audit R21).
+  thumbnailPlaceholder: { alignItems: 'center', justifyContent: 'center' },
   placeholderIcon: { fontSize: 44, marginBottom: 8, color: '#FFF' },
   placeholderText: { color: 'rgba(255,255,255,0.6)', fontSize: 15, fontWeight: '600' },
   overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.35)' },
