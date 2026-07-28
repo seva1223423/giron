@@ -3,7 +3,7 @@ import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, Modal, Tex
 import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
-import { useThemeColors, useAuthStore, useWorkoutStore, useNutritionStore, useSubscriptionStore } from '../../store';
+import { useThemeColors, useAuthStore, useWorkoutStore, useNutritionStore, useSubscriptionStore, useThemeIsDark } from '../../store';
 import { Card, Button, AnimatedPressable, Icon, type IconName } from '../../components';
 import { AchievementSticker } from '../../components/Sticker';
 import { typography } from '../../theme';
@@ -85,6 +85,15 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
   const safeTop = useSafeTop();
   const haptic = useHaptic();
   const colors = useThemeColors();
+  const isDark = useThemeIsDark();
+  // The hero is a dark slab in both themes, and "dark" has to mean something
+  // different depending on what surrounds it. Against graphite these
+  // near-black stops are right; against cream they read as a hole in the
+  // page. Same hues, lifted, so the card stays an accent — the light text
+  // pinned below still clears 10:1 on them.
+  const heroStops = isDark
+    ? { a: '#1E1810', b: '#2A1F12' }
+    : { a: '#3B2F21', b: '#5A4527' };
   const { user, logout } = useAuthStore();
   const { workoutHistory } = useWorkoutStore();
   const { dailyLog } = useNutritionStore();
@@ -280,8 +289,8 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
         <Svg width="100%" height="100%" style={StyleSheet.absoluteFill} preserveAspectRatio="none">
           <Defs>
             <LinearGradient id="profileBg" x1="0" y1="0" x2="1" y2="1">
-              <Stop offset="0" stopColor="#1E1810" stopOpacity={1} />
-              <Stop offset="1" stopColor="#2A1F12" stopOpacity={1} />
+              <Stop offset="0" stopColor={heroStops.a} stopOpacity={1} />
+              <Stop offset="1" stopColor={heroStops.b} stopOpacity={1} />
             </LinearGradient>
             <RadialGradient id="profileGlow" cx="95%" cy="0%" rx="50%" ry="50%">
               <Stop offset="0" stopColor={colors.primary} stopOpacity={0.2} />

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
-import { useThemeColors } from '../../../store';
+import { useThemeColors, useThemeIsDark } from '../../../store';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { Icon } from '../../../components';
 import { typography } from '../../../theme';
@@ -99,13 +99,19 @@ export const AICoachCard: React.FC<Props> = ({
 
   // Active workout wins over everything — a live session is the single
   // most actionable card on the home screen. Falls back to rest/workout.
+  const isDark = useThemeIsDark();
   const isActive = !!activeWorkout;
   const isRest = !isActive && mode === 'rest';
 
   // Sage accent for rest-day. Matches the V4 mockup palette — chosen
   // for "recovery" semantics (green = nature/rest in Direction A).
   const SAGE = '#9AC28C';
-  const accentColor = isRest ? SAGE : colors.primary;
+  // Gold is chosen for THIS card's surface, not for the theme. colors.primary
+  // is #86693B in light mode — deep enough to read on cream, but on the dark
+  // card it is barely a shade off the background. The dark-theme gold is the
+  // one that belongs here in both themes.
+  const GOLD_ON_DARK = '#D4B07A';
+  const accentColor = isRest ? SAGE : GOLD_ON_DARK;
 
   const eyebrowText = isActive
     ? 'Идёт тренировка'
@@ -126,9 +132,21 @@ export const AICoachCard: React.FC<Props> = ({
   const onDarkDim = 'rgba(244,241,234,0.74)';
 
   // Gradient stops — warmer for workout, cooler/sage for rest.
+  //
+  // The card is a dark slab in both themes, but "dark" has to mean different
+  // things depending on what surrounds it. On the graphite background of the
+  // dark theme these near-black stops sit right. On the cream background of
+  // the light theme they read as a hole punched in the page — the founder's
+  // words were "слишком чёрный". The light-theme stops below are the same
+  // hues lifted until the card reads as a warm accent instead of a void,
+  // while still holding light text at better than 10:1.
   const gradStops = isRest
-    ? { a: '#14201A', b: '#1A2520', c: '#1E2A22' }
-    : { a: '#1E1810', b: '#2A1F12', c: '#382612' };
+    ? (isDark
+        ? { a: '#14201A', b: '#1A2520', c: '#1E2A22' }
+        : { a: '#2B3A31', b: '#36463B', c: '#3F5145' })
+    : (isDark
+        ? { a: '#1E1810', b: '#2A1F12', c: '#382612' }
+        : { a: '#3B2F21', b: '#4A3A26', c: '#5A4527' });
   const glowColor = accentColor;
   const glowOpacity = isRest ? 0.12 : 0.2;
 
@@ -291,7 +309,10 @@ export const AICoachCard: React.FC<Props> = ({
             <Text
               style={[
                 typography.smallMedium,
-                { color: isRest ? accentColor : colors.textInverse },
+                // On the gold button the label is dark in both themes:
+                // colors.textInverse is cream in light mode, which would be
+                // light-on-gold.
+                { color: isRest ? accentColor : '#17171A' },
               ]}
             >
               {finalCtaLabel}
