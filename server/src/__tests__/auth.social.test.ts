@@ -131,18 +131,37 @@ beforeEach(() => {
   _resetOAuthReplayCacheForTests();
 });
 
+/**
+ * The VK route calls secure.checkToken before users.get, so a single
+ * mockResolvedValue would answer the audience check with the profile payload.
+ * This routes each call by URL: the audience check passes unless told
+ * otherwise, and `usersGet` answers the profile lookup.
+ */
+function mockVkFetch(usersGet: any, opts: { audienceOk?: boolean } = {}) {
+  const { audienceOk = true } = opts;
+  mockFetch.mockImplementation(async (url: any) => {
+    if (String(url).includes('secure.checkToken')) {
+      return { ok: true, json: async () => ({ response: { success: audienceOk ? 1 : 0 } }) };
+    }
+    return usersGet;
+  });
+}
+
 // ── VK Auth ───────────────────────────────────────────────────────────────────
 
 describe('POST /api/auth/vk', () => {
   beforeEach(() => {
     mockFetch.mockReset();
     jest.clearAllMocks();
-    // VK_APP_ID must be set so the route doesn't short-circuit with 503
+    // Both must be set or the route short-circuits with 503: VK_APP_ID to be
+    // configured at all, VK_SERVICE_TOKEN to verify who the token belongs to.
     process.env.VK_APP_ID = 'test_vk_app_id';
+    process.env.VK_SERVICE_TOKEN = 'test_vk_service_token';
   });
 
   afterEach(() => {
     delete process.env.VK_APP_ID;
+    delete process.env.VK_SERVICE_TOKEN;
   });
 
   it('returns 400 when accessToken is missing', async () => {
@@ -172,7 +191,7 @@ describe('POST /api/auth/vk', () => {
   });
 
   it('returns 401 when VK API returns an error field', async () => {
-    mockFetch.mockResolvedValue({
+    mockVkFetch({
       ok: true,
       json: async () => ({ error: { error_code: 5, error_msg: 'User authorization failed' } }),
     });
@@ -186,7 +205,7 @@ describe('POST /api/auth/vk', () => {
 
   it('returns 401 when VK userId does not match claimed userId', async () => {
     // VK API returns user id=999 but client claimed userId=123
-    mockFetch.mockResolvedValue({
+    mockVkFetch({
       ok: true,
       json: async () => ({ response: [{ id: 999, first_name: 'Test', last_name: 'User' }] }),
     });
@@ -195,6 +214,32 @@ describe('POST /api/auth/vk', () => {
       .send({ accessToken: 'tok', userId: 123 });
     expect(res.status).toBe(401);
     expect(res.body.error).toMatch(/не совпадает/i);
+  });
+
+  // Audit M4. VK's users.get answers for a token issued to ANY app, so on its
+  // own it proves the token is valid somewhere — not that it is ours. Without
+  // these two guards anyone running a VK app could collect a victim's token
+  // there and sign in as them here.
+  it('refuses the login when the token was issued to another VK app', async () => {
+    mockVkFetch(
+      { ok: true, json: async () => ({ response: [{ id: 123, first_name: 'T', last_name: 'U' }] }) },
+      { audienceOk: false },
+    );
+    const res = await request(app)
+      .post('/api/auth/vk')
+      .send({ accessToken: 'token_from_someone_elses_app', userId: 123 });
+    expect(res.status).toBe(401);
+    expect(res.body.error).toMatch(/другому приложению/i);
+  });
+
+  it('refuses the login when no service key is configured to check with', async () => {
+    delete process.env.VK_SERVICE_TOKEN;
+    mockVkFetch({ ok: true, json: async () => ({ response: [{ id: 123 }] }) });
+    const res = await request(app)
+      .post('/api/auth/vk')
+      .send({ accessToken: 'tok', userId: 123 });
+    // Refusing beats accepting a token whose owner cannot be established.
+    expect(res.status).toBe(503);
   });
 
   it('returns 401 when fetch throws (network error)', async () => {
@@ -336,10 +381,12 @@ describe('VK OAuth email handling (round 79: anti-squatting)', () => {
     mockFetch.mockReset();
     jest.clearAllMocks();
     process.env.VK_APP_ID = 'test_vk_app_id';
+    process.env.VK_SERVICE_TOKEN = 'test_vk_service_token';
   });
 
   afterEach(() => {
     delete process.env.VK_APP_ID;
+    delete process.env.VK_SERVICE_TOKEN;
   });
 
   it('IGNORES client-supplied email at user creation, uses synthetic vk_<id>@giron.internal', async () => {
@@ -354,7 +401,7 @@ describe('VK OAuth email handling (round 79: anti-squatting)', () => {
     // The pre-round-79 test asserted email NORMALISATION (HIGH-14), which
     // implicitly trusted the client value. That's no longer the contract:
     // the synthetic internal email is the only thing that lands on disk.
-    mockFetch.mockResolvedValue({
+    mockVkFetch({
       ok: true,
       json: async () => ({
         response: [{ id: 12345, first_name: 'Test', last_name: 'User', photo_200: 'https://example.com/avatar.jpg' }],

@@ -917,12 +917,46 @@ router.post('/vk', async (req: Request, res: Response) => {
       return res.status(503).json({ error: 'VK OAuth не настроен на сервере' });
     }
 
+    // Without a service key we cannot tell whose token this is, and VK will
+    // happily describe the owner of a token minted for somebody else's app.
+    // Refusing is the only safe answer: an attacker who runs any VK app can
+    // collect a victim's token there and present it here.
+    if (!process.env.VK_SERVICE_TOKEN) {
+      logger.error('[SECURITY] VK_SERVICE_TOKEN is not set — VK login refused, the token audience cannot be verified');
+      return res.status(503).json({ error: 'VK OAuth настроен не полностью' });
+    }
+
     // Round 234 (security audit): replay cache. VK access tokens are
     // opaque (not JWT) — we hash for stable, non-leaking identity.
     const vkTokenKey = `v:${crypto.createHash('sha256').update(accessToken).digest('hex').slice(0, 32)}`;
     if (!markOAuthTokenSeen(vkTokenKey)) {
       await logSecurityEvent('OAUTH_TOKEN_REPLAY', null, req, 'provider=vk');
       return res.status(401).json({ error: 'VK токен уже был использован, повторите вход', code: 'TOKEN_REPLAY' });
+    }
+
+    // Audit M4: confirm the token was issued to THIS app before believing a
+    // word of it. users.get answers for any app's token, so on its own it
+    // proves only that the token is valid somewhere — not that it is ours.
+    // secure.checkToken answers with our own service key, so success means
+    // VK issued this token for VK_APP_ID.
+    try {
+      const checkParams = new URLSearchParams({
+        token: accessToken,
+        access_token: process.env.VK_SERVICE_TOKEN,
+        v: '5.199',
+      });
+      const checkResp = await fetch(`https://api.vk.com/method/secure.checkToken?${checkParams}`, {
+        signal: AbortSignal.timeout(5000),
+      });
+      const checkData = await checkResp.json() as any;
+      const ok = checkData?.response?.success === 1;
+      if (!ok) {
+        await logSecurityEvent('OAUTH_TOKEN_FOREIGN_APP', null, req, 'provider=vk');
+        return res.status(401).json({ error: 'VK токен выдан другому приложению' });
+      }
+    } catch (e: any) {
+      logger.warn('VK secure.checkToken failed:', e.message);
+      return res.status(401).json({ error: 'Не удалось проверить VK токен' });
     }
 
     let vkUser: any;
