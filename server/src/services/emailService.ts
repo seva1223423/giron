@@ -69,6 +69,14 @@ const realTransporter = nodemailer.createTransport({
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
+  // Nodemailer waits 2 minutes to connect and 10 for a stalled socket by
+  // default. Sends here are fire-and-forget, so a host that cannot reach
+  // the SMTP server does not fail — it hangs, for minutes, and the user
+  // just never gets their password reset. Short timeouts turn that silence
+  // into a logged error within seconds.
+  connectionTimeout: 10_000,
+  greetingTimeout: 10_000,
+  socketTimeout: 20_000,
 });
 
 /**
@@ -101,13 +109,16 @@ const transporter = {
 export async function verifySmtpConnection(): Promise<{ ok: boolean; error?: string }> {
   if (!SMTP_CONFIGURED) return { ok: false, error: 'not_configured' };
   try {
-    await realTransporter.verify();
+    await Promise.race([
+      realTransporter.verify(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 12_000)),
+    ]);
     return { ok: true };
   } catch (err: any) {
     // Keep the detail in the logs — an SMTP rejection quotes the username
     // back at you, and this is reachable without auth.
     logger.warn('[Email] SMTP verify failed:', err?.message ?? err);
-    return { ok: false, error: 'handshake_failed' };
+    return { ok: false, error: err?.message === 'timeout' ? 'unreachable' : 'handshake_failed' };
   }
 }
 
