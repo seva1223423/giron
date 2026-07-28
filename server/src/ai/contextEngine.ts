@@ -91,6 +91,20 @@ export interface ChatContextData {
 
   clientHour?: number;
 
+  /**
+   * The workout happening right now, if any. Every other workout field here
+   * is history — filtered on completedAt — so without this the coach could
+   * only ever talk about last time, even mid-set.
+   */
+  liveWorkout?: {
+    name: string;
+    startedAt?: Date | null;
+    exercises: Array<{
+      exercise?: { name: string } | null;
+      sets: Array<{ completed: boolean; weight?: number | null; reps?: number | null; rpe?: number | null }>;
+    }>;
+  } | null;
+
   activeProgram?: {
     name: string;
     type?: string | null;
@@ -126,6 +140,11 @@ function est1RM(weight: number, reps: number): number {
  */
 export async function buildDynamicContext(data: ChatContextData): Promise<string> {
   const blocks: string[] = [];
+
+  // A session in progress outranks everything else: it is the only block that
+  // describes this minute rather than last week.
+  const live = buildLiveWorkoutBlock(data);
+  if (live) blocks.push(live);
 
   // Core: always included regardless of intent
   const core = buildCoreStatsContext(data);
@@ -246,6 +265,50 @@ export async function buildDynamicContext(data: ChatContextData): Promise<string
 }
 
 // ─── Context Builders ─────────────────────────────────────────────────────────
+
+/**
+ * What is happening right now, mid-session.
+ *
+ * Always first and always included: if someone is standing between sets
+ * asking "сколько я уже сделал" or "какой вес был в прошлом подходе", every
+ * other block in this file is about last week. This one is about this minute.
+ */
+function buildLiveWorkoutBlock(data: ChatContextData): string {
+  const w = data.liveWorkout;
+  if (!w) return '';
+
+  const lines: string[] = [];
+  let doneSets = 0;
+  let volume = 0;
+
+  for (const ex of w.exercises ?? []) {
+    const done = (ex.sets ?? []).filter((st) => st.completed);
+    doneSets += done.length;
+    for (const st of done) volume += (st.weight ?? 0) * (st.reps ?? 0);
+    const total = (ex.sets ?? []).length;
+    const name = ex.exercise?.name ?? 'упражнение';
+    if (done.length === 0) {
+      lines.push(`- ${name}: ещё не начато (${total} подх. запланировано)`);
+      continue;
+    }
+    const detail = done
+      .map((st) => `${st.weight ?? 0}×${st.reps ?? 0}${st.rpe ? ` @${st.rpe}` : ''}`)
+      .join(', ');
+    lines.push(`- ${name}: ${done.length} из ${total} — ${detail}`);
+  }
+
+  const mins = w.startedAt
+    ? Math.max(0, Math.round((Date.now() - new Date(w.startedAt).getTime()) / 60000))
+    : null;
+
+  return [
+    'СЕЙЧАС ИДЁТ ТРЕНИРОВКА (данные в реальном времени, не история):',
+    `Название: ${w.name}${mins !== null ? ` · идёт ${mins} мин` : ''}`,
+    `Выполнено подходов: ${doneSets} · объём: ${Math.round(volume)} кг`,
+    ...lines,
+    'Отвечая про "сегодня", "сейчас", "сколько сделал" — бери числа отсюда, а не из истории.',
+  ].join('\n');
+}
 
 function buildCoreStatsContext(data: ChatContextData): string {
   const lines: string[] = [];

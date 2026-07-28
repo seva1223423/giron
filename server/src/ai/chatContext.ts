@@ -78,6 +78,8 @@ export interface PrimaryChatContextResult {
   history: Awaited<ReturnType<typeof prisma.chatMessage.findMany>>;
   activeProgram: ActiveProgramPayload;
   recentWorkouts: RecentWorkoutPayload[];
+  /** The session in progress, if one is running. Null the rest of the time. */
+  liveWorkout: RecentWorkoutPayload | null;
   bodyWeightHistory: Awaited<ReturnType<typeof prisma.bodyWeight.findMany>>;
   allCompletedExerciseSets: Array<{
     exerciseId: string;
@@ -137,6 +139,7 @@ export async function fetchPrimaryChatContext(
     history,
     activeProgram,
     recentWorkouts,
+    liveWorkout,
     bodyWeightHistory,
     allCompletedExerciseSets,
     todayMeals,
@@ -175,6 +178,14 @@ export async function fetchPrimaryChatContext(
       where: { userId, completedAt: { not: null } },
       orderBy: { completedAt: 'desc' },
       take: 5,
+      include: { exercises: { include: { exercise: true, sets: true } } },
+    }),
+    // The workout happening RIGHT NOW. Every other workout query filters on
+    // completedAt, so a session in progress was invisible to the coach: asked
+    // "сколько подходов я уже сделал", it could only talk about last time.
+    prisma.workout.findFirst({
+      where: { userId, completedAt: null, startedAt: { not: null } },
+      orderBy: { startedAt: 'desc' },
       include: { exercises: { include: { exercise: true, sets: true } } },
     }),
     prisma.bodyWeight.findMany({
@@ -263,6 +274,7 @@ export async function fetchPrimaryChatContext(
     history,
     activeProgram,
     recentWorkouts,
+    liveWorkout,
     bodyWeightHistory,
     allCompletedExerciseSets,
     todayMeals,
