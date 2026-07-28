@@ -562,7 +562,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const allPrompts: { iconName: IconName; text: string }[] = [...dynamicPrompts, ...staticPrompts];
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={90}>
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
       <ChatHeader lastMeta={lastMeta} />
       <PaywallModal visible={showPaywall} onClose={() => setShowPaywall(false)} reason="ai_limit" navigation={navigation} />
 

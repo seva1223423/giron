@@ -69,7 +69,7 @@ export const ResetPasswordScreen: React.FC<{ route: any; navigation: any }> = ({
   return (
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: colors.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.content}>
         <View style={styles.header}>

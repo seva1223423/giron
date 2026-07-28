@@ -278,7 +278,7 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
 
   if (step === 'otp') {
     return (
-      <KeyboardAvoidingView style={[styles.container, { backgroundColor: colors.background }]} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <KeyboardAvoidingView style={[styles.container, { backgroundColor: colors.background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <TouchableOpacity onPress={() => { setStep('form'); setOtpCode(''); clearErrors(); }} style={{ alignSelf: 'flex-start', marginBottom: spacing.xl }}>
             <Text style={[typography.body, { color: colors.primary }]}>← Назад</Text>
@@ -330,7 +330,7 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
   // ── Registration form ─────────────────────────────────────────────────────────
 
   return (
-    <KeyboardAvoidingView style={[styles.container, { backgroundColor: colors.background }]} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <KeyboardAvoidingView style={[styles.container, { backgroundColor: colors.background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           <Text style={[typography.h1, { color: colors.primary }]}>Giron</Text>
