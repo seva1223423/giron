@@ -88,6 +88,11 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
   // elapsed time stays accurate even if the JS interval is throttled or paused while the
   // app is backgrounded. Local notifications are still the authoritative rest-end signal.
   const restEndAtRef = useRef<number>(0);
+  // Paused rest. While paused there is no end timestamp to count towards, so
+  // the seconds left live here and restEndAtRef is zeroed — which also stops
+  // the foreground re-sync below from snapping the clock to zero.
+  const [restPaused, setRestPaused] = useState(false);
+  const pausedRemainingRef = useRef<number>(0);
 
   // PR toast state
   const [prToast, setPrToast] = useState<{ name: string; rm: number; prevRm?: number } | null>(null);
@@ -162,6 +167,8 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     setRestingAfterLastSet(false);
     restingExerciseIndexRef.current = -1;
     restEndAtRef.current = 0;
+    setRestPaused(false);
+    pausedRemainingRef.current = 0;
   }, []);
 
   // When the app returns to the foreground, snap the rest timer to the real remaining
@@ -182,6 +189,45 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     return () => sub.remove();
   }, [handleRestEnd]);
 
+  // Ticking is the same whether rest is starting or resuming, so it lives in
+  // one place. Every tick recomputes from the anchored end time, which keeps
+  // the clock right even if the interval was throttled in the background.
+  const runRestInterval = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((restEndAtRef.current - Date.now()) / 1000));
+      setRestTime(remaining);
+      if (remaining <= 0) {
+        clearInterval(timerRef.current!);
+        if (restEndTimerRef.current) clearTimeout(restEndTimerRef.current);
+        restEndTimerRef.current = setTimeout(() => handleRestEnd(), 0);
+      }
+    }, 1000);
+  }, [handleRestEnd]);
+
+  const pauseRest = () => {
+    const remaining = Math.max(0, Math.ceil((restEndAtRef.current - Date.now()) / 1000));
+    if (remaining <= 0) return;
+    if (timerRef.current) clearInterval(timerRef.current);
+    // Without this the "rest is over" push still fires at the original time,
+    // mid-pause, telling you to lift while the clock on screen is frozen.
+    cancelRestEndNotification();
+    pausedRemainingRef.current = remaining;
+    restEndAtRef.current = 0;
+    setRestTime(remaining);
+    setRestPaused(true);
+  };
+
+  const resumeRest = () => {
+    const remaining = pausedRemainingRef.current;
+    if (remaining <= 0) return;
+    pausedRemainingRef.current = 0;
+    restEndAtRef.current = Date.now() + remaining * 1000;
+    setRestPaused(false);
+    scheduleRestEndNotification(remaining);
+    runRestInterval();
+  };
+
   const startRest = (seconds: number, isLastSet: boolean = false) => {
     const endAt = Date.now() + seconds * 1000;
     restEndAtRef.current = endAt;
@@ -193,18 +239,9 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     // Snapshot the exercise index at timer start — used in handleRestEnd to prevent wrong advance
     restingExerciseIndexRef.current = useWorkoutStore.getState().activeWorkout?.currentExerciseIndex ?? -1;
     scheduleRestEndNotification(seconds);
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => {
-      // Recompute from the anchored end time on every tick — stays accurate even if the
-      // interval was throttled or the app was briefly backgrounded.
-      const remaining = Math.max(0, Math.ceil((restEndAtRef.current - Date.now()) / 1000));
-      setRestTime(remaining);
-      if (remaining <= 0) {
-        clearInterval(timerRef.current!);
-        if (restEndTimerRef.current) clearTimeout(restEndTimerRef.current);
-        restEndTimerRef.current = setTimeout(() => handleRestEnd(), 0);
-      }
-    }, 1000);
+    setRestPaused(false);
+    pausedRemainingRef.current = 0;
+    runRestInterval();
   };
 
   const skipRest = () => {
@@ -222,6 +259,8 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     setRestingAfterLastSet(false);
     restingExerciseIndexRef.current = -1;
     restEndAtRef.current = 0;
+    setRestPaused(false);
+    pausedRemainingRef.current = 0;
   };
 
   // Previous session sets for current exercise (must be before early return)
@@ -528,10 +567,15 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
         onAddTime={(sec) => {
           setRestTime((r) => r + sec);
           setRestTotal((t) => t + sec);
-          restEndAtRef.current += sec * 1000;
+          // Paused rest has no end timestamp; adding to a zeroed one would
+          // land the clock in 1970 and end rest the moment it resumed.
+          if (restPaused) pausedRemainingRef.current += sec;
+          else restEndAtRef.current += sec * 1000;
         }}
         nextExerciseName={nextExerciseName}
         isLastSetOfExercise={restingAfterLastSet}
+        paused={restPaused}
+        onTogglePause={() => (restPaused ? resumeRest() : pauseRest())}
         onSubstitute={() => handleSubstituteAt(currentExerciseIndex + 1)}
       />
 

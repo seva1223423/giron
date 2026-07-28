@@ -97,7 +97,11 @@
   .restrow{display:flex;align-items:center;gap:8px;padding-top:8px}
   .restrow .cl{flex:1}
   .restrow .cl small{font-size:9.5px;font-weight:800;letter-spacing:1px;color:var(--t3);display:block}
+  .restrow .cl .clockrow{display:flex;align-items:center}
   .restrow .cl b{font-size:30px;font-weight:800;letter-spacing:-.5px;color:var(--gold)}
+  .restrow .cl.held b{color:var(--t2)}
+  .pausebtn{width:40px;height:40px;display:flex;align-items:center;justify-content:center;margin-left:4px;
+            color:var(--t2);font-size:15px}
   .p30{min-width:56px;height:44px;border:1px solid var(--border);background:var(--surface);border-radius:10px;
        display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:600;color:var(--t2)}
   .nx{height:48px;padding:0 18px;border-radius:10px;background:var(--gold);color:#17171A;font-weight:700;
@@ -228,7 +232,7 @@
         <span class="sw">Заменить</span>
       </div>
       <div class="restrow">
-        <div class="cl"><small>ОТДЫХ</small><b>1:24</b></div>
+        <div class="cl"><small>ОТДЫХ</small><div class="clockrow"><b>1:24</b><span class="pausebtn">❙❙</span></div></div>
         <div class="p30">+30с</div>
         <div class="nx">Дальше ›</div>
       </div>
@@ -239,6 +243,28 @@
      <b>Плюсик под последней строкой</b> — добавить ещё подход.</p>
   </div>
 
+  <div>
+  <div class="phone" style="height:auto;padding-bottom:0">
+    <div class="status"><span>9:41</span><span>▮▮</span></div>
+    <div class="hd"><h2 style="font-size:17px">Пауза — то же место</h2></div>
+    <div style="padding:0 16px 18px;font-size:11.5px;color:var(--t2);line-height:1.55">
+      Кнопка стоит у самих часов, а не в правой паре — она действует на число,
+      а не двигает тренировку дальше. На паузе полоса гаснет, цифра тускнеет,
+      подпись меняется на ПАУЗА.
+    </div>
+    <div style="position:relative;background:var(--elev);border-top:1px solid var(--border);padding:0 16px 16px">
+      <div class="track" style="margin:0 -16px"><i style="width:62%;opacity:.4"></i></div>
+      <div class="restrow">
+        <div class="cl held"><small>ПАУЗА</small><div class="clockrow"><b>1:24</b><span class="pausebtn">▶</span></div></div>
+        <div class="p30">+30с</div>
+        <div class="nx">Дальше ›</div>
+      </div>
+    </div>
+  </div>
+  <p class="cap">«+30с» отвечает на «мне бы ещё чуть-чуть».<br>
+     Пауза — на <b>«не знаю когда вернусь»</b>: скамью заняли, кто-то подошёл поговорить.</p>
+  </div>
+
 </div>
 
 <h1 style="margin-top:30px">Куда ещё уехал барабан</h1>
@@ -246,6 +272,7 @@
 <table>
   <tr><th>Место</th><th>Было</th><th>Стало</th></tr>
   <tr><td>Журнал подходов</td><td class="was">6 кнопок ± на строку + полоса RPE из 8</td><td class="now">тап по «100 кг × 8»</td></tr>
+  <tr><td>Пауза отдыха</td><td class="was">только «+30с» по кругу</td><td class="now">кнопка у часов</td></tr>
   <tr><td>Добавить подход</td><td class="was">широкая кнопка «+ Подход» под карточкой объёма</td><td class="now">плюсик в самом списке</td></tr>
   <tr><td>Настройка упражнений в тренировке</td><td class="was">6 кнопок ± на упражнение</td><td class="now">3 значения</td></tr>
   <tr><td>Создание программы</td><td class="was">4 кнопки ± (недели, дни)</td><td class="now">2 значения</td></tr>

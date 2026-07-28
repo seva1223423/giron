@@ -35,6 +35,10 @@ interface Props {
   isLastSetOfExercise?: boolean;
   /** Offered only between exercises, where changing the plan makes sense. */
   onSubstitute?: () => void;
+  /** Rest is held. "+30с" answers "I need a bit more"; this answers "I have
+   *  no idea when I'm back" — the bench is taken, someone is talking to you. */
+  paused?: boolean;
+  onTogglePause?: () => void;
 }
 
 function formatTime(sec: number) {
@@ -45,7 +49,7 @@ function formatTime(sec: number) {
 
 export const RestTimerOverlay: React.FC<Props> = ({
   isResting, restTime, restTotal, onSkip, onAddTime,
-  nextExerciseName, isLastSetOfExercise, onSubstitute,
+  nextExerciseName, isLastSetOfExercise, onSubstitute, paused, onTogglePause,
 }) => {
   const colors = useThemeColors();
   const safeBottom = useSafeBottom();
@@ -53,7 +57,9 @@ export const RestTimerOverlay: React.FC<Props> = ({
 
   const pulse = useSharedValue(1);
   const slide = useSharedValue(160);
-  const isUrgent = restTime <= 5 && restTime > 0;
+  // A held clock is never urgent — otherwise pausing at 0:03 leaves the number
+  // breathing and buzzing forever.
+  const isUrgent = restTime <= 5 && restTime > 0 && !paused;
 
   // PHILOSOPHY §5 state-as-event: the last five seconds breathe, so you feel
   // the moment to stand up without watching the screen.
@@ -122,7 +128,7 @@ export const RestTimerOverlay: React.FC<Props> = ({
       {/* Time left as a single hairline. The ring was 180pt of screen for
           information a 3pt line carries just as well. */}
       <View style={[styles.track, { backgroundColor: colors.border }]}>
-        <View style={[styles.fill, { backgroundColor: accent, width: `${progress * 100}%` }]} />
+        <View style={[styles.fill, { backgroundColor: accent, width: `${progress * 100}%`, opacity: paused ? 0.4 : 1 }]} />
       </View>
 
       {showNext && (
@@ -151,15 +157,31 @@ export const RestTimerOverlay: React.FC<Props> = ({
       <View style={styles.bar}>
         <View style={{ flex: 1 }}>
           <Text style={[typography.metaLabel, { color: colors.textTertiary }]}>
-            {isUrgent ? 'ГОТОВЬСЯ' : 'ОТДЫХ'}
+            {paused ? 'ПАУЗА' : isUrgent ? 'ГОТОВЬСЯ' : 'ОТДЫХ'}
           </Text>
-          <Animated.Text
-            style={[styles.clock, pulseStyle, { color: accent }]}
-            allowFontScaling={false}
-            numberOfLines={1}
-          >
-            {formatTime(restTime)}
-          </Animated.Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Animated.Text
+              style={[styles.clock, pulseStyle, { color: paused ? colors.textSecondary : accent }]}
+              allowFontScaling={false}
+              numberOfLines={1}
+            >
+              {formatTime(restTime)}
+            </Animated.Text>
+            {/* Sits next to the clock, not with the actions on the right —
+                it acts on the number, it does not move the workout on. */}
+            {!!onTogglePause && (
+              <AnimatedPressable
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onTogglePause(); }}
+                haptic={false}
+                scaleDown={0.88}
+                style={styles.pause as any}
+                accessibilityRole="button"
+                accessibilityLabel={paused ? 'Продолжить отдых' : 'Поставить отдых на паузу'}
+              >
+                <Icon name={paused ? 'play' : 'pause'} size={17} color={colors.textSecondary} />
+              </AnimatedPressable>
+            )}
+          </View>
         </View>
 
         <AnimatedPressable
@@ -203,6 +225,7 @@ const styles = StyleSheet.create({
   swap: { minHeight: 40, paddingHorizontal: spacing.sm, alignItems: 'center', justifyContent: 'center' },
   bar: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingTop: spacing.sm },
   clock: { fontSize: 30, fontWeight: '800', letterSpacing: -0.5, marginTop: -2 },
+  pause: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginLeft: spacing.xs },
   add: {
     minWidth: 56, minHeight: 44, borderRadius: borderRadius.md, borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
