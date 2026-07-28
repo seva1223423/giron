@@ -610,8 +610,14 @@ setInterval(() => {
 // 15 min of idle, and Neon free tier scale-to-zero adds another 200-700ms
 // to the first query after sleep. The dashboard "DB ping 705мс" warning
 // the founder hit was that combined cold-start. A no-op SELECT 1 every
-// 10 minutes keeps both paths warm: Render counts the ping as activity,
-// Neon keeps the connection pool active. Doesn't help if the request
+// 10 minutes keeps NEON warm — the connection pool stays active.
+//
+// It does NOT keep Render awake, whatever this comment used to claim:
+// Render's free tier spins down on the absence of INBOUND HTTP traffic,
+// and a setInterval inside the process is not inbound traffic. The dyno
+// still sleeps after 15 idle minutes and still takes 30-50s to answer the
+// first request. Only a paid plan or an external pinger fixes that.
+// Doesn't help if the request
 // queue is genuinely loaded — but for a 5-user product it eliminates
 // the worst-case visible latency.
 //

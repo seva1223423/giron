@@ -1,3 +1,4 @@
+import Constants from 'expo-constants';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform,
@@ -35,6 +36,10 @@ function formatPhoneDisplay(digits: string): string {
   if (local.length >= 8) result += '-' + local.slice(8, 10);
   return result;
 }
+
+// Was hardcoded "v1.0.0" and stayed that way through six releases, so the
+// login screen told everyone the wrong version. Read it from the manifest.
+const APP_VERSION = (Constants?.expoConfig?.version as string | undefined) ?? '';
 
 export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const colors = useThemeColors();
@@ -615,7 +620,7 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           .
         </Text>
 
-        <Text style={[typography.caption, { color: colors.textTertiary, textAlign: 'center', marginTop: spacing.xl }]}>v1.0.0</Text>
+        <Text style={[typography.caption, { color: colors.textTertiary, textAlign: 'center', marginTop: spacing.xl }]}>v{APP_VERSION}</Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );

@@ -29,6 +29,15 @@ const CLIENT_PLATFORM = Platform.OS === 'ios' ? 'ios' : 'android';
 // 503/504) a real chance to land within the cold-start window.
 // AI requests still override this with their own AI_REQUEST_TIMEOUT_MS
 // in services/aiService.ts.
+// How long a request may run before the app says the connection is slow.
+// This was 8s, which flagged almost everything: the server is on Render's
+// free tier and sleeps after 15 minutes idle, so the first request after a
+// pause routinely takes 30-50s. The banner was on screen more often than
+// off, which is the same as no banner at all. 15s leaves ordinary slow
+// requests alone and still speaks up long before the 45s timeout, so a
+// genuinely stuck app never looks frozen.
+const SLOW_REQUEST_MS = 15000;
+
 export const api = axios.create({
   baseURL: BASE_URL,
   timeout: 45000,
@@ -79,8 +88,8 @@ api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  // Round 290: if this request is still in-flight after 8s, mark it as
-  // slow so the NetworkStatusBar shows "Соединение медленное…".
+  // If this request is still in-flight after SLOW_REQUEST_MS, mark it slow
+  // so the NetworkStatusBar shows "Соединение медленное…".
   // Reverted in the response/error interceptors.
   // Skip under jest: the 8s timer outlives the test and fires after the
   // module registry is reset → "markSlowRequest is not a function" worker
@@ -90,7 +99,7 @@ api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
     cfg._slowTimer = setTimeout(() => {
       cfg._slowFired = true;
       markSlowRequest();
-    }, 8000);
+    }, SLOW_REQUEST_MS);
   }
   return config;
 });
