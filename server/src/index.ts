@@ -1,4 +1,4 @@
-import { isSmtpConfigured } from './services/emailService';
+import { isSmtpConfigured, verifySmtpConnection } from './services/emailService';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -399,6 +399,16 @@ const enumRateLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: 'Слишком много запросов. Подождите 15 минут.' },
 });
+
+// Does outbound email actually work? Opens an SMTP connection, authenticates
+// and disconnects — nothing is sent. Rate-limited because it makes the server
+// dial out on demand, and deliberately vague in its answer: the underlying
+// error quotes the SMTP username back, and this needs no auth.
+app.get('/health/email', authRateLimiter, async (_, res) => {
+  const result = await verifySmtpConnection();
+  res.json({ configured: isSmtpConfigured(), smtp: result.ok ? 'ok' : result.error });
+});
+
 
 // Routes
 app.use('/api/auth/totp-verify', totpRateLimiter);

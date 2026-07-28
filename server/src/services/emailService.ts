@@ -89,6 +89,28 @@ const transporter = {
   },
 };
 
+/**
+ * Ask the SMTP server whether it actually accepts our credentials.
+ *
+ * `isSmtpConfigured()` only says the three env vars are non-empty. It cannot
+ * tell a working Gmail app password from a revoked one — and because sends
+ * are fire-and-forget, a revoked password loses every email in silence, with
+ * nothing but a log line to show for it. This opens a connection, logs in and
+ * hangs up without sending anything.
+ */
+export async function verifySmtpConnection(): Promise<{ ok: boolean; error?: string }> {
+  if (!SMTP_CONFIGURED) return { ok: false, error: 'not_configured' };
+  try {
+    await realTransporter.verify();
+    return { ok: true };
+  } catch (err: any) {
+    // Keep the detail in the logs — an SMTP rejection quotes the username
+    // back at you, and this is reachable without auth.
+    logger.warn('[Email] SMTP verify failed:', err?.message ?? err);
+    return { ok: false, error: 'handshake_failed' };
+  }
+}
+
 const FROM = process.env.SMTP_FROM || 'Giron <noreply@giron.app>';
 const APP_NAME = 'Giron';
 
