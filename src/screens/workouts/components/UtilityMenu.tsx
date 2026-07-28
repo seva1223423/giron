@@ -27,7 +27,7 @@ interface MenuGroup {
 const GROUPS: MenuGroup[] = [
   {
     // These three screens are fully built and registered in the navigator, but
-    // nothing rendered a way in: HistoryTab — the only component that linked to
+    // nothing rendered a way in: the History tab — the only surface that linked to
     // them — is exported and never used, and this menu (which WorkoutsScreen
     // claims holds them) did not list them. Finished work no user could reach
     // (audit U7 / W9).

@@ -29,6 +29,10 @@ const QUICK_SPLITS: { name: string; icon: 'dumbbell' | 'flame' | 'bolt' | 'spark
   { name: 'Базовая тройка', icon: 'trophy', exercises: ['squat', 'bench-press', 'deadlift'] },
   { name: 'Руки', icon: 'dumbbell', exercises: ['barbell-curl', 'hammer-curl', 'preacher-curl', 'tricep-pushdown', 'french-press', 'close-grip-bench'] },
   { name: 'Пресс + кор', icon: 'target', exercises: ['plank', 'cable-crunch', 'hanging-leg-raise', 'bicycle-crunch', 'russian-twist', 'side-plank'] },
+  { name: 'Кардио', icon: 'heart', exercises: ['treadmill', 'jump-rope', 'cycling'] },
+  { name: 'Тяжёлая спина', icon: 'dumbbell', exercises: ['deadlift', 'barbell-row', 'pull-ups', 'lat-pulldown', 'seated-row', 'dumbbell-row'] },
+  { name: 'Ноги (гантели)', icon: 'flame', exercises: ['goblet-squat', 'lunges', 'romanian-deadlift', 'bulgarian-split-squat', 'leg-curl'] },
+  { name: 'Жим + грудь', icon: 'dumbbell', exercises: ['bench-press', 'incline-bench-press', 'dumbbell-bench-press', 'cable-fly', 'dips'] },
 ];
 
 /** Two letters as a program cover — the app has no artwork and emoji are banned. */
@@ -61,7 +65,7 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
 
   const {
     fetchPrograms, fetchRoutines, activeWorkout, weekPlan, workoutHistory,
-    routines, savedTemplates, customExercises, startWorkoutFromRoutine,
+    routines, savedTemplates, customExercises, startWorkoutFromRoutine, programs,
   } = useWorkoutStore();
   const { isPremiumActive } = useSubscriptionStore();
 
@@ -187,8 +191,20 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     })),
   ], [routines, savedTemplates, startTemplate, navigation]);
 
-  const programItems = useMemo<ShelfItem[]>(() =>
-    builtInPrograms.slice(0, 8).map((p, i) => {
+  // The user's own programs come first. The restructure moved the catalogue
+  // onto a shelf, and putting only the built-in twenty-five there would have
+  // buried the program they built themselves two screens deep.
+  const programItems = useMemo<ShelfItem[]>(() => [
+    ...programs.map((p) => ({
+      id: `own-${p.id}`,
+      title: p.name,
+      subtitle: p.isActive
+        ? 'активная'
+        : `${p.workouts.length} трен.`,
+      cover: p.createdBy === 'ai' ? 'AI' : 'МОЯ',
+      onPress: () => { haptic.selection(); navigation.navigate('AIProgramDetail', { program: p }); },
+    })),
+    ...builtInPrograms.slice(0, 8).map((p, i) => {
       const locked = !isPremiumActive() && i >= 3;
       return {
         id: p.id,
@@ -202,7 +218,8 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
           else navigation.navigate('ProgramDetail', { program: p });
         },
       };
-    }), [isPremiumActive, navigation, haptic]);
+    }),
+  ], [programs, isPremiumActive, navigation, haptic]);
 
   const splitItems = useMemo<ShelfItem[]>(() =>
     QUICK_SPLITS.map((s) => ({
@@ -255,7 +272,7 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
         <ShelfStrip
           title="БИБЛИОТЕКА ПРОГРАММ"
           items={programItems}
-          moreLabel={`все ${builtInPrograms.length}`}
+          moreLabel={`все ${builtInPrograms.length + programs.length}`}
           onMore={() => navigation.navigate('ProgramLibrary')}
           onAdd={() => navigation.navigate('CreateProgram')}
           addLabel="Своя программа"

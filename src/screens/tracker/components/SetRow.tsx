@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import Animated, {
   useSharedValue, useAnimatedStyle, withSpring, withSequence,
@@ -114,8 +114,24 @@ const TouchableArea: React.FC<{ onPress: () => void; completed: boolean; colors:
 
 export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, suggestedRpe, isActive, onComplete, onRpeChange, onRemove, onTypeChange, onOpenPlates, colors }) => {
   const haptic = useHaptic();
-  const [weight, setWeight] = useState<number>(set.weight ?? prevSet?.weight ?? 0);
-  const [reps, setReps] = useState<number>(set.reps ?? prevSet?.reps ?? 10);
+  // Truthiness, not ??: a fresh set is created with weight 0, so nullish
+  // coalescing would keep the zero and never fall through to last session's
+  // number — the row would read "—" and the set would log 0 kg.
+  const [weight, setWeight] = useState<number>(set.weight || prevSet?.weight || 0);
+  const [reps, setReps] = useState<number>(set.reps || prevSet?.reps || 10);
+  // History is fetched after the screen mounts, so last session's numbers can
+  // arrive when the rows already exist. Prefill then too — but only while the
+  // user has not picked anything: once they do, the number is theirs, and an
+  // explicit 0 means a bodyweight set.
+  const touchedRef = useRef(false);
+  useEffect(() => {
+    if (touchedRef.current || set.completed) return;
+    if (!set.weight && prevSet?.weight) setWeight(prevSet.weight);
+    if (!set.reps && prevSet?.reps) setReps(prevSet.reps);
+  }, [prevSet?.weight, prevSet?.reps, set.weight, set.reps, set.completed]);
+
+  const pickWeight = useCallback((v: number) => { touchedRef.current = true; setWeight(v); }, []);
+  const pickReps = useCallback((v: number) => { touchedRef.current = true; setReps(v); }, []);
   // Only one sheet is ever open, so a single discriminator beats two booleans.
   const [sheet, setSheet] = useState<'load' | 'rpe' | null>(null);
   const [draftRpe, setDraftRpe] = useState<number>(set.rpe ?? suggestedRpe ?? 8);
@@ -233,8 +249,8 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
           // 0.5 kg steps so dumbbells and microplates are reachable; the
           // presets below jump in 2.5 kg, which is what the wheel would be
           // slow at. Coarse where it helps, fine where it must.
-          primary={{ label: 'Вес', value: weight, onChange: setWeight, min: 0, max: 300, step: 0.5, unit: 'кг' }}
-          secondary={{ label: 'Повторения', value: reps, onChange: setReps, min: 0, max: 60, step: 1 }}
+          primary={{ label: 'Вес', value: weight, onChange: pickWeight, min: 0, max: 300, step: 0.5, unit: 'кг' }}
+          secondary={{ label: 'Повторения', value: reps, onChange: pickReps, min: 0, max: 60, step: 1 }}
           presets={buildPresets(weight, 2.5)}
           secondaryAction={onOpenPlates ? {
             label: 'Расчёт блинов',
