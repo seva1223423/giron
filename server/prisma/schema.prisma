@@ -50,8 +50,8 @@ model User {
   adminNote String?
 
   // Login lockout (brute-force protection)
-  loginAttempts Int       @default(0)
-  lockedUntil   DateTime?
+  loginAttempts    Int       @default(0)
+  lockedUntil      DateTime?
   // Access-token kill-switch (audit 2026-06-07 M1): set to now() on logout-all /
   // password change+reset / 2FA disable / email+phone change. authenticate() rejects any
   // access token whose iat predates this, so those actions immediately cut off
@@ -112,6 +112,7 @@ model User {
   programs           Program[]
   workouts           Workout[]
   routines           Routine[]
+  customExercises    Exercise[]
   meals              Meal[]
   bodyWeights        BodyWeight[]
   bodyMeasurements   BodyMeasurement[]
@@ -219,8 +220,16 @@ model Exercise {
   videoUrl         String?
   imageUrl         String?
 
+  // Null for the shared catalogue, set for one a person added themselves.
+  // Those used to live only in AsyncStorage, so a reinstall erased them and
+  // any workout referencing them lost its exercise names.
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   workoutExercises WorkoutExercise[]
   routineExercises RoutineExercise[]
+
+  @@index([userId])
 }
 
 // ==================== PROGRAMS & WORKOUTS ====================

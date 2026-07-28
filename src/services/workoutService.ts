@@ -127,6 +127,36 @@ export const workoutService = {
     return data;
   },
 
+  /**
+   * Exercises the person added themselves. Kept off GET /workouts/exercises
+   * because that response is cached under one global key — mixing per-user
+   * rows in would hand somebody else's private exercises to everyone.
+   */
+  async getCustomExercises(): Promise<Exercise[]> {
+    const { data } = await api.get('/workouts/exercises/custom');
+    return data;
+  },
+
+  async createCustomExercise(exercise: {
+    name: string;
+    description?: string;
+    instructions?: string[];
+    primaryMuscles?: string[];
+    secondaryMuscles?: string[];
+    type: string;
+    category: string;
+    difficulty: string;
+    videoUrl?: string;
+    imageUrl?: string;
+  }): Promise<Exercise> {
+    const { data } = await api.post('/workouts/exercises/custom', exercise);
+    return data;
+  },
+
+  async deleteCustomExercise(id: string): Promise<void> {
+    await api.delete(`/workouts/exercises/custom/${id}`);
+  },
+
   // Club leaderboard
   async getLeaderboard(): Promise<LeaderboardEntry[]> {
     const { data } = await api.get('/workouts/leaderboard');

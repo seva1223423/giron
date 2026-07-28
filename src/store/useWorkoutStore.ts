@@ -95,6 +95,9 @@ interface WorkoutStore {
   deleteTemplate: (id: string) => void;
   addCustomExercise: (exercise: Exercise) => void;
   deleteCustomExercise: (id: string) => void;
+  /** Pulls the account's own exercises down and pushes up any that only ever
+   *  existed on this phone. Safe to call repeatedly. */
+  syncCustomExercises: () => Promise<void>;
 
   // Programs
   setPrograms: (programs: Program[]) => void;
@@ -227,12 +230,54 @@ export const useWorkoutStore = create<WorkoutStore>()(
 
       addCustomExercise: (exercise) => set((s) => {
         if (s.customExercises.some((e) => e.id === exercise.id)) return s;
+        // Local first so it works with no signal; the push follows.
+        setTimeout(() => { get().syncCustomExercises().catch(() => {}); }, 0);
         return { customExercises: [exercise, ...s.customExercises] };
       }),
 
-      deleteCustomExercise: (id) => set((s) => ({
-        customExercises: s.customExercises.filter((e) => e.id !== id),
-      })),
+      // Custom exercises used to live in AsyncStorage and nowhere else, so a
+      // reinstall erased them — and every workout that referenced one lost the
+      // name of what was actually done. The server keeps them now.
+      //
+      // Local ids look like `custom-1699…`; a synced one carries the server's
+      // cuid. That difference is what marks a row as "not yet pushed".
+      syncCustomExercises: async () => {
+        let remote: Exercise[] = [];
+        try {
+          remote = await workoutService.getCustomExercises();
+        } catch {
+          return; // offline — keep whatever is local, try again later
+        }
+        const remoteNames = new Set(remote.map((e) => e.name));
+        const unsynced = get().customExercises.filter((e) => !remoteNames.has(e.name));
+        for (const ex of unsynced) {
+          try {
+            const created = await workoutService.createCustomExercise({
+              name: ex.name,
+              description: ex.description || undefined,
+              instructions: ex.instructions ?? undefined,
+              primaryMuscles: (ex.primaryMuscles as string[]) ?? undefined,
+              secondaryMuscles: (ex.secondaryMuscles as string[]) ?? undefined,
+              type: String(ex.type ?? 'other'),
+              category: String(ex.category ?? 'strength'),
+              difficulty: String(ex.difficulty ?? 'beginner'),
+            });
+            remote = [created, ...remote];
+          } catch {
+            break; // server refused or dropped — leave the rest local
+          }
+        }
+        // The server's copy is authoritative once it exists.
+        set({ customExercises: remote });
+      },
+
+      deleteCustomExercise: (id) => {
+        // The request lives outside the updater: zustand may run an updater
+        // more than once, and firing a DELETE twice is not free.
+        set((s) => ({ customExercises: s.customExercises.filter((e) => e.id !== id) }));
+        // Server copy goes too, or the next sync brings it straight back.
+        workoutService.deleteCustomExercise(id).catch(() => {});
+      },
 
       // A saved template is a Routine that never made it to the server. The
       // server has had the model all along ("unified template model", 2026-05-23)
@@ -373,6 +418,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
         // Anything still sitting in savedTemplates predates this sync or was
         // made offline. Drain it now that we know the server is reachable.
         get().syncLocalTemplates().catch(() => {});
+        get().syncCustomExercises().catch(() => {});
       },
 
       addRoutine: (routine) => set((s) => ({ routines: [routine, ...s.routines] })),

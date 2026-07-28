@@ -748,6 +748,99 @@ router.get('/leaderboard', authenticate, async (req: AuthRequest, res: Response)
 });
 
 // Get exercises database (cached 1 hour — library changes rarely)
+const customExerciseSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  description: z.string().max(2000).optional(),
+  instructions: z.array(z.string().max(500)).max(30).optional(),
+  primaryMuscles: z.array(z.string().max(50)).max(10).optional(),
+  secondaryMuscles: z.array(z.string().max(50)).max(10).optional(),
+  type: z.string().max(50),
+  category: z.string().max(50),
+  difficulty: z.string().max(50),
+  videoUrl: z.string().url().max(500).optional(),
+  imageUrl: z.string().url().max(500).optional(),
+});
+
+/**
+ * Exercises a person added themselves.
+ *
+ * Deliberately NOT folded into GET /exercises: that response is cached under
+ * one global key, so mixing per-user rows into it would serve one person's
+ * private exercises to everybody else. Separate route, no cache, filtered by
+ * owner. The client merges the two lists.
+ *
+ * Declared before any /exercises/:id route so "custom" is never read as an id.
+ */
+router.get('/exercises/custom', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const rows = await prisma.exercise.findMany({
+      where: { userId: req.userId! },
+      orderBy: { name: 'asc' },
+      take: 200,
+    });
+    res.json(rows);
+  } catch (e) {
+    logger.error('GET /workouts/exercises/custom:', e);
+    res.status(500).json({ error: 'Не удалось загрузить свои упражнения' });
+  }
+});
+
+router.post('/exercises/custom', authenticate, async (req: AuthRequest, res: Response) => {
+  const parsed = customExerciseSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Некорректные данные', details: parsed.error.flatten() });
+  }
+  try {
+    const d = parsed.data;
+    // Same name twice is almost always the sync retrying, not a second
+    // exercise — hand back the existing row instead of piling up duplicates.
+    const existing = await prisma.exercise.findFirst({
+      where: { userId: req.userId!, name: d.name },
+    });
+    if (existing) return res.json(existing);
+
+    const count = await prisma.exercise.count({ where: { userId: req.userId! } });
+    if (count >= 200) {
+      return res.status(400).json({ error: 'Слишком много своих упражнений (максимум 200)' });
+    }
+
+    const created = await prisma.exercise.create({
+      data: {
+        name: d.name,
+        description: d.description ?? '',
+        instructions: d.instructions ?? [],
+        primaryMuscles: d.primaryMuscles ?? [],
+        secondaryMuscles: d.secondaryMuscles ?? [],
+        type: d.type,
+        category: d.category,
+        difficulty: d.difficulty,
+        videoUrl: d.videoUrl,
+        imageUrl: d.imageUrl,
+        userId: req.userId!,
+      },
+    });
+    res.status(201).json(created);
+  } catch (e) {
+    logger.error('POST /workouts/exercises/custom:', e);
+    res.status(500).json({ error: 'Не удалось сохранить упражнение' });
+  }
+});
+
+router.delete('/exercises/custom/:id', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    // updateMany-style scoping: the where clause carries the owner, so another
+    // user's id simply matches nothing rather than deleting their row.
+    const { count } = await prisma.exercise.deleteMany({
+      where: { id: String(req.params.id), userId: req.userId! },
+    });
+    if (count === 0) return res.status(404).json({ error: 'Упражнение не найдено' });
+    res.json({ ok: true });
+  } catch (e) {
+    logger.error('DELETE /workouts/exercises/custom/:id:', e);
+    res.status(500).json({ error: 'Не удалось удалить упражнение' });
+  }
+});
+
 router.get('/exercises', authenticate, async (_req, res: Response) => {
   try {
     const cached = exercisesCache.get('exercises');
