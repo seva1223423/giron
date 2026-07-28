@@ -234,6 +234,7 @@ export const SetsSection: React.FC<Props> = ({
             suggestedRpe={suggestedRpe}
             isActive={setIndex === activeSetIndex}
             onComplete={(reps, weight, isCorrection) => onCompleteSet(setIndex, reps, weight, isCorrection)}
+            onValuesChange={(reps, weight) => updateSetData(currentExerciseIndex, setIndex, { reps, weight })}
             onRpeChange={(rpe) => { updateSetData(currentExerciseIndex, setIndex, { rpe }); onRpeSelected?.(rpe); }}
             onRemove={currentExercise.sets.length > 1 ? () => { haptic.medium(); removeSet(currentExerciseIndex, setIndex); } : undefined}
             onTypeChange={(type) => updateSetData(currentExerciseIndex, setIndex, { type: type as any })}

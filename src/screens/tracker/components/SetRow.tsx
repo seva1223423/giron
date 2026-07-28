@@ -60,6 +60,9 @@ interface Props {
   /** isCorrection = the set was ALREADY completed and the user is fixing the
    *  numbers. The caller must not restart the rest timer or auto-advance. */
   onComplete: (reps: number, weight: number, isCorrection?: boolean) => void;
+  /** Picked numbers, before the set is ticked off. Persists them so the hero
+   *  card above shows what you chose and a backgrounded app does not lose it. */
+  onValuesChange?: (reps: number, weight: number) => void;
   onRpeChange: (rpe: number) => void;
   onRemove?: () => void;
   onTypeChange?: (type: string) => void;
@@ -112,7 +115,7 @@ const TouchableArea: React.FC<{ onPress: () => void; completed: boolean; colors:
   </Pressable>
 );
 
-export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, suggestedRpe, isActive, onComplete, onRpeChange, onRemove, onTypeChange, onOpenPlates, colors }) => {
+export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, suggestedRpe, isActive, onComplete, onValuesChange, onRpeChange, onRemove, onTypeChange, onOpenPlates, colors }) => {
   const haptic = useHaptic();
   // Truthiness, not ??: a fresh set is created with weight 0, so nullish
   // coalescing would keep the zero and never fall through to last session's
@@ -259,10 +262,12 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
           confirmLabel={set.completed ? 'Сохранить' : 'Готово'}
           onConfirm={() => {
             setSheet(null);
-            // Editing a logged set has to write through: closing the sheet on
-            // a changed number that was never saved is how wrong history gets
-            // made. An unlogged set just keeps the value until ✓.
+            // Either way the number is written through. A logged set is a
+            // correction; an unlogged one is saved without being ticked off,
+            // so the hero card above agrees with the row and nothing is lost
+            // if the app is backgrounded before the set is done.
             if (set.completed) onComplete(Math.max(0, reps), Math.max(0, weight), true);
+            else onValuesChange?.(Math.max(0, reps), Math.max(0, weight));
           }}
         />
       )}
