@@ -7,7 +7,7 @@
       "com.giron.app",
       "com.googleusercontent.apps.752233520722-jnlgc229ip1tsmp3umvj6m7hjrlgtrvt"
     ],
-    "version": "1.5.1",
+    "version": "1.6.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
