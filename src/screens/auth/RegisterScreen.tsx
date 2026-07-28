@@ -6,17 +6,12 @@ import {
 import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri } from 'expo-auth-session';
 import { useThemeColors, useAuthStore } from '../../store';
-import { Button, Input, GoogleAuthButton } from '../../components';
+import { Button, Input } from '../../components';
 import { typography } from '../../theme';
 import { spacing, contentMaxWidth } from '../../theme/spacing';
 import { authService } from '../../services/authService';
 import { features } from '../../config/store';
 
-const googleConfigured = !!(
-  process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB ||
-  process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS ||
-  process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID
-);
 const VK_APP_ID = process.env.EXPO_PUBLIC_VK_APP_ID;
 const YANDEX_CLIENT_ID = process.env.EXPO_PUBLIC_YANDEX_CLIENT_ID;
 
@@ -128,7 +123,6 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
       if (check.exists) {
         const methods: string[] = [];
         if (check.hasPassword) methods.push('паролем');
-        if (check.hasGoogle) methods.push('Google');
         if (check.hasVk) methods.push('VK');
         if (check.hasYandex) methods.push('Яндекс');
         const hint = methods.length > 0
@@ -491,13 +485,6 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
           <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
         </View>
 
-        {features.googleOAuth && googleConfigured && (
-          <GoogleAuthButton
-            onError={setLocalError}
-            onTotpRequired={() => navigation.navigate('Login')}
-            disabled={anyLoading}
-          />
-        )}
 
         {!!VK_APP_ID && (
           <TouchableOpacity

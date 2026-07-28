@@ -5,7 +5,6 @@ import jwt from 'jsonwebtoken';
 import { TOTP, Secret } from 'otpauth';
 import * as QRCode from 'qrcode';
 import crypto from 'crypto';
-import { OAuth2Client } from 'google-auth-library';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { is2faLocked, record2faFailure, clear2faFailures } from '../utils/twofaLockout';
 import { invalidateAccessTokens } from '../utils/sessionRevocation';
@@ -15,12 +14,6 @@ import { logger } from '../utils/logger';
 import { getSubStatus } from '../utils/subscriptionCheck';
 import { foodVisionCache } from '../utils/memCache';
 
-const GOOGLE_CLIENT_IDS = [
-  process.env.GOOGLE_CLIENT_ID_WEB,
-  process.env.GOOGLE_CLIENT_ID_IOS,
-  process.env.GOOGLE_CLIENT_ID_ANDROID,
-].filter(Boolean) as string[];
-const googleClient = new OAuth2Client();
 
 /** Free plan: max body measurement entries returned */
 const FREE_MEASUREMENTS_LIMIT = 5;
@@ -124,7 +117,6 @@ router.get('/profile', authenticate, async (req: AuthRequest, res: Response) => 
     const { googleId, vkId, yandexId, ...safeProfile } = user;
     res.json({
       ...safeProfile,
-      hasGoogle: !!googleId,
       hasVk: !!vkId,
       hasYandex: !!yandexId,
     });
@@ -190,7 +182,7 @@ router.patch('/profile', authenticate, async (req: AuthRequest, res: Response) =
     }
 
     const { googleId, vkId, yandexId, ...safeProfile } = user;
-    res.json({ ...safeProfile, hasGoogle: !!googleId, hasVk: !!vkId, hasYandex: !!yandexId });
+    res.json({ ...safeProfile, hasVk: !!vkId, hasYandex: !!yandexId });
   } catch (e: any) {
     if (e?.code === 'P2025') return res.status(404).json({ error: 'Пользователь не найден' });
     logger.error(e);
@@ -1338,7 +1330,7 @@ router.post('/change-phone', authenticate, async (req: AuthRequest, res: Respons
  */
 router.post('/linked-accounts/:provider', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const provider = z.enum(['yandex', 'vk', 'google']).parse(req.params.provider);
+    const provider = z.enum(['yandex', 'vk']).parse(req.params.provider);
     const { accessToken, userId: claimedUserId, currentPassword, totpCode } = z.object({
       accessToken: z.string().min(1, 'accessToken обязателен'),
       userId: z.string().optional(),
@@ -1445,30 +1437,8 @@ router.post('/linked-accounts/:provider', authenticate, async (req: AuthRequest,
       fieldName = 'yandexId';
       providerId = String(yandexUser.id);
 
-    } else if (provider === 'google') {
-      if (!GOOGLE_CLIENT_IDS.length && !process.env.GOOGLE_CLIENT_ID_WEB && !process.env.GOOGLE_CLIENT_ID_IOS && !process.env.GOOGLE_CLIENT_ID_ANDROID) {
-        return res.status(503).json({ error: 'Google OAuth не настроен на сервере' });
-      }
-      // accessToken is actually an idToken for Google — verify it with google-auth-library
-      const idToken = accessToken;
-      let googlePayload: any;
-      try {
-        const ticket = await googleClient.verifyIdToken({
-          idToken,
-          audience: GOOGLE_CLIENT_IDS.length ? GOOGLE_CLIENT_IDS : undefined,
-        });
-        googlePayload = ticket.getPayload();
-      } catch (e: any) {
-        logger.warn('Google idToken verification failed (link):', e.message);
-        return res.status(401).json({ error: 'Не удалось проверить Google токен', code: 'INVALID_TOKEN' });
-      }
-      if (!googlePayload?.sub) {
-        return res.status(401).json({ error: 'Не удалось получить данные от Google', code: 'INVALID_TOKEN' });
-      }
-      fieldName = 'googleId';
-      providerId = String(googlePayload.sub);
     } else {
-      // Exhaustive guard: zod already restricts provider to vk|yandex|google,
+      // Exhaustive guard: zod already restricts provider to vk|yandex,
       // but TS can't narrow `let fieldName` after the if-chain. Throw to make
       // the compiler happy and surface a runtime error if the enum changes.
       return res.status(400).json({ error: 'Неподдерживаемый провайдер', code: 'UNSUPPORTED_PROVIDER' });
@@ -1512,18 +1482,17 @@ router.post('/linked-accounts/:provider', authenticate, async (req: AuthRequest,
  */
 router.delete('/linked-accounts/:provider', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const provider = z.enum(['yandex', 'vk', 'google']).parse(req.params.provider);
+    const provider = z.enum(['yandex', 'vk']).parse(req.params.provider);
 
     const user = await prisma.user.findUnique({
       where: { id: req.userId! },
-      select: { passwordHash: true, googleId: true, vkId: true, yandexId: true },
+      select: { passwordHash: true, vkId: true, yandexId: true },
     });
     if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
 
     const fieldMap: Record<typeof provider, keyof typeof user> = {
       yandex: 'yandexId',
       vk: 'vkId',
-      google: 'googleId',
     };
 
     if (!user[fieldMap[provider]]) {
@@ -1531,7 +1500,7 @@ router.delete('/linked-accounts/:provider', authenticate, async (req: AuthReques
     }
 
     // Ensure user won't lose all login methods
-    const otherProviders = (['google', 'vk', 'yandex'] as const)
+    const otherProviders = (['vk', 'yandex'] as const)
       .filter((p) => p !== provider)
       .filter((p) => !!user[fieldMap[p]]);
     if (!user.passwordHash && otherProviders.length === 0) {

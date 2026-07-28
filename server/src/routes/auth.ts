@@ -4,7 +4,6 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { z } from 'zod';
 import { TOTP, Secret } from 'otpauth';
-import { OAuth2Client } from 'google-auth-library';
 import { prisma } from '../db';
 import { logger } from '../utils/logger';
 import { sendPasswordResetEmail, sendOtpEmail, sendNewLoginAlert, sendPasswordChangedAlert } from '../services/emailService';
@@ -63,13 +62,7 @@ import { is2faLocked, record2faFailure, clear2faFailures } from '../utils/twofaL
 import { invalidateAccessTokens } from '../utils/sessionRevocation';
 import { decryptSecret } from '../utils/secretCrypto';
 
-const GOOGLE_CLIENT_IDS = [
-  process.env.GOOGLE_CLIENT_ID_WEB,
-  process.env.GOOGLE_CLIENT_ID_IOS,
-  process.env.GOOGLE_CLIENT_ID_ANDROID,
-].filter(Boolean) as string[];
 
-const googleClient = new OAuth2Client();
 
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCKOUT_MINUTES = 15;
@@ -132,7 +125,7 @@ const otpEquals = (stored: string, input: string): boolean => {
  * Google id_token has 60-min `exp` by default. VK and Yandex access
  * tokens are opaque and live for hours. If an attacker captures any of
  * them (TLS-MITM with cert-pin bypass, clipboard scrape, debug log
- * leak), they can hit `/auth/google|vk|yandex` repeatedly within the
+ * leak), they can hit `/auth/vk|yandex` repeatedly within the
  * token lifetime — each call mints a fresh refresh-token pair. Even
  * with the suspicious-login alert, the attacker has hours.
  *
@@ -240,7 +233,7 @@ async function signTokens(userId: string, req?: Request) {
 
 function safeUser(user: any) {
   const { passwordHash, googleId, vkId, yandexId, totpSecret, totpBackupCodes, ...rest } = user;
-  return { ...rest, hasGoogle: !!googleId, hasVk: !!vkId, hasYandex: !!yandexId };
+  return { ...rest, hasVk: !!vkId, hasYandex: !!yandexId };
 }
 
 // ── Email verification helper ─────────────────────────────────────────────────
@@ -696,7 +689,6 @@ router.post('/check-email', async (req: Request, res: Response) => {
     res.json({
       exists: true,
       hasPassword: !!user.passwordHash,
-      hasGoogle: !!user.googleId,
       hasVk: !!user.vkId,
       hasYandex: !!user.yandexId,
     });
@@ -744,153 +736,6 @@ async function checkSocialAuthTotpGate(
 }
 
 // ── Google Auth ───────────────────────────────────────────────────────────────
-
-/** POST /auth/google — verify Google ID token, find or create user */
-router.post('/google', async (req: Request, res: Response) => {
-  try {
-    const { idToken, deviceToken } = z.object({
-      idToken: z.string().min(1),
-      deviceToken: z.string().optional(),
-    }).parse(req.body);
-
-    if (GOOGLE_CLIENT_IDS.length === 0) {
-      return res.status(503).json({ error: 'Google OAuth не настроен на сервере' });
-    }
-
-    let payload: any;
-    try {
-      const ticket = await googleClient.verifyIdToken({
-        idToken,
-        audience: GOOGLE_CLIENT_IDS,
-      });
-      payload = ticket.getPayload();
-    } catch {
-      return res.status(401).json({ error: 'Недействительный Google токен' });
-    }
-
-    if (!payload?.sub || !payload?.email) {
-      return res.status(401).json({ error: 'Не удалось получить данные из Google' });
-    }
-
-    // Round 234 (security audit): freshness window. `verifyIdToken` accepts
-    // a token up to 60 min old (Google's default `exp`). A captured-but-
-    // not-yet-expired token replayed an hour later is still "valid" by
-    // signature. Require `iat` within 5 min of now — short enough that a
-    // captured token has minutes, not an hour, of usable lifetime; long
-    // enough that legitimate clients with mild clock skew aren't rejected.
-    const nowSec = Math.floor(Date.now() / 1000);
-    const iat = typeof payload.iat === 'number' ? payload.iat : 0;
-    if (iat <= 0 || nowSec - iat > 300) {
-      return res.status(401).json({ error: 'Google токен устарел, повторите вход', code: 'TOKEN_STALE' });
-    }
-
-    // Round 234: replay cache. Google ID tokens carry a `jti` per RFC 7519
-    // (also: `sub` + `iat` together form a unique-enough fallback for
-    // older audiences that omit jti). The first /auth/google call with
-    // a given jti wins; subsequent calls with the SAME jti within TTL
-    // are refused — covers the case where an attacker grabs a single
-    // valid token and races against the legit client.
-    const jti = (typeof payload.jti === 'string' && payload.jti) || `${payload.sub}:${payload.iat}`;
-    if (!markOAuthTokenSeen(`g:${jti}`)) {
-      await logSecurityEvent('OAUTH_TOKEN_REPLAY', null, req, `provider=google jti=${jti.slice(0, 12)}`);
-      return res.status(401).json({ error: 'Google токен уже был использован, повторите вход', code: 'TOKEN_REPLAY' });
-    }
-
-    // Google OAuth account-takeover hardening (sec audit 2026-04: HIGH-2).
-    // `email_verified` MUST be true before we trust `payload.email` for
-    // user creation or auto-linking — otherwise a Google Workspace admin
-    // who controls a domain can mint an ID token with arbitrary `email`
-    // and unverified flag, taking over an existing Giron account.
-    if (payload.email_verified !== true) {
-      return res.status(401).json({ error: 'Email Google не подтверждён', code: 'EMAIL_NOT_VERIFIED' });
-    }
-
-    const googleId = payload.sub as string;
-    const email = normalizeEmail(payload.email as string); // sec audit 2026-04 HIGH-14
-    const firstName = (payload.given_name as string) || (payload.name as string)?.split(' ')[0] || 'Пользователь';
-    const lastName = (payload.family_name as string) || undefined;
-    const avatarUrl = (payload.picture as string) || undefined;
-
-    // Lookup by googleId first (the strong identifier). Email-based linking
-    // is only allowed when the existing Giron account already verified
-    // the same email — otherwise an attacker who registered a victim's
-    // address without verification could be silently linked.
-    let user = await prisma.user.findFirst({
-      where: { googleId },
-      include: { healthRestrictions: true },
-    });
-    if (!user) {
-      const byEmail = await prisma.user.findUnique({
-        where: { email },
-        include: { healthRestrictions: true },
-      });
-      if (byEmail) {
-        if (!byEmail.emailVerified) {
-          await logSecurityEvent('OAUTH_EMAIL_LINK_BLOCKED', byEmail.id, req, 'method=google reason=existing_email_unverified');
-          return res.status(409).json({
-            error: 'Этот email уже зарегистрирован, но не подтверждён. Подтвердите email паролем, затем привяжите Google.',
-            code: 'EMAIL_NOT_VERIFIED_LOCAL',
-          });
-        }
-        user = byEmail;
-      }
-    }
-
-    if (user) {
-      // Link google if not linked yet
-      if (!user.googleId) {
-        user = await prisma.user.update({
-          where: { id: user.id },
-          data: { googleId, emailVerified: true, avatarUrl: avatarUrl || user.avatarUrl || undefined },
-          include: { healthRestrictions: true },
-        }) as any;
-      }
-    } else {
-      // Create new user. Round 237: tapping "Sign in with Google" on the
-      // login screen (where the under-button text says "Регистрируясь, вы
-      // принимаете Условия и Политику") is the consent gesture for OAuth
-      // first-timers. Persist the version so the audit trail matches the
-      // email-register path.
-      user = await prisma.user.create({
-        data: {
-          email,
-          googleId,
-          firstName,
-          lastName,
-          avatarUrl,
-          emailVerified: true,
-          // passwordHash is null — Google-only user
-          consentAcceptedAt: new Date(),
-          consentVersion: CURRENT_CONSENT_VERSION,
-        },
-        include: { healthRestrictions: true },
-      }) as any;
-    }
-
-    if (user!.isBanned) {
-      return res.status(403).json({ error: 'Аккаунт заблокирован. Обратитесь в поддержку.', code: 'BANNED' });
-    }
-    if (user!.lockedUntil && user!.lockedUntil > new Date()) {
-      const minutesLeft = Math.ceil((user!.lockedUntil.getTime() - Date.now()) / 60000);
-      return res.status(429).json({ error: `Аккаунт временно заблокирован. Попробуйте через ${minutesLeft} мин.`, code: 'ACCOUNT_LOCKED', lockedUntil: user!.lockedUntil });
-    }
-
-    const totpGate = await checkSocialAuthTotpGate(user!, deviceToken);
-    if (totpGate) {
-      await logSecurityEvent('LOGIN_TOTP_REQUIRED', user!.id, req, 'method=google');
-      return res.json(totpGate);
-    }
-
-    const { token, refreshToken } = await signTokens(user!.id, req);
-    await logSecurityEvent('LOGIN_SUCCESS', user!.id, req, 'method=google');
-    checkSuspiciousLogin(user!.id, req, user!.email, user!.emailVerified).catch(() => {});
-    res.json({ user: safeUser(user), token, refreshToken });
-  } catch (e: any) {
-    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
-    logger.error('POST /auth/google:', e);
-    res.status(500).json({ error: 'Ошибка авторизации через Google' });
-  }
-});
 
 // ── VK Auth ───────────────────────────────────────────────────────────────────
 

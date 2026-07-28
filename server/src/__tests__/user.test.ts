@@ -188,7 +188,6 @@ const mockUser = {
   bannedAt: null,
   createdAt: new Date('2024-01-01'),
   updatedAt: new Date('2024-01-01'),
-  googleId: null,
   vkId: null,
   yandexId: null,
   healthRestrictions: [],
@@ -211,7 +210,6 @@ describe('GET /api/user/profile', () => {
   it('200 returns safe profile (no raw oauth IDs)', async () => {
     const userWithOAuth = {
       ...mockUser,
-      googleId: 'google-id-secret',
       vkId: null,
       yandexId: null,
     };
@@ -224,9 +222,8 @@ describe('GET /api/user/profile', () => {
       .set('Authorization', `Bearer ${makeToken()}`);
 
     expect(res.status).toBe(200);
-    // googleId should NOT be in response — replaced by hasGoogle flag
+    // Raw oauth ids never leave the server; only the has* flags do.
     expect(res.body.googleId).toBeUndefined();
-    expect(res.body.hasGoogle).toBe(true);
     expect(res.body.hasVk).toBe(false);
     expect(res.body.firstName).toBe('Test');
   });
@@ -1579,7 +1576,7 @@ describe('POST /api/user/change-email — step-up reauth', () => {
   });
 
   it('SECURITY: 403 STEPUP_REQUIRED when account is social-only (no password, no 2FA)', async () => {
-    // A social-only account where the attacker captured a Google/VK access
+    // A social-only account where the attacker captured a VK access
     // token must NOT be able to repoint the email — there's no second
     // factor to prove identity. Route forces user to add password or 2FA
     // first.

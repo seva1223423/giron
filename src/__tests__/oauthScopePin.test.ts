@@ -32,30 +32,18 @@ function read(rel: string): string {
   return fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8');
 }
 
-// ─── Google ──────────────────────────────────────────────────────────────────
+// ─── Google ─────────────────────────────────────────────────────────────────
 
-describe('OAuth scope pin — Google (GoogleAuthButton)', () => {
-  const src = read('src/components/GoogleAuthButton.tsx');
-
-  test('exact scope list: ["openid","profile","email"]', () => {
-    // The hand-grepped baseline. If any of these three drop or any other
-    // string appears in the array, this assertion catches it.
-    expect(src).toContain("scopes: ['openid', 'profile', 'email']");
-  });
-
-  test('does NOT request high-risk Google scopes', () => {
-    // Things we should never see in this app:
-    const FORBIDDEN = [
-      'https://www.googleapis.com/auth/contacts',
-      'https://www.googleapis.com/auth/calendar',
-      'https://www.googleapis.com/auth/drive',
-      'https://www.googleapis.com/auth/gmail',
-      'https://www.googleapis.com/auth/youtube',
-      'https://www.googleapis.com/auth/userinfo.profile', // legacy, prefer 'profile' alias
-    ];
-    for (const f of FORBIDDEN) {
-      expect(src).not.toContain(f);
-    }
+describe('Google sign-in is gone', () => {
+  test('no Google button, service call or server route remains', () => {
+    // Removed on purpose: the app targets Russia, where Google sign-in is the
+    // least useful of the three. Yandex covers the same ground. This pins the
+    // removal so it cannot creep back in unnoticed — and so the scope rules
+    // above do not need a component that no longer exists.
+    expect(fs.existsSync(path.join(REPO_ROOT, 'src/components/GoogleAuthButton.tsx'))).toBe(false);
+    expect(read('src/services/authService.ts')).not.toContain('/auth/google');
+    expect(read('server/src/routes/auth.ts')).not.toContain("router.post('/google'");
+    expect(read('server/package.json')).not.toContain('google-auth-library');
   });
 });
 

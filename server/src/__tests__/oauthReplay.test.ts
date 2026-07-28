@@ -40,12 +40,6 @@ jest.mock('../services/smsService', () => ({
   normalizePhone: (s: string) => s,
 }));
 
-jest.mock('google-auth-library', () => ({
-  OAuth2Client: jest.fn().mockImplementation(() => ({
-    verifyIdToken: jest.fn(),
-  })),
-}));
-
 import {
   _resetOAuthReplayCacheForTests,
   _markOAuthTokenSeenForTests,

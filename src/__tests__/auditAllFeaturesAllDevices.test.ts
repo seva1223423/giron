@@ -1049,7 +1049,6 @@ describe('Every shared component file is present', () => {
     'components/SkeletonLoader.tsx',
     'components/ErrorBoundary.tsx',
     'components/Tooltip.tsx',
-    'components/GoogleAuthButton.tsx',
     'components/Icon.tsx',
     'components/Spinner.tsx',
     'components/ForceUpdateModal.tsx',

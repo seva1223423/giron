@@ -3,7 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet } from 'rea
 import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri } from 'expo-auth-session';
 import { useThemeColors, useAuthStore } from '../../store';
-import { GoogleAuthButton, Icon } from '../../components';
+import { Icon } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { useSafeTop } from '../../hooks/useSafeTop';
@@ -11,17 +11,12 @@ import { userService } from '../../services';
 
 const VK_APP_ID = process.env.EXPO_PUBLIC_VK_APP_ID;
 const YANDEX_CLIENT_ID = process.env.EXPO_PUBLIC_YANDEX_CLIENT_ID;
-const googleConfigured = !!(
-  process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB ||
-  process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS ||
-  process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID
-);
 
 /**
  * Отдельный экран «Привязанные аккаунты».
  * Раньше эта секция жила прямо в ProfileScreen — теперь вынесена сюда,
  * чтобы профиль был чище, а у пользователя было одно понятное место
- * для управления всеми соцсетями (VK, Яндекс, Google).
+ * для управления соцсетями (VK, Яндекс).
  */
 export const LinkedAccountsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const safeTop = useSafeTop();
@@ -31,7 +26,7 @@ export const LinkedAccountsScreen: React.FC<{ navigation: any }> = ({ navigation
   const [unlinkingProvider, setUnlinkingProvider] = useState<string | null>(null);
   const [linkingProvider, setLinkingProvider] = useState<string | null>(null);
 
-  const handleUnlink = (provider: 'yandex' | 'vk' | 'google', label: string) => {
+  const handleUnlink = (provider: 'yandex' | 'vk', label: string) => {
     Alert.alert(
       `Отвязать ${label}?`,
       'Вы больше не сможете входить через этот аккаунт.',
@@ -105,22 +100,11 @@ export const LinkedAccountsScreen: React.FC<{ navigation: any }> = ({ navigation
     }
   };
 
-  const handleGoogleLinkSuccess = async (idToken: string) => {
-    setLinkingProvider('google');
-    try {
-      await userService.linkProvider('google', { accessToken: idToken });
-      await useAuthStore.getState().fetchProfile();
-    } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.error || 'Не удалось привязать Google');
-    } finally {
-      setLinkingProvider(null);
-    }
-  };
 
   // Список провайдеров с привязкой статуса/цвета. Описываем
   // декларативно — один компонент-строка, цикл вместо 3×копипаста.
   const providers: Array<{
-    key: 'vk' | 'yandex' | 'google';
+    key: 'vk' | 'yandex';
     title: string;
     badge: string;
     badgeColor: string;
@@ -143,28 +127,6 @@ export const LinkedAccountsScreen: React.FC<{ navigation: any }> = ({ navigation
       badgeColor: '#FC3F1D',
       isLinked: !!(user?.yandexId || user?.hasYandex),
       onLink: handleLinkYandex,
-    },
-    {
-      key: 'google',
-      title: 'Google',
-      badge: 'G',
-      badgeColor: '#4285F4',
-      isLinked: !!(user?.googleId || user?.hasGoogle),
-      customLink: googleConfigured ? (
-        <GoogleAuthButton
-          mode="link"
-          onSuccess={handleGoogleLinkSuccess}
-          onError={(msg) => Alert.alert('Ошибка', msg)}
-          disabled={linkingProvider === 'google'}
-        />
-      ) : (
-        <TouchableOpacity
-          onPress={() => Alert.alert('Ошибка', 'Google OAuth не настроен')}
-          style={styles.linkBtn(colors)}
-        >
-          <Text style={[typography.caption, { color: colors.primary, fontWeight: '600' }]}>Привязать</Text>
-        </TouchableOpacity>
-      ),
     },
   ];
 

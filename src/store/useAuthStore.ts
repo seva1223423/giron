@@ -57,7 +57,6 @@ interface AuthStore {
   updateTokens: (token: string, refreshToken: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   loginWithTotp: (code: string, rememberDevice?: boolean) => Promise<void>;
-  loginWithGoogle: (idToken: string) => Promise<void>;
   loginWithVk: (params: { accessToken: string; userId: number; email?: string }) => Promise<void>;
   loginWithYandex: (accessToken: string) => Promise<void>;
   loginByPhone: (phone: string, code: string) => Promise<void>;
@@ -202,28 +201,6 @@ export const useAuthStore = create<AuthStore>()(
         }
       },
 
-      loginWithGoogle: async (idToken) => {
-        set({ isLoading: true, error: null });
-        try {
-          const response = await authService.loginWithGoogle(idToken);
-          if ('requiresTOTP' in response && response.requiresTOTP) {
-            set({ isLoading: false, totpPendingToken: response.pendingToken });
-            const err: any = new Error('TOTP_REQUIRED');
-            err.code = 'TOTP_REQUIRED';
-            throw err;
-          }
-          const ar = response as AuthResponse;
-          await tokenStorage.setTokens(ar.token, ar.refreshToken);
-          const normalizedG = normalizeUser(ar.user);
-          set({ user: normalizedG, token: ar.token, refreshToken: ar.refreshToken, isAuthenticated: true, isOnboarded: deriveOnboarded(normalizedG), isLoading: false });
-        } catch (e) {
-          if ((e as any).code !== 'TOTP_REQUIRED') {
-            const apiError = getApiError(e);
-            set({ isLoading: false, error: apiError.message });
-          }
-          throw e;
-        }
-      },
 
       loginWithVk: async (params) => {
         set({ isLoading: true, error: null });

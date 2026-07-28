@@ -258,7 +258,6 @@ describe('Premium component contracts', () => {
     'components/Spinner.tsx',
     'components/ForceUpdateModal.tsx',
     'components/HitTarget.tsx',
-    'components/GoogleAuthButton.tsx',
   ];
 
   test.each(FILES)('%s source file exists', (rel) => {

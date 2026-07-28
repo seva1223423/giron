@@ -15,7 +15,6 @@ export interface TOTPLoginResponse {
 export interface CheckEmailResponse {
   exists: boolean;
   hasPassword?: boolean;
-  hasGoogle?: boolean;
   hasVk?: boolean;
   hasYandex?: boolean;
 }
@@ -81,11 +80,6 @@ export const authService = {
     } catch {
       return { exists: false };
     }
-  },
-
-  async loginWithGoogle(idToken: string): Promise<AuthResponse | TOTPLoginResponse> {
-    const { data } = await api.post<AuthResponse | TOTPLoginResponse>('/auth/google', { idToken });
-    return data;
   },
 
   async loginWithVk(params: { accessToken: string; userId: number; email?: string }): Promise<AuthResponse | TOTPLoginResponse> {

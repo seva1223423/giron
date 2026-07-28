@@ -659,7 +659,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
             <Text style={[typography.caption, { color: colors.textTertiary }]}>VK · Яндекс · Google</Text>
           </View>
           {(() => {
-            const linkedCount = [user?.hasVk, (user?.yandexId || user?.hasYandex), (user?.googleId || user?.hasGoogle)].filter(Boolean).length;
+            const linkedCount = [user?.hasVk, (user?.yandexId || user?.hasYandex)].filter(Boolean).length;
             return (
               <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: borderRadius.full, backgroundColor: linkedCount > 0 ? '#34C75920' : colors.border, marginRight: spacing.sm }}>
                 <Text style={{ fontSize: 11, fontWeight: '700', color: linkedCount > 0 ? '#34C759' : colors.textTertiary }}>{linkedCount}/3</Text>

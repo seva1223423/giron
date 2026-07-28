@@ -34,11 +34,9 @@ export interface User {
   emailVerified?: boolean;
   phoneVerified?: boolean;
   vkId?: string | null;
-  googleId?: string | null;
   yandexId?: string | null;
   hasVk?: boolean;
   hasYandex?: boolean;
-  hasGoogle?: boolean;
   isBanned?: boolean;
   banReason?: string | null;
   lockedUntil?: string | null;
@@ -398,7 +396,6 @@ export interface AdminUserSummary {
   phoneVerified?: boolean;
   emailVerified?: boolean;
   vkId?: string | null;
-  googleId?: string | null;
   lockedUntil?: string | null;
   loginAttempts?: number;
   subscription?: { plan: string; status: string; endDate?: string | null } | null;

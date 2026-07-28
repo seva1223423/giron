@@ -349,7 +349,6 @@ describe('DELETE /api/user/linked-accounts/:provider', () => {
       .mockResolvedValueOnce(authUserRow)         // authenticate middleware
       .mockResolvedValueOnce({                    // route: user data
         passwordHash: 'somehash',
-        googleId: null,
         vkId: null,
         yandexId: null,
       });
@@ -367,31 +366,12 @@ describe('DELETE /api/user/linked-accounts/:provider', () => {
       .mockResolvedValueOnce(authUserRow)
       .mockResolvedValueOnce({
         passwordHash: 'somehash',
-        googleId: null,
         vkId: null,
         yandexId: null,
       });
 
     const res = await request(app)
       .delete('/api/user/linked-accounts/yandex')
-      .set('Authorization', `Bearer ${makeToken()}`);
-
-    expect(res.status).toBe(400);
-    expect(res.body.code).toBe('NOT_LINKED');
-  });
-
-  it('returns 400 NOT_LINKED when Google is not linked to the account', async () => {
-    (mockPrisma.user.findUnique as jest.Mock)
-      .mockResolvedValueOnce(authUserRow)
-      .mockResolvedValueOnce({
-        passwordHash: null,
-        googleId: null,
-        vkId: null,
-        yandexId: null,
-      });
-
-    const res = await request(app)
-      .delete('/api/user/linked-accounts/google')
       .set('Authorization', `Bearer ${makeToken()}`);
 
     expect(res.status).toBe(400);
@@ -405,7 +385,6 @@ describe('DELETE /api/user/linked-accounts/:provider', () => {
       .mockResolvedValueOnce(authUserRow)
       .mockResolvedValueOnce({
         passwordHash: null,
-        googleId: null,
         vkId: 'vk-123',
         yandexId: null,
       });
@@ -423,7 +402,6 @@ describe('DELETE /api/user/linked-accounts/:provider', () => {
       .mockResolvedValueOnce(authUserRow)
       .mockResolvedValueOnce({
         passwordHash: null,
-        googleId: null,
         vkId: null,
         yandexId: 'yandex-uid-999',
       });
@@ -441,7 +419,6 @@ describe('DELETE /api/user/linked-accounts/:provider', () => {
       .mockResolvedValueOnce(authUserRow)
       .mockResolvedValueOnce({
         passwordHash: 'somehash',
-        googleId: null,
         vkId: 'vk-123',
         yandexId: null,
       });
@@ -461,7 +438,6 @@ describe('DELETE /api/user/linked-accounts/:provider', () => {
       .mockResolvedValueOnce(authUserRow)
       .mockResolvedValueOnce({
         passwordHash: null,
-        googleId: null,
         vkId: 'vk-123',
         yandexId: 'yandex-uid-999',
       });

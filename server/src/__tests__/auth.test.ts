@@ -990,7 +990,6 @@ describe('Auth Routes', () => {
       (mockPrisma.user.findUnique as jest.Mock).mockResolvedValueOnce({
         id: 'u-test',
         passwordHash: '$2b$10$hashedpassword',
-        googleId: null,
         vkId: null,
         yandexId: null,
       });
@@ -1002,7 +1001,6 @@ describe('Auth Routes', () => {
       expect(res.status).toBe(200);
       expect(res.body.exists).toBe(true);
       expect(res.body.hasPassword).toBe(true);
-      expect(res.body.hasGoogle).toBe(false);
     });
 
     it('200 { exists: false } for invalid email format — ZodError caught silently', async () => {
@@ -1257,7 +1255,6 @@ describe('Auth Routes', () => {
       email: 'user@example.com',
       emailVerified: true,
       passwordHash: '$2b$10$hash',
-      googleId: null,
       vkId: null,
       yandexId: null,
       totpBackupCodes: '[]',
@@ -1586,7 +1583,6 @@ describe('Auth Routes', () => {
       isBanned: false,
       lockedUntil: null,
       passwordHash: null,
-      googleId: null,
       vkId: null,
       yandexId: null,
       totpSecret: null,

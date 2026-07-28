@@ -484,7 +484,6 @@ export default function AdminUserDetailScreen() {
           </View>
           {/* Linked accounts */}
           <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
-            {user.googleId && <Text style={{ fontSize: 10, color: '#4285F4', fontWeight: '700', backgroundColor: '#4285F415', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 2 }}>G</Text>}
             {user.vkId && <Text style={{ fontSize: 10, color: '#0077FF', fontWeight: '700', backgroundColor: '#0077FF15', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 2 }}>ВК</Text>}
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>

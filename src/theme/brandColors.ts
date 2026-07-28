@@ -10,7 +10,7 @@
  *
  * Round 246 (2026-05-02 audit): centralized these here so:
  *   1. Direction A token sweeps can ALLOW-list this single file
- *      instead of hunting them across LinkedAccountsScreen, GoogleAuthButton,
+ *      instead of hunting them across LinkedAccountsScreen,
  *      ExerciseVideoCard, etc.
  *   2. If a brand updates its hex, one edit fixes every consumer.
  *   3. Tests can grep this file by name and skip its contents during

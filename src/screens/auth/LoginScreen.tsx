@@ -7,17 +7,12 @@ import {
 import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri } from 'expo-auth-session';
 import { useThemeColors, useAuthStore } from '../../store';
-import { Button, Input, GoogleAuthButton } from '../../components';
+import { Button, Input } from '../../components';
 import { typography } from '../../theme';
 import { spacing, contentMaxWidth } from '../../theme/spacing';
 import { authService } from '../../services/authService';
 import { features } from '../../config/store';
 
-const googleConfigured = !!(
-  process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB ||
-  process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS ||
-  process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID
-);
 const VK_APP_ID = process.env.EXPO_PUBLIC_VK_APP_ID;
 const YANDEX_CLIENT_ID = process.env.EXPO_PUBLIC_YANDEX_CLIENT_ID;
 
@@ -87,7 +82,7 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       try {
         const result = await authService.checkEmail(trimmed);
         if (!result.exists) setEmailHint('Email не зарегистрирован');
-        else if (!result.hasPassword && (result.hasGoogle || result.hasVk || result.hasYandex))
+        else if (!result.hasPassword && (result.hasVk || result.hasYandex))
           setEmailHint('Используйте вход через соцсеть');
       } finally {
         setEmailChecking(false);
@@ -126,7 +121,7 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       const code = e?.response?.data?.code;
       const serverMsg = e?.response?.data?.error;
       if (code === 'EMAIL_NOT_FOUND' || code === 'INVALID_CREDENTIALS') setLocalError(serverMsg || 'Неверный email или пароль');
-      else if (code === 'SOCIAL_ONLY') setLocalError('Войдите через Google, VK или Яндекс');
+      else if (code === 'SOCIAL_ONLY') setLocalError('Войдите через VK или Яндекс');
       else if (code === 'WRONG_PASSWORD') setLocalError(serverMsg || 'Неверный email или пароль');
       else if (code === 'ACCOUNT_LOCKED') setLocalError(serverMsg || 'Аккаунт временно заблокирован');
       else if (code === 'BANNED') setLocalError(serverMsg || 'Аккаунт заблокирован');
@@ -552,13 +547,6 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
             </View>
 
-            {features.googleOAuth && googleConfigured && (
-              <GoogleAuthButton
-                onError={setLocalError}
-                onTotpRequired={() => { setShowTotpInput(true); setTotpCode(''); }}
-                disabled={anyLoading}
-              />
-            )}
 
             {!!VK_APP_ID && (
               <TouchableOpacity
@@ -600,7 +588,7 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
         {/*
           Round 237 — implicit-consent footer for OAuth-first-time users.
-          The "Войти через Google/VK/Яндекс" buttons CREATE a new account
+          The "Войти через VK/Яндекс" buttons CREATE a new account
           on first tap if the social ID isn't matched yet. Industry-
           standard pattern: button-tap = informed consent when the action
           text under the button names the documents being accepted. Server
