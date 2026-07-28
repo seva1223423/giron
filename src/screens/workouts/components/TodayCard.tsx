@@ -26,12 +26,10 @@ import type { Workout } from '../../../types';
 interface Props {
   activeName?: string | null;
   plan: WeekPlanEntry | null;
-  planExerciseNames: string[];
-  /** Position inside the program, e.g. "Неделя 2 из 8". Hidden when unknown. */
+  /** Size of the session, e.g. "5 упражнений · ~55 мин". Hidden when unknown. */
   progressLabel?: string | null;
   lastWorkout: Workout | null;
   daysSinceLast: number | null;
-  weekCount: number;
   onPress: () => void;
   onRepeat: () => void;
 }
@@ -46,8 +44,7 @@ function agoLabel(days: number | null): string {
 }
 
 export const TodayCard: React.FC<Props> = ({
-  activeName, plan, planExerciseNames, progressLabel,
-  lastWorkout, daysSinceLast, weekCount, onPress, onRepeat,
+  activeName, plan, progressLabel, lastWorkout, daysSinceLast, onPress, onRepeat,
 }) => {
   const colors = useThemeColors();
   const hasPlan = !!plan && (!!plan.routineId || plan.exercises.length > 0);
@@ -66,9 +63,6 @@ export const TodayCard: React.FC<Props> = ({
         <Text style={[typography.metaLabel, { color: colors.success }]}>ИДЁТ СЕЙЧАС</Text>
         <Text style={[typography.h2, { color: colors.text, marginTop: spacing.xs }]} numberOfLines={2}>
           {activeName}
-        </Text>
-        <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.xs }]}>
-          Нажми, чтобы вернуться к подходам
         </Text>
       </AnimatedPressable>
     );
@@ -92,31 +86,19 @@ export const TodayCard: React.FC<Props> = ({
             {progressLabel}
           </Text>
         )}
-        {planExerciseNames.length > 0 && (
-          <Text style={[typography.caption, { color: colors.textTertiary, marginTop: spacing.sm }]} numberOfLines={2}>
-            {planExerciseNames.join(' · ')}
-          </Text>
-        )}
       </AnimatedPressable>
     );
   }
 
-  // Nothing planned. The screen must not read as broken — say so plainly and
-  // hand over the fastest way back into training.
+  // Nothing planned. Say it in two words and hand over the fastest way back
+  // into training. The line that used to sit here — "повтори прошлую, возьми
+  // шаблон или выбери программу" — narrated the shelves drawn right below it.
   return (
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <Text style={[typography.metaLabel, { color: colors.textSecondary }]}>СЕГОДНЯ</Text>
       <Text style={[typography.h3, { color: colors.text, marginTop: spacing.xs }]}>
-        Плана на сегодня нет
+        Плана нет
       </Text>
-      <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.xs }]}>
-        Повтори прошлую, возьми шаблон или выбери программу
-      </Text>
-      {weekCount > 0 && (
-        <Text style={[typography.caption, { color: colors.primary, marginTop: spacing.sm }]}>
-          На этой неделе уже {weekCount} {weekCount === 1 ? 'тренировка' : weekCount < 5 ? 'тренировки' : 'тренировок'} — так держать
-        </Text>
-      )}
 
       {lastWorkout && (
         <AnimatedPressable

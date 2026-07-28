@@ -83,24 +83,6 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     return Math.round((a.getTime() - b.getTime()) / 86400000);
   }, [lastWorkout?.completedAt]);
 
-  const weekCount = useMemo(() => {
-    const since = Date.now() - 7 * 86400000;
-    return workoutHistory.filter((w) => w.completedAt && new Date(w.completedAt).getTime() >= since).length;
-  }, [workoutHistory]);
-
-  /** First few exercise names of today's plan — proof the card is not a stub. */
-  const planExerciseNames = useMemo(() => {
-    if (!todayPlan) return [];
-    if (todayPlan.routineId) {
-      const r = routines.find((x) => x.id === todayPlan.routineId);
-      return (r?.exercises ?? []).slice(0, 5).map((e: any) => e.exercise?.name ?? e.name).filter(Boolean);
-    }
-    return todayPlan.exercises
-      .slice(0, 5)
-      .map((id) => allExercises.find((e) => e.id === id)?.name)
-      .filter(Boolean) as string[];
-  }, [todayPlan, routines, allExercises]);
-
   const planCount = useMemo(() => {
     if (!todayPlan) return 0;
     if (todayPlan.routineId) return routines.find((x) => x.id === todayPlan.routineId)?.exercises.length ?? 0;
@@ -234,7 +216,9 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
   const ctaLabel = activeWorkout
     ? 'Продолжить тренировку'
     : hasPlan
-      ? `Начать: ${todayPlan!.name}`
+      // Not "Начать: День 3 · Грудь и трицепс" — the card directly above
+      // already says which session this is, and the name wrapped the button.
+      ? 'Начать тренировку'
       : 'Собрать тренировку';
 
   return (
@@ -251,11 +235,9 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
         <TodayCard
           activeName={activeWorkout ? (activeWorkout.workout.name || 'Тренировка') : null}
           plan={todayPlan}
-          planExerciseNames={planExerciseNames}
           progressLabel={hasPlan && planCount > 0 ? `${planCount} упражнений · ~${Math.round(planCount * 11)} мин` : null}
           lastWorkout={lastWorkout}
           daysSinceLast={daysSinceLast}
-          weekCount={weekCount}
           onPress={startToday}
           onRepeat={handleRepeat}
         />
@@ -267,7 +249,7 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
           onMore={() => navigation.navigate('Routines')}
           onAdd={() => navigation.navigate('CustomWorkout')}
           addLabel="Своя"
-          emptyText="Сохрани тренировку после выполнения — она появится здесь и запустится в один тап"
+          emptyText="Появятся, когда сохранишь тренировку"
         />
 
         <ShelfStrip
@@ -296,9 +278,11 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
           <Icon name="grid" size={18} color={colors.textSecondary} />
           <View style={{ flex: 1 }}>
             <Text style={[typography.bodySemibold, { color: colors.text }]}>Недельный план</Text>
-            <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 1 }]}>
-              {hasPlan ? 'Отсюда берётся «Сегодня»' : 'Задай дни — и «Сегодня» перестанет быть пустым'}
-            </Text>
+            {!hasPlan && (
+              <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 1 }]}>
+                Задай дни тренировок
+              </Text>
+            )}
           </View>
           <Icon name="chev" size={16} color={colors.textTertiary} />
         </AnimatedPressable>
