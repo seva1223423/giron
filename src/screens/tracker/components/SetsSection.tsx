@@ -246,6 +246,27 @@ export const SetsSection: React.FC<Props> = ({
         ));
       })()}
 
+      {/* One more set. It used to be a full-width ghost button parked below
+          the volume card, two sections away from the list it appends to.
+          A small plus under the last row, in the set-number column, says the
+          same thing without another wide button on the screen. */}
+      <AnimatedPressable
+        onPress={() => { haptic.selection(); addSet(currentExerciseIndex); }}
+        haptic={false}
+        scaleDown={0.88}
+        style={{ width: 40 + spacing.sm * 2, height: 44, alignItems: 'center', justifyContent: 'center', marginLeft: spacing.sm } as any}
+        accessibilityRole="button"
+        accessibilityLabel="Добавить подход"
+      >
+        <View style={{
+          width: 26, height: 26, borderRadius: 13,
+          borderWidth: 1, borderStyle: 'dashed', borderColor: colors.border,
+          alignItems: 'center', justifyContent: 'center',
+        }}>
+          <Icon name="plus" size={14} color={colors.textSecondary} strokeWidth={2.4} />
+        </View>
+      </AnimatedPressable>
+
       {/* Mini-summary of completed sets */}
       {(() => {
         const completedSets = currentExercise.sets.filter((s) => s.completed && s.weight && s.reps);
@@ -309,15 +330,9 @@ export const SetsSection: React.FC<Props> = ({
         </View>
       )}
 
-      {/* Add set + warmup */}
+      {/* Warmup. "+ Подход" used to sit here too; it moved up into the
+          list itself, where the row it adds actually appears. */}
       <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
-        <Button
-          title="+ \u041F\u043E\u0434\u0445\u043E\u0434"
-          variant="ghost"
-          size="sm"
-          onPress={() => addSet(currentExerciseIndex)}
-          style={{ flex: 1 }}
-        />
         {!currentExercise.sets.some((s) => s.type === 'warmup') &&
           currentExercise.sets.some((s) => (s.weight || 0) > 0) && (
             <Button

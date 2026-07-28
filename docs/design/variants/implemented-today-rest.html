@@ -81,6 +81,10 @@
   .row .c{width:34px;height:34px;border-radius:8px;border:1.5px solid var(--border);display:flex;
           align-items:center;justify-content:center;font-size:15px;color:var(--t2)}
   .row.done .c{background:var(--sage);border-color:var(--sage);color:#17171A}
+  .addset{width:56px;height:44px;display:flex;align-items:center;justify-content:center;margin-left:8px}
+  .addset span{width:26px;height:26px;border-radius:13px;border:1px dashed var(--border);
+               display:flex;align-items:center;justify-content:center;color:var(--t2);
+               font-size:15px;font-weight:300;line-height:1}
   .restbar{position:absolute;left:0;right:0;bottom:0;background:var(--elev);border-top:1px solid var(--border);
            border-radius:0;padding:0 16px 16px}
   .restbar .track{height:3px;background:var(--border);margin:0 -16px}
@@ -214,6 +218,7 @@
       <div class="row done"><span class="n">2</span><span class="v">102.5<u>кг</u><i>×</i>8</span><span class="c">✓</span></div>
       <div class="row active"><span class="n">3</span><span class="v">102.5<u>кг</u><i>×</i>8</span><span class="c">✓</span></div>
       <div class="row"><span class="n">4</span><span class="v">102.5<u>кг</u><i>×</i>8</span><span class="c">✓</span></div>
+      <div class="addset"><span>+</span></div>
       <div style="margin-top:14px;padding:11px;border:1px solid var(--border);border-radius:12px;background:var(--surface)">
         <div style="font-size:9.5px;font-weight:800;letter-spacing:1px;color:var(--t3)">ОБЪЁМ ЗА УПРАЖНЕНИЕ</div>
         <div style="font-size:17px;font-weight:800;margin-top:3px">2 460 кг · макс 102.5</div>
@@ -232,7 +237,9 @@
       </div>
     </div>
   </div>
-  <p class="cap">Отдых больше <b>не закрывает экран</b>: видно свои подходы, видно что дальше,<br>и следующее упражнение можно заменить прямо отсюда.</p>
+  <p class="cap">Отдых больше <b>не закрывает экран</b>: видно свои подходы, видно что дальше,<br>
+     и следующее упражнение можно заменить прямо отсюда.<br>
+     <b>Плюсик под последней строкой</b> — добавить ещё подход.</p>
   </div>
 
 </div>
@@ -242,6 +249,7 @@
 <table>
   <tr><th>Место</th><th>Было</th><th>Стало</th></tr>
   <tr><td>Журнал подходов</td><td class="was">6 кнопок ± на строку + полоса RPE из 8</td><td class="now">тап по «100 кг × 8»</td></tr>
+  <tr><td>Добавить подход</td><td class="was">широкая кнопка «+ Подход» под карточкой объёма</td><td class="now">плюсик в самом списке</td></tr>
   <tr><td>Настройка упражнений в тренировке</td><td class="was">6 кнопок ± на упражнение</td><td class="now">3 значения</td></tr>
   <tr><td>Создание программы</td><td class="was">4 кнопки ± (недели, дни)</td><td class="now">2 значения</td></tr>
   <tr><td>Калькулятор блинов</td><td class="was">2 ± + поле + 6 чипов дельты</td><td class="now">одно крупное число</td></tr>
