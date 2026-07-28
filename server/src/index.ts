@@ -1,3 +1,4 @@
+import { isSmtpConfigured } from './services/emailService';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -156,7 +157,17 @@ app.get('/health', async (_, res) => {
   const t0 = Date.now();
   try {
     await prisma.$queryRaw`SELECT 1`;
-    res.json({ status: 'ok', db: 'connected', dbLatencyMs: Date.now() - t0 });
+    // Whether outbound email is wired up. A password reset that silently
+    // sends nothing looks identical to one that worked — the endpoint
+    // answers "письмо отправлено" either way, by design, so that no one can
+    // probe which addresses exist. Without this flag the only way to tell
+    // was to read Render's env, and the founder is the only one who can.
+    res.json({
+      status: 'ok',
+      db: 'connected',
+      dbLatencyMs: Date.now() - t0,
+      email: isSmtpConfigured() ? 'configured' : 'disabled',
+    });
   } catch {
     // Return 503 so Render/load-balancer knows service is unhealthy
     res.status(503).json({ status: 'error', db: 'unreachable' });
