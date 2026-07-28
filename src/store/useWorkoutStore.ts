@@ -64,10 +64,27 @@ function computeBestRMsFromHistory(
   return best;
 }
 
+/** How a planned exercise should actually be performed. */
+export interface PlannedExercise {
+  exerciseId: string;
+  sets: number;
+  reps: number;
+  restSeconds: number;
+}
+
 export interface WeekPlanEntry {
   name: string;
   emoji: string;
   exercises: string[]; // exercise IDs (legacy / cardio days)
+  /**
+   * Per-exercise sets, reps and rest. Optional and parallel to `exercises`
+   * so every plan saved before this field existed still loads.
+   *
+   * Without it a planned day always started as 4×10 with no rest, whatever
+   * the person had set up — the plan remembered WHICH exercises but not HOW
+   * many, so the numbers were invented fresh every time.
+   */
+  plan?: PlannedExercise[];
   routineId?: string;  // references a saved Routine — takes priority over exercises[] for start
   type?: 'workout' | 'cardio'; // default is 'workout'
 }

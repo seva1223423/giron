@@ -45,17 +45,23 @@ export function startPlannedDay(
   if (entry.routineId) return { status: 'routine' };
 
   const stamp = Date.now();
+  // A day can carry how each exercise should be done. When it does not — every
+  // plan made before that field existed — fall back to the old 4x10.
+  const cfg = new Map((entry.plan ?? []).map((p) => [p.exerciseId, p]));
   const workoutExercises: WorkoutExercise[] = entry.exercises
     .map((exId, index) => {
       const ex = allExercises.find((e) => e.id === exId);
       if (!ex) return null;
+      const p = cfg.get(exId);
+      const setCount = p?.sets ?? 4;
+      const reps = p?.reps ?? 10;
       return {
         id: `we-${stamp}-${index}`,
         exerciseId: ex.id,
         exercise: ex,
         order: index,
-        sets: freshSets(Array.from({ length: 4 }, () => ({})), index, stamp),
-        restSeconds: 0,
+        sets: freshSets(Array.from({ length: setCount }, () => ({ reps })), index, stamp),
+        restSeconds: p?.restSeconds ?? 0,
       };
     })
     .filter(Boolean) as WorkoutExercise[];
