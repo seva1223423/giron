@@ -1107,6 +1107,36 @@ describe('POST /api/user/change-password', () => {
     bcrypt.default.hash.mockResolvedValue('new-hash');
   });
 
+  // A Yandex- or VK-only account has no current password to give. The screen
+  // already hides that field for them; the schema demanded it anyway, so
+  // setting a first password always failed and the social login stayed the
+  // one and only way in. This is the safety net for removing Google.
+  it('lets a social-only account set its first password without a current one', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+      passwordHash: null, email: 'a@b.c', emailVerified: true,
+      totpEnabled: false, totpSecret: null,
+    });
+    (prisma.user.update as jest.Mock).mockResolvedValue({});
+    const res = await request(app)
+      .post('/api/user/change-password')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ newPassword: 'Str0ng!Passw0rd' });
+    expect(res.status).toBe(200);
+  });
+
+  it('still demands the current password from an account that has one', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+      passwordHash: '$2a$10$abcdefghijklmnopqrstuv', email: 'a@b.c', emailVerified: true,
+      totpEnabled: false, totpSecret: null,
+    });
+    const res = await request(app)
+      .post('/api/user/change-password')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ newPassword: 'Str0ng!Passw0rd' });
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('CURRENT_PASSWORD_REQUIRED');
+  });
+
   it('401 without token', async () => {
     const res = await request(app)
       .post('/api/user/change-password')

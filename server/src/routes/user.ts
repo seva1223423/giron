@@ -521,7 +521,12 @@ async function recordPasswordHistory(userId: string, hash: string): Promise<void
 router.post('/change-password', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const { currentPassword, newPassword, totpCode } = z.object({
-      currentPassword: z.string().min(1, 'Введите текущий пароль'),
+      // Optional, because an account that signed up through Yandex or VK has
+      // no current password to give. The body below already handled that case
+      // — the schema rejected the request before it ever got there, so
+      // "задать первый пароль" always failed with "Введите текущий пароль".
+      // That left a social-only account with exactly one way in, forever.
+      currentPassword: z.string().optional(),
       newPassword: strongPassword,
       totpCode: z.string().length(6).optional(),
     }).parse(req.body);
@@ -534,6 +539,9 @@ router.post('/change-password', authenticate, async (req: AuthRequest, res: Resp
 
     // Social-only users don't have a password — they're creating one for the first time
     if (user.passwordHash) {
+      if (!currentPassword) {
+        return res.status(400).json({ error: 'Введите текущий пароль', code: 'CURRENT_PASSWORD_REQUIRED' });
+      }
       const valid = await bcrypt.compare(currentPassword, user.passwordHash);
       if (!valid) {
         return res.status(401).json({ error: 'Неверный текущий пароль', code: 'WRONG_CURRENT_PASSWORD' });
