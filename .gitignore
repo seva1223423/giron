@@ -53,3 +53,14 @@ render_log.txt
 
 # Personal memory mirror — keep out of the app repo (audit 2026-06-07 L11)
 memory/
+
+# --- Purged from history 2026-07-28: never commit these again ---
+# The signing key and its passwords were public for four months. Anything
+# that maps the app's weaknesses, its finances or its deployment stays local.
+android-keystore.jks
+*.jks
+*.keystore
+credentials.json
+DEPLOY.md
+docs/audit/
+docs/LEGAL_RF_CHECKLIST.md
