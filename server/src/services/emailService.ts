@@ -106,7 +106,7 @@ const transporter = {
  * nothing but a log line to show for it. This opens a connection, logs in and
  * hangs up without sending anything.
  */
-export async function verifySmtpConnection(): Promise<{ ok: boolean; error?: string }> {
+export async function verifySmtpConnection(): Promise<{ ok: boolean; error?: string; code?: string; smtpCode?: number }> {
   if (!SMTP_CONFIGURED) return { ok: false, error: 'not_configured' };
   try {
     await Promise.race([
@@ -118,7 +118,18 @@ export async function verifySmtpConnection(): Promise<{ ok: boolean; error?: str
     // Keep the detail in the logs — an SMTP rejection quotes the username
     // back at you, and this is reachable without auth.
     logger.warn('[Email] SMTP verify failed:', err?.message ?? err);
-    return { ok: false, error: err?.message === 'timeout' ? 'unreachable' : 'handshake_failed' };
+    if (err?.message === 'timeout') return { ok: false, error: 'unreachable' };
+    // Nodemailer's own classification plus the SMTP status number. Neither
+    // carries a credential: EAUTH means the login was refused, ESOCKET/ETLS a
+    // TLS mismatch (port 587 wants secure:false, 465 wants true), 535 is
+    // "username and password not accepted". The free-text message is kept out
+    // — Gmail quotes the username back inside it, and this endpoint is public.
+    return {
+      ok: false,
+      error: 'handshake_failed',
+      code: typeof err?.code === 'string' ? err.code : undefined,
+      smtpCode: typeof err?.responseCode === 'number' ? err.responseCode : undefined,
+    };
   }
 }
 

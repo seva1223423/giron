@@ -406,7 +406,7 @@ const enumRateLimiter = rateLimit({
 // error quotes the SMTP username back, and this needs no auth.
 app.get('/health/email', authRateLimiter, async (_, res) => {
   const result = await verifySmtpConnection();
-  res.json({ configured: isSmtpConfigured(), smtp: result.ok ? 'ok' : result.error });
+  res.json({ configured: isSmtpConfigured(), smtp: result.ok ? 'ok' : result.error, code: result.code, smtpCode: result.smtpCode });
 });
 
 
