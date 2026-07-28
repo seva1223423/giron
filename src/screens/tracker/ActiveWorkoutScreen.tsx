@@ -569,8 +569,18 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
           setRestTotal((t) => t + sec);
           // Paused rest has no end timestamp; adding to a zeroed one would
           // land the clock in 1970 and end rest the moment it resumed.
-          if (restPaused) pausedRemainingRef.current += sec;
-          else restEndAtRef.current += sec * 1000;
+          if (restPaused) {
+            pausedRemainingRef.current += sec;
+          } else {
+            restEndAtRef.current += sec * 1000;
+            // The push was scheduled for the original end. Without moving it
+            // the phone announces "rest is over" while the clock on screen
+            // still has half a minute to run.
+            cancelRestEndNotification();
+            scheduleRestEndNotification(
+              Math.max(1, Math.ceil((restEndAtRef.current - Date.now()) / 1000)),
+            );
+          }
         }}
         nextExerciseName={nextExerciseName}
         isLastSetOfExercise={restingAfterLastSet}
