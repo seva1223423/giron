@@ -89,6 +89,9 @@ interface WorkoutStore {
   syncWeekPlan: () => Promise<void>;
   fetchWeekPlan: () => Promise<void>;
   saveAsTemplate: (workout: Workout) => void;
+  /** Pushes any template that only ever existed on this phone up to the
+   *  server, where it becomes a Routine. Safe to call repeatedly. */
+  syncLocalTemplates: () => Promise<void>;
   deleteTemplate: (id: string) => void;
   addCustomExercise: (exercise: Exercise) => void;
   deleteCustomExercise: (id: string) => void;
@@ -231,6 +234,44 @@ export const useWorkoutStore = create<WorkoutStore>()(
         customExercises: s.customExercises.filter((e) => e.id !== id),
       })),
 
+      // A saved template is a Routine that never made it to the server. The
+      // server has had the model all along ("unified template model", 2026-05-23)
+      // but this action only ever wrote to AsyncStorage, so every template a
+      // person made lived on exactly one phone: reinstall, wipe or new device
+      // and it was gone with no way back. It is written locally first so it
+      // still works with no signal, then pushed; once the server has it, the
+      // local copy is dropped and the routine takes over.
+      syncLocalTemplates: async () => {
+        const pending = get().savedTemplates;
+        if (pending.length === 0) return;
+        for (const tpl of pending) {
+          try {
+            const routine = await workoutService.createRoutine({
+              name: tpl.name || 'Тренировка',
+              exercises: (tpl.exercises ?? []).map((ex, order) => ({
+                exerciseId: ex.exerciseId,
+                order,
+                restSeconds: ex.restSeconds || undefined,
+                sets: (ex.sets ?? []).map((st, i) => ({
+                  setNumber: i + 1,
+                  type: st.type,
+                  reps: st.reps,
+                  weight: st.weight,
+                })),
+              })),
+            });
+            set((s) => ({
+              routines: [routine, ...s.routines],
+              savedTemplates: s.savedTemplates.filter((t) => t.id !== tpl.id),
+            }));
+          } catch {
+            // Offline or the server refused this one — leave it local and try
+            // again next time. Losing it silently is the thing being fixed.
+            break;
+          }
+        }
+      },
+
       saveAsTemplate: (workout) => set((s) => {
         // Avoid duplicates: check by originalId (stored on template) or by source workout id
         const exists = s.savedTemplates.some(
@@ -246,6 +287,9 @@ export const useWorkoutStore = create<WorkoutStore>()(
           totalVolume: undefined,
         };
         (template as any).originalId = workout.id;
+        // Fire-and-forget: the local copy above is already the source of truth
+        // until the server confirms, so a failure here costs nothing.
+        setTimeout(() => { get().syncLocalTemplates().catch(() => {}); }, 0);
         return { savedTemplates: [template, ...s.savedTemplates] };
       }),
 
@@ -326,6 +370,9 @@ export const useWorkoutStore = create<WorkoutStore>()(
         } catch {
           set({ isLoadingRoutines: false });
         }
+        // Anything still sitting in savedTemplates predates this sync or was
+        // made offline. Drain it now that we know the server is reachable.
+        get().syncLocalTemplates().catch(() => {});
       },
 
       addRoutine: (routine) => set((s) => ({ routines: [routine, ...s.routines] })),
