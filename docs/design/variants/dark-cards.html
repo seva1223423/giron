@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Giron — насколько тёмными должны быть карточки</title>
+<style>
+  :root{ --cream:#F4F1EA; --ink:#17171A; --gold:#86693B; --line:#E2DCCE; --dim:#6B6860; }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#EFEBE1;color:var(--ink);font-family:-apple-system,'Segoe UI',Roboto,sans-serif;
+       display:flex;flex-direction:column;align-items:center;gap:14px;padding:26px 14px 60px}
+  h1{font-size:19px;font-weight:800;letter-spacing:-.3px;text-align:center}
+  .sub{color:var(--dim);font-size:13px;text-align:center;max-width:660px;line-height:1.55}
+  .row{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;align-items:flex-start;margin-top:10px}
+  .col{width:320px}
+  .tag{display:block;text-align:center;font-size:11px;font-weight:800;letter-spacing:.8px;
+       color:var(--dim);margin-bottom:8px;text-transform:uppercase}
+  .screen{background:var(--cream);border-radius:22px;padding:16px;border:1px solid var(--line)}
+  .greet{font-size:20px;font-weight:800;letter-spacing:-.4px;color:var(--gold)}
+  .greet b{color:var(--ink);display:block}
+  .date{font-size:11.5px;color:var(--dim);margin-top:2px;margin-bottom:14px}
+  .card{border-radius:22px;padding:18px;position:relative;overflow:hidden}
+  .eyebrow{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+  .eyebrow i{width:26px;height:26px;border-radius:8px;background:var(--gold);display:flex;
+             align-items:center;justify-content:center;font-style:normal;font-size:13px;color:#F4F1EA}
+  .eyebrow span{font-size:10px;font-weight:800;letter-spacing:1.1px;color:var(--gold)}
+  .hero{font-size:19px;font-weight:800;letter-spacing:-.4px;line-height:1.3}
+  .cta{height:46px;border-radius:12px;background:var(--gold);color:#F4F1EA;font-weight:700;font-size:14px;
+       display:flex;align-items:center;justify-content:center;margin-top:16px}
+  .note{width:320px;font-size:11.5px;color:var(--dim);text-align:center;margin-top:9px;line-height:1.5}
+  .note b{color:var(--gold)}
+  .bad{color:#A9564B;font-weight:700}
+  .swatch{display:flex;gap:4px;justify-content:center;margin-top:6px}
+  .swatch i{width:26px;height:14px;border-radius:3px;display:block;border:1px solid rgba(0,0,0,.15)}
+  code{font-size:10.5px;color:var(--dim)}
+</style>
+</head>
+<body>
+
+<h1>Насколько тёмными должны быть карточки в светлой теме</h1>
+<p class="sub">Сейчас они почти чёрные — это и есть твоё замечание. Ниже три варианта одной и той же карточки.
+Текст на всех уже исправлен: раньше он брал цвет из темы и в светлой теме сливался с фоном.</p>
+
+<div class="row">
+
+  <div class="col">
+    <span class="tag">Сейчас</span>
+    <div class="screen">
+      <div class="greet">Добрый вечер,<b>Всеволод</b></div>
+      <div class="date">вторник · 28 июля</div>
+      <div class="card" style="background:linear-gradient(135deg,#1E1810,#2A1F12 60%,#382612)">
+        <div class="eyebrow"><i>✦</i><span>ТРЕНЕР РЕКОМЕНДУЕТ</span></div>
+        <div class="hero" style="color:#17171A">Грудь + Трицепс · Ещё не тренировал</div>
+        <div class="cta">Начать тренировку</div>
+      </div>
+    </div>
+    <p class="note"><span class="bad">Так выглядит сейчас.</span> Чёрный провал на кремовом,
+    и текст почти невидим — контраст <b>1.2 : 1</b> при норме 4.5.</p>
+    <div class="swatch"><i style="background:#1E1810"></i><i style="background:#2A1F12"></i><i style="background:#382612"></i></div>
+    <code>#1E1810 → #382612</code>
+  </div>
+
+  <div class="col">
+    <span class="tag">Вариант A — мягче</span>
+    <div class="screen">
+      <div class="greet">Добрый вечер,<b>Всеволод</b></div>
+      <div class="date">вторник · 28 июля</div>
+      <div class="card" style="background:linear-gradient(135deg,#3B2F21,#4A3A26 60%,#5A4527)">
+        <div class="eyebrow"><i>✦</i><span style="color:#D4B07A">ТРЕНЕР РЕКОМЕНДУЕТ</span></div>
+        <div class="hero" style="color:#F4F1EA">Грудь + Трицепс · Ещё не тренировал</div>
+        <div class="cta" style="background:#D4B07A;color:#17171A">Начать тренировку</div>
+      </div>
+    </div>
+    <p class="note">Тёплый кофейный, не чёрный. Карточка читается как акцент,
+    а не как дыра. Текст <b>12 : 1</b>.</p>
+    <div class="swatch"><i style="background:#3B2F21"></i><i style="background:#4A3A26"></i><i style="background:#5A4527"></i></div>
+    <code>#3B2F21 → #5A4527</code>
+  </div>
+
+  <div class="col">
+    <span class="tag">Вариант B — светлая карточка</span>
+    <div class="screen">
+      <div class="greet">Добрый вечер,<b>Всеволод</b></div>
+      <div class="date">вторник · 28 июля</div>
+      <div class="card" style="background:#FFFFFF;border:1px solid #E2DCCE">
+        <div class="eyebrow"><i>✦</i><span>ТРЕНЕР РЕКОМЕНДУЕТ</span></div>
+        <div class="hero" style="color:#17171A">Грудь + Трицепс · Ещё не тренировал</div>
+        <div class="cta">Начать тренировку</div>
+      </div>
+    </div>
+    <p class="note">Никакого тёмного вообще. Экран становится ровным и спокойным,
+    но карточка перестаёт выделяться среди остальных.</p>
+    <div class="swatch"><i style="background:#FFFFFF"></i><i style="background:#E2DCCE"></i></div>
+    <code>белая, как остальные карточки</code>
+  </div>
+
+</div>
+
+<p class="sub" style="margin-top:26px;max-width:700px">
+Тот же выбор касается и шапки профиля — она тоже почти чёрная и сделана тем же градиентом.
+Что выберешь, то применю в обоих местах.<br><br>
+<b>В тёмной теме ничего не меняется</b> — там чёрная карточка на графитовом фоне выглядит правильно.
+Правка коснётся только светлой.
+</p>
+
+</body>
+</html>

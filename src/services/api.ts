@@ -1,7 +1,7 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
-import { setOnlineStatus, markSlowRequest, unmarkSlowRequest } from '../store/useConnectionStore';
+import { setOnlineStatus } from '../store/useConnectionStore';
 import { tokenStorage } from '../utils/secureStorage';
 
 // Production server on Render (works from any device/network).
@@ -29,15 +29,6 @@ const CLIENT_PLATFORM = Platform.OS === 'ios' ? 'ios' : 'android';
 // 503/504) a real chance to land within the cold-start window.
 // AI requests still override this with their own AI_REQUEST_TIMEOUT_MS
 // in services/aiService.ts.
-// How long a request may run before the app says the connection is slow.
-// This was 8s, which flagged almost everything: the server is on Render's
-// free tier and sleeps after 15 minutes idle, so the first request after a
-// pause routinely takes 30-50s. The banner was on screen more often than
-// off, which is the same as no banner at all. 15s leaves ordinary slow
-// requests alone and still speaks up long before the 45s timeout, so a
-// genuinely stuck app never looks frozen.
-const SLOW_REQUEST_MS = 15000;
-
 export const api = axios.create({
   baseURL: BASE_URL,
   timeout: 45000,
@@ -88,34 +79,8 @@ api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  // If this request is still in-flight after SLOW_REQUEST_MS, mark it slow
-  // so the NetworkStatusBar shows "Соединение медленное…".
-  // Reverted in the response/error interceptors.
-  // Skip under jest: the 8s timer outlives the test and fires after the
-  // module registry is reset → "markSlowRequest is not a function" worker
-  // crash. The slow-banner has no meaning in a unit test anyway.
-  if (process.env.NODE_ENV !== 'test') {
-    const cfg = config as InternalAxiosRequestConfig & { _slowTimer?: ReturnType<typeof setTimeout>; _slowFired?: boolean };
-    cfg._slowTimer = setTimeout(() => {
-      cfg._slowFired = true;
-      markSlowRequest();
-    }, SLOW_REQUEST_MS);
-  }
   return config;
 });
-
-function clearSlowTimer(config: any) {
-  if (!config) return;
-  const cfg = config as InternalAxiosRequestConfig & { _slowTimer?: ReturnType<typeof setTimeout>; _slowFired?: boolean };
-  if (cfg._slowTimer) {
-    clearTimeout(cfg._slowTimer);
-    cfg._slowTimer = undefined;
-  }
-  if (cfg._slowFired) {
-    cfg._slowFired = false;
-    unmarkSlowRequest();
-  }
-}
 
 // Response interceptor — handle 401 + token refresh
 let isRefreshing = false;
@@ -136,9 +101,8 @@ const processQueue = (error: unknown, token: string | null = null) => {
 };
 
 api.interceptors.response.use(
-  (response) => { clearSlowTimer(response.config); setOnlineStatus(true); return response; },
+  (response) => { setOnlineStatus(true); return response; },
   async (error: AxiosError) => {
-    clearSlowTimer(error.config);
     // R240 audit: don't flag the user as "offline" on a request timeout
     // (ECONNABORTED). Slow LLM responses and Render cold-starts can take
     // 30-60s and that's not the same as "no internet" — keeping the

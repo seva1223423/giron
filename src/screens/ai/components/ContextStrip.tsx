@@ -81,7 +81,10 @@ export const ContextStrip: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  wrap: { flexGrow: 0, borderBottomWidth: 1 },
+  // flexShrink: 0 — the message list below has no flex of its own, so it
+  // grew past the screen and squeezed this strip until the chips were cut in
+  // half: labels visible, values sliced off.
+  wrap: { flexGrow: 0, flexShrink: 0, borderBottomWidth: 1 },
   row: { gap: 6, paddingHorizontal: spacing.md, paddingVertical: 10 },
   chip: {
     paddingHorizontal: 10,

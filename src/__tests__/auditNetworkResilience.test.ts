@@ -207,11 +207,27 @@ describe('Offline banner behavior', () => {
     expect(code).toMatch(/Нет соединения/i);
   });
 
-  test('offline banner uses error color, slow uses warning', () => {
+  test('offline banner uses the error color', () => {
     const f = path.join(SRC, 'components/NetworkStatusBar.tsx');
     const code = fs.readFileSync(f, 'utf8');
     expect(code).toMatch(/colors\.error/);
-    expect(code).toMatch(/colors\.warning/);
+  });
+
+  test('there is no "slow connection" banner', () => {
+    // It fired on any request past a few seconds. The server sleeps on
+    // Render's free tier and wakes in 30-50s, so the banner was up more often
+    // than down and stopped meaning anything. Slowness is shown where it
+    // happens instead — button spinners and list skeletons.
+    const f = path.join(SRC, 'components/NetworkStatusBar.tsx');
+    // Strip comments first — the file explains why the banner was removed, and
+    // that explanation naturally quotes the label it no longer renders.
+    const code = fs.readFileSync(f, 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/\/\/.*$/gm, '');
+    expect(code).not.toMatch(/медленн/i);
+    expect(code).not.toMatch(/colors\.warning/);
+    const api = fs.readFileSync(path.join(SRC, 'services/api.ts'), 'utf8');
+    expect(api).not.toMatch(/markSlowRequest/);
   });
 });
 

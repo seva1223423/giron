@@ -2,48 +2,36 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useConnectionStore, useThemeColors } from '../store';
-import { Spinner } from './Spinner';
 import { typography } from '../theme';
 import { spacing, borderRadius } from '../theme/spacing';
 
 /**
- * Top banner that surfaces network state to the user (round 290).
+ * Top banner for the one network state worth interrupting for: no connection.
  *
- * Two states (priority order):
- *   1. Offline (red, "Нет соединения") — shown when `isOnline === false`.
- *      The store flag is flipped by the axios response interceptor when
- *      a request fails with a network error. After the round-290 timeout
- *      bump (15s → 45s) and 3-attempt retry, this only fires when the
- *      retry budget is genuinely exhausted.
- *   2. Slow (amber, "Соединение медленное…") — shown when at least one
- *      axios request has been in-flight > 8s. The 8s threshold sits well
- *      below the 45s timeout so the user gets feedback long before any
- *      timeout fires; useful for VPN-routed Russian users hitting Render
- *      cold-start.
+ * There used to be a second, amber "Соединение медленное…" state on any request
+ * still running after a few seconds. The server sleeps on Render's free tier
+ * and takes 30-50s to wake, so that banner was up more often than it was down —
+ * it stopped carrying information and became something to look past. Raising
+ * the threshold only made it slower to appear, not rarer.
  *
- * Reactive — appears/disappears as the store mutates. No imperative API.
- * pointerEvents="none" so it never blocks taps underneath.
+ * Slowness is already visible where it happens: buttons show a spinner, lists
+ * show skeletons. A banner across the top added nothing those did not.
+ *
+ * Reactive — appears/disappears as the store mutates. pointerEvents="none" so
+ * it never blocks taps underneath.
  */
 export const NetworkStatusBar: React.FC = () => {
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
-  // Use the DEBOUNCED offline flag so a short blip doesn't flash the red banner.
-  // Slow stays immediate (its own debounce is the 8s in-flight threshold).
+  // Debounced, so a momentary blip doesn't flash the banner.
   const isOfflineConfirmed = useConnectionStore((s) => s.isOfflineConfirmed);
-  const slowCount = useConnectionStore((s) => s.slowRequestCount);
-
-  const variant: 'offline' | 'slow' | null = isOfflineConfirmed ? 'offline' : slowCount > 0 ? 'slow' : null;
-  if (!variant) return null;
-
-  const bg = variant === 'offline' ? colors.error : colors.warning;
-  const label = variant === 'offline' ? 'Нет соединения' : 'Соединение медленное…';
+  if (!isOfflineConfirmed) return null;
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + spacing.xs, backgroundColor: bg }]} pointerEvents="none">
+    <View style={[styles.container, { paddingTop: insets.top + spacing.xs, backgroundColor: colors.error }]} pointerEvents="none">
       <View style={styles.row}>
-        {variant === 'slow' ? <Spinner color={colors.textInverse} size={14} /> : null}
         <Text style={[typography.smallMedium, { color: colors.textInverse }]} numberOfLines={1}>
-          {label}
+          Нет соединения
         </Text>
       </View>
     </View>

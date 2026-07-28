@@ -118,6 +118,13 @@ export const AICoachCard: React.FC<Props> = ({
     : ctaLabel ?? (isRest ? 'Обзор недели' : 'Начать тренировку');
   const finalOnPressCta = isActive ? (onPressContinue ?? onPressCta) : onPressCta;
 
+  // This card paints its own dark gradient in BOTH themes, so text on it must
+  // not follow the theme. In light mode colors.text is #17171A — near-black on
+  // a near-black card, about 1.2:1, and the recommendation line vanished. The
+  // profile hero already pins its text for exactly this reason.
+  const onDark = '#F4F1EA';
+  const onDarkDim = 'rgba(244,241,234,0.74)';
+
   // Gradient stops — warmer for workout, cooler/sage for rest.
   const gradStops = isRest
     ? { a: '#14201A', b: '#1A2520', c: '#1E2A22' }
@@ -240,7 +247,7 @@ export const AICoachCard: React.FC<Props> = ({
           style={[
             typography.h3,
             {
-              color: colors.text,
+              color: onDark,
               lineHeight: 26,
               maxWidth: 280,
             },
@@ -253,7 +260,7 @@ export const AICoachCard: React.FC<Props> = ({
         {subText && (
           <Text
             style={{
-              color: colors.textSecondary,
+              color: onDarkDim,
               fontSize: 13,
               lineHeight: 18,
               marginTop: 10,
@@ -328,7 +335,7 @@ export const AICoachCard: React.FC<Props> = ({
                 justifyContent: 'center',
               }}
             >
-              <Text style={[typography.smallMedium, { color: colors.textSecondary }]}>
+              <Text style={[typography.smallMedium, { color: onDarkDim }]}>
                 {secondaryLabel ?? 'Всё равно'}
               </Text>
             </TouchableOpacity>

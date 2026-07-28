@@ -593,6 +593,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             {item.widget != null && <ChatWidgetView widget={item.widget as ChatWidget} />}
           </>
         )}
+        style={styles.list}
         contentContainerStyle={styles.messages}
         showsVerticalScrollIndicator={false}
         onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
@@ -725,6 +726,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  list: { flex: 1 },
   messages: { padding: 16, paddingBottom: 8 },
   loadOlderContainer: { alignItems: 'center', marginBottom: 12 },
   loadOlderButton: { paddingHorizontal: 20, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#D4B07A', minWidth: 48, alignItems: 'center' },
