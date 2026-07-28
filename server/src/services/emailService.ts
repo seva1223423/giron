@@ -74,9 +74,15 @@ const realTransporter = nodemailer.createTransport({
   // the SMTP server does not fail — it hangs, for minutes, and the user
   // just never gets their password reset. Short timeouts turn that silence
   // into a logged error within seconds.
-  connectionTimeout: 10_000,
-  greetingTimeout: 10_000,
-  socketTimeout: 20_000,
+  //
+  // Measured from Render's free tier: reaching smtp.gmail.com is slow and
+  // uneven. One verify succeeded, proving the credentials are fine, while
+  // neighbouring attempts died on ETIMEDOUT and ESOCKET. 10s was tight
+  // enough to turn a working path into a failing one, so these are set to
+  // where a slow connection still lands but a dead one still gives up.
+  connectionTimeout: 30_000,
+  greetingTimeout: 30_000,
+  socketTimeout: 45_000,
 });
 
 /**
@@ -111,7 +117,7 @@ export async function verifySmtpConnection(): Promise<{ ok: boolean; error?: str
   try {
     await Promise.race([
       realTransporter.verify(),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 12_000)),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 35_000)),
     ]);
     return { ok: true };
   } catch (err: any) {
