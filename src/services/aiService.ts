@@ -82,6 +82,11 @@ export const aiService = {
     nutritionTargets?: { calories: number; protein: number; fats: number; carbs: number; waterTargetMl: number },
     waterMl?: number,
     weekPlan?: Record<number, { name: string; emoji: string; exercises: string[] } | null>,
+    activeWorkout?: {
+      name: string;
+      startedAt?: string;
+      exercises: Array<{ name: string; sets: Array<{ completed: boolean; weight?: number; reps?: number; rpe?: number }> }>;
+    } | null,
     cardioSessions?: Array<{ type: string; date: string; durationMinutes: number; distanceKm?: number; caloriesBurned?: number; avgHeartRate?: number }>,
     sleepEntries?: Array<{ date: string; durationHours: number; quality?: number | null }>,
     clientDate?: string,
@@ -89,7 +94,7 @@ export const aiService = {
     const clientHour = new Date().getHours();
     const { data } = await api.post(
       '/ai/chat',
-      { message, nutritionTargets, waterMl, weekPlan, cardioSessions, sleepEntries, clientDate, clientHour },
+      { message, nutritionTargets, waterMl, weekPlan, activeWorkout, cardioSessions, sleepEntries, clientDate, clientHour },
       { timeout: AI_REQUEST_TIMEOUT_MS },
     );
     return { message: data.message, actions: data.actions ?? [], meta: data.meta };
@@ -100,6 +105,11 @@ export const aiService = {
     nutritionTargets?: { calories: number; protein: number; fats: number; carbs: number; waterTargetMl: number },
     waterMl?: number,
     weekPlan?: Record<number, { name: string; emoji: string; exercises: string[] } | null>,
+    activeWorkout?: {
+      name: string;
+      startedAt?: string;
+      exercises: Array<{ name: string; sets: Array<{ completed: boolean; weight?: number; reps?: number; rpe?: number }> }>;
+    } | null,
     cardioSessions?: Array<{ type: string; date: string; durationMinutes: number; distanceKm?: number; caloriesBurned?: number; avgHeartRate?: number }>,
     onDone?: (result: { actions: AIActionResult[]; meta?: AIMeta }) => void,
     sleepEntries?: Array<{ date: string; durationHours: number; quality?: number | null }>,

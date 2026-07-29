@@ -7712,6 +7712,25 @@ const chatRequestSchema = z.object({
     }),
     z.null(),
   ])).refine((v) => Object.keys(v).length <= 7, 'Не более 7 дней').optional(),
+  // The session running right now. It exists only in the client's store until
+  // it is finished — a workout is synced in one piece at the end, so there is
+  // no server row to read mid-session and `completedAt: null` in the database
+  // means a program day template, not a live session. Sent here so the coach
+  // can answer "сколько подходов я уже сделал" from this minute's numbers.
+  // Same sanitizer as every other string that reaches the prompt.
+  activeWorkout: z.object({
+    name: z.string().max(200).transform((v) => sanitizeInput(v, { maxLength: 200 })),
+    startedAt: z.string().max(40).optional(),
+    exercises: z.array(z.object({
+      name: z.string().max(200).transform((v) => sanitizeInput(v, { maxLength: 200 })),
+      sets: z.array(z.object({
+        completed: z.boolean(),
+        weight: z.number().finite().min(0).max(2000).optional(),
+        reps: z.number().finite().min(0).max(999).optional(),
+        rpe: z.number().finite().min(1).max(10).optional(),
+      })).max(30),
+    })).max(30),
+  }).nullable().optional(),
   cardioSessions: z.array(z.object({
     type: z.string().max(50).transform((s) => sanitizeInput(s, { maxLength: 50 })),
     date: z.string().max(30).transform((s) => sanitizeInput(s, { maxLength: 30 })),
@@ -7732,7 +7751,7 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const chatParsed = chatRequestSchema.safeParse(req.body);
     if (!chatParsed.success) return res.status(400).json({ error: chatParsed.error.errors[0].message });
-    const { message, nutritionTargets: clientNutritionTargets, waterMl, weekPlan, cardioSessions, sleepEntries, stream: streamMode, clientDate, clientHour } = chatParsed.data;
+    const { message, nutritionTargets: clientNutritionTargets, waterMl, weekPlan, activeWorkout: clientActiveWorkout, cardioSessions, sleepEntries, stream: streamMode, clientDate, clientHour } = chatParsed.data;
     const todayDate = clientDate ?? new Date().toISOString().split('T')[0];
 
     const userId = req.userId!;
@@ -8540,7 +8559,19 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
           healthRestrictions: user.healthRestrictions,
         } : null,
         recentWorkouts: recentWorkouts as any,
-        liveWorkout: (liveWorkout as any) ?? null,
+        // Client's copy wins: it is the only place a running session exists.
+        // `liveWorkout` from the database stays as a fallback for a future
+        // where sets are streamed up mid-session.
+        liveWorkout: clientActiveWorkout
+          ? {
+              name: clientActiveWorkout.name,
+              startedAt: clientActiveWorkout.startedAt ? new Date(clientActiveWorkout.startedAt) : null,
+              exercises: clientActiveWorkout.exercises.map((ex) => ({
+                exercise: { name: ex.name },
+                sets: ex.sets,
+              })),
+            }
+          : ((liveWorkout as any) ?? null),
         allCompletedExerciseSets: allCompletedExerciseSets as any,
         todayMeals: todayMeals as any,
         bodyWeightHistory: bodyWeightHistory as any,

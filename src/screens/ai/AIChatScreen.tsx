@@ -68,6 +68,31 @@ function starterEmojiToIcon(emoji: string | undefined): IconName {
   return 'spark';
 }
 
+
+/**
+ * The running session, shaped for the coach.
+ *
+ * It exists only in this store until the workout is finished — a workout is
+ * synced to the server in one piece at the end — so without sending it here
+ * the coach answers "сколько подходов я сделал" from last week's history.
+ */
+function liveWorkoutPayload(active: ReturnType<typeof useWorkoutStore.getState>['activeWorkout']) {
+  if (!active) return null;
+  return {
+    name: active.workout.name || 'Тренировка',
+    startedAt: active.workout.startedAt,
+    exercises: (active.workout.exercises ?? []).slice(0, 30).map((ex) => ({
+      name: ex.exercise?.name ?? 'Упражнение',
+      sets: (ex.sets ?? []).slice(0, 30).map((st) => ({
+        completed: !!st.completed,
+        weight: st.weight ?? undefined,
+        reps: st.reps ?? undefined,
+        rpe: st.rpe ?? undefined,
+      })),
+    })),
+  };
+}
+
 export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const haptic = useHaptic();
   const { user, fetchProfile } = useAuthStore();
@@ -323,7 +348,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       let userAborted = false;
 
       try {
-        const stream = aiService.chatStream(text.trim(), nutritionTargets, todayLog.waterMl, weekPlan, cardioSessions, (result) => {
+        const stream = aiService.chatStream(text.trim(), nutritionTargets, todayLog.waterMl, weekPlan, liveWorkoutPayload(useWorkoutStore.getState().activeWorkout), cardioSessions, (result) => {
           response = { message: '', actions: result.actions, meta: result.meta };
         }, sleepEntries, todayDate, controller.signal);
 
@@ -366,7 +391,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         } else {
           // Streaming failed for a non-user reason — fall back to regular request
           try {
-            const fallback = await aiService.chat(text.trim(), nutritionTargets, todayLog.waterMl, weekPlan, cardioSessions, sleepEntries, todayDate);
+            const fallback = await aiService.chat(text.trim(), nutritionTargets, todayLog.waterMl, weekPlan, liveWorkoutPayload(useWorkoutStore.getState().activeWorkout), cardioSessions, sleepEntries, todayDate);
             if (!isMountedRef.current) return;
             response = fallback;
             setMessages((prev) => prev.map((m) =>
