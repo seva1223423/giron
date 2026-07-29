@@ -59,6 +59,10 @@ const EXPECTED_TOOL_NAMES = [
   'set_water_target',
   // Logs a set into the session running right now. The client applies it —
   // a workout only reaches the database once it is finished.
+  // The whole session lifecycle. Before these the coach could recommend a
+  // workout but not open one, which left "начни ноги" as advice.
+  'start_workout',
+  'finish_workout',
   'log_active_set',
   'set_rest_timer',
   'set_notifications',

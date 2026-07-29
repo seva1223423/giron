@@ -2408,6 +2408,33 @@ const AI_TOOLS: DeepSeekTool[] = [
   {
     type: 'function',
     function: {
+      name: 'start_workout',
+      description: 'Начать тренировку прямо сейчас — открыть сессию в приложении. Используй когда пользователь говорит "начинаем", "начни тренировку", "погнали ноги", "запусти жим". Без параметров запускает то, что стоит в плане на сегодня. Если названа своя тренировка или шаблон — передай routineName. Если человек перечислил упражнения — передай exercises. НЕ используй, если тренировка уже идёт (в контексте есть блок "СЕЙЧАС ИДЁТ ТРЕНИРОВКА").',
+      parameters: {
+        type: 'object',
+        properties: {
+          routineName: { type: 'string', description: 'Название сохранённого шаблона или рутины' },
+          exercises: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Названия упражнений для разовой тренировки',
+          },
+          name: { type: 'string', description: 'Как назвать тренировку' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'finish_workout',
+      description: 'Завершить идущую тренировку и сохранить её в историю. Используй когда пользователь говорит "всё, закончил", "завершай", "на сегодня хватит". Работает только если тренировка идёт.',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'log_active_set',
       description: 'Записать выполненный подход в тренировку, которая ИДЁТ ПРЯМО СЕЙЧАС. Используй когда в контексте есть блок "СЕЙЧАС ИДЁТ ТРЕНИРОВКА" и пользователь говорит про только что сделанный подход: "записал 100 на 8", "сделал ещё восемь", "100х8", "закрыл подход". НЕ используй для тренировки задним числом — для этого есть log_completed_workout. Если упражнение не названо, подход идёт в то, которое сейчас выполняется.',
       parameters: {
@@ -4890,6 +4917,48 @@ export async function executeTool(
       resultText: `Приём пищи "${label}" добавлен: ${itemSummary}. Итого: ${totalCalories} ккал, Б${totalProtein}г, Ж${totalFats}г, У${totalCarbs}г`,
       actionDescription: description,
       actionData: { mealId: created.id, mealType: safeMealType, totalCalories, totalProtein, totalFats, totalCarbs },
+    };
+  }
+
+  if (toolName === 'start_workout') {
+    // Which workout to start is resolved by the app: routines, the week plan
+    // and the exercise catalogue all live in its stores, and the session
+    // itself never touches the database until it is finished.
+    const startSchema = z.object({
+      routineName: z.string().max(200).optional(),
+      exercises: z.array(z.string().max(200)).max(30).optional(),
+      name: z.string().max(200).optional(),
+    });
+    const parsedSw = startSchema.safeParse(toolInput);
+    if (!parsedSw.success) {
+      return { resultText: `Ошибка параметров start_workout: ${parsedSw.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+    const { routineName, exercises, name } = parsedSw.data;
+    const cleanExercises = (exercises ?? []).map((e) => e.trim()).filter(Boolean);
+
+    const what = routineName
+      ? `«${routineName}»`
+      : cleanExercises.length > 0
+        ? cleanExercises.join(', ')
+        : 'план на сегодня';
+    return {
+      resultText: `Запускаю тренировку: ${what}`,
+      actionDescription: `Старт: ${what}`,
+      actionData: {
+        routineName,
+        exercises: cleanExercises.length > 0 ? cleanExercises : undefined,
+        name,
+      },
+    };
+  }
+
+  if (toolName === 'finish_workout') {
+    // No parameters and nothing to validate — the session lives in the app,
+    // so this is purely a signal. The app refuses if nothing is running.
+    return {
+      resultText: 'Завершаю тренировку',
+      actionDescription: 'Тренировка завершена',
+      actionData: {},
     };
   }
 

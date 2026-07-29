@@ -22,6 +22,10 @@ import { useAIChatCommands } from './useAIChatCommands';
 import { drainChatWidget } from './chatWidgets';
 import { CurrentWorkoutPanel } from './components/CurrentWorkoutPanel';
 import { toast } from '../../components/app-modal/toast';
+import { startWorkoutSafe } from '../../utils/startWorkoutSafe';
+import { startPlannedDay } from '../../utils/startFromPlan';
+import { exercises as localExercises } from '../../data/exercises';
+import type { Exercise } from '../../types';
 
 // Round 233 + master polish: prompts carry an on-brand SVG IconName
 // instead of a raw emoji glyph (CLAUDE.md bans glyphs in UI).
@@ -137,6 +141,98 @@ function applyCoachSet(data: { weight?: number; reps?: number; rpe?: number; exe
     ...(typeof data.rpe === 'number' ? { rpe: data.rpe } : {}),
   });
   return true;
+}
+
+
+/**
+ * Start a session the coach asked for.
+ *
+ * Everything it needs — routines, the week plan, the exercise catalogue —
+ * lives in the client's stores, so resolution happens here rather than on the
+ * server. Returns a reason string when it cannot, so the coach's "запускаю"
+ * is never the last word if nothing actually started.
+ */
+function startWorkoutFromCoach(
+  data: { routineName?: string; exercises?: string[]; name?: string },
+  navigation: any,
+  allExercises: Exercise[],
+): string | null {
+  const store = useWorkoutStore.getState();
+  if (store.activeWorkout) return 'Тренировка уже идёт';
+
+  // 1. A named routine or saved template.
+  if (data.routineName) {
+    const needle = data.routineName.toLowerCase().trim();
+    const routine = store.routines.find((r) => {
+      const n = r.name.toLowerCase();
+      return n === needle || n.includes(needle) || needle.includes(n);
+    });
+    if (routine) {
+      store.startWorkoutFromRoutine(routine.id)
+        .then((w) => { if (w) navigation.navigate('WorkoutsTab', { screen: 'ActiveWorkout' }); })
+        .catch(() => {});
+      return null;
+    }
+    return `Не нашёл шаблон «${data.routineName}»`;
+  }
+
+  // 2. An ad-hoc list of exercises.
+  const stamp = Date.now();
+  let names = data.exercises ?? [];
+
+  // 3. Nothing named — whatever the week plan says for today.
+  if (names.length === 0) {
+    const dow = (() => { const d = new Date().getDay(); return d === 0 ? 6 : d - 1; })();
+    const today = store.weekPlan[dow];
+    if (!today || (!today.routineId && today.exercises.length === 0)) {
+      return 'На сегодня ничего не запланировано — скажи, что тренируем';
+    }
+    if (today.routineId) {
+      store.startWorkoutFromRoutine(today.routineId)
+        .then((w) => { if (w) navigation.navigate('WorkoutsTab', { screen: 'ActiveWorkout' }); })
+        .catch(() => {});
+      return null;
+    }
+    const res = startPlannedDay(today, allExercises, navigation, { tab: 'WorkoutsTab' });
+    return res.status === 'started' ? null : 'Не удалось собрать тренировку из плана';
+  }
+
+  const resolved = names
+    .map((n) => {
+      const needle = n.toLowerCase().trim();
+      return allExercises.find((e) => {
+        const name = e.name.toLowerCase();
+        return name === needle || name.includes(needle) || needle.includes(name);
+      });
+    })
+    .filter(Boolean) as Exercise[];
+
+  if (resolved.length === 0) return 'Не нашёл ни одного из этих упражнений';
+
+  startWorkoutSafe(
+    {
+      id: `workout-${stamp}`,
+      name: data.name || 'Тренировка',
+      exercises: resolved.map((ex, i) => ({
+        id: `we-${stamp}-${i}`,
+        exerciseId: ex.id,
+        exercise: ex,
+        order: i,
+        restSeconds: 0,
+        sets: Array.from({ length: 4 }, (_, k) => ({
+          id: `set-${stamp}-${i}-${k}`,
+          setNumber: k + 1,
+          type: 'normal' as const,
+          reps: 10,
+          weight: 0,
+          completed: false,
+        })),
+      })),
+    },
+    navigation,
+    { tab: 'WorkoutsTab' },
+  );
+  return null;
 }
 
 export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
@@ -524,6 +620,19 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         if (types.includes('log_cardio') || types.includes('delete_cardio')) syncCardio().catch(() => {});
         if (types.includes('log_sleep') || types.includes('delete_sleep')) syncSleep().catch(() => {});
         if (types.includes('activate_program')) { fetchPrograms().catch(() => {}); fetchHistory().catch(() => {}); }
+        if (types.includes('start_workout')) {
+          const act = actions.find((a) => a.type === 'start_workout');
+          const problem = startWorkoutFromCoach(
+            (act?.data ?? {}) as any,
+            navigation,
+            [...useWorkoutStore.getState().customExercises, ...localExercises],
+          );
+          if (problem) toast.warn(problem);
+        }
+        if (types.includes('finish_workout')) {
+          const finished = useWorkoutStore.getState().finishWorkout();
+          if (!finished) toast.warn('Сейчас нет активной тренировки');
+        }
         if (types.includes('log_active_set')) {
           const setAction = actions.find((act) => act.type === 'log_active_set');
           if (setAction?.data) {
