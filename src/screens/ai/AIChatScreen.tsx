@@ -93,6 +93,52 @@ function liveWorkoutPayload(active: ReturnType<typeof useWorkoutStore.getState>[
   };
 }
 
+
+/**
+ * Apply a set the coach logged into the running session.
+ *
+ * Returns false when there is nothing to apply — no session, or an exercise
+ * name that matches nothing in it. The caller tells the user rather than
+ * silently doing nothing, which is the failure mode this whole action type
+ * exists to avoid: the coach saying "записал" when nothing moved.
+ */
+function applyCoachSet(data: { weight?: number; reps?: number; rpe?: number; exerciseName?: string }): boolean {
+  const store = useWorkoutStore.getState();
+  const active = store.activeWorkout;
+  if (!active || typeof data.reps !== 'number') return false;
+
+  const exercises = active.workout.exercises ?? [];
+  let exIndex = active.currentExerciseIndex ?? 0;
+
+  if (data.exerciseName) {
+    const needle = data.exerciseName.toLowerCase().trim();
+    const found = exercises.findIndex((ex) => {
+      const name = (ex.exercise?.name ?? '').toLowerCase();
+      return name === needle || name.includes(needle) || needle.includes(name);
+    });
+    if (found < 0) return false;
+    exIndex = found;
+  }
+
+  const target = exercises[exIndex];
+  if (!target) return false;
+
+  // Fill the next unfinished set; if every planned set is done, add one —
+  // an extra set is a normal thing to do and refusing it would be worse.
+  let setIndex = (target.sets ?? []).findIndex((st) => !st.completed);
+  if (setIndex < 0) {
+    store.addSet(exIndex);
+    setIndex = (useWorkoutStore.getState().activeWorkout?.workout.exercises[exIndex].sets.length ?? 1) - 1;
+  }
+
+  store.completeSet(exIndex, setIndex, {
+    weight: data.weight ?? 0,
+    reps: data.reps,
+    ...(typeof data.rpe === 'number' ? { rpe: data.rpe } : {}),
+  });
+  return true;
+}
+
 export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const haptic = useHaptic();
   const { user, fetchProfile } = useAuthStore();
@@ -478,6 +524,15 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         if (types.includes('log_cardio') || types.includes('delete_cardio')) syncCardio().catch(() => {});
         if (types.includes('log_sleep') || types.includes('delete_sleep')) syncSleep().catch(() => {});
         if (types.includes('activate_program')) { fetchPrograms().catch(() => {}); fetchHistory().catch(() => {}); }
+        if (types.includes('log_active_set')) {
+          const setAction = actions.find((act) => act.type === 'log_active_set');
+          if (setAction?.data) {
+            const applied = applyCoachSet(setAction.data as any);
+            if (!applied) {
+              toast.warn('Подход не записан — тренировка не идёт или упражнение не найдено');
+            }
+          }
+        }
         if (types.includes('log_water')) {
           const waterAction = actions.find((act) => act.type === 'log_water');
           if (waterAction?.data?.ml) addWater(localDateStr(new Date()), waterAction.data.ml as number);

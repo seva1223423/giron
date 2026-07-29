@@ -57,6 +57,9 @@ const EXPECTED_TOOL_NAMES = [
   'modify_meal',
   'log_body_measurement',
   'set_water_target',
+  // Logs a set into the session running right now. The client applies it —
+  // a workout only reaches the database once it is finished.
+  'log_active_set',
   'set_rest_timer',
   'set_notifications',
   'swap_exercise',

@@ -2398,6 +2398,23 @@ const AI_TOOLS: DeepSeekTool[] = [
   {
     type: 'function',
     function: {
+      name: 'log_active_set',
+      description: 'Записать выполненный подход в тренировку, которая ИДЁТ ПРЯМО СЕЙЧАС. Используй когда в контексте есть блок "СЕЙЧАС ИДЁТ ТРЕНИРОВКА" и пользователь говорит про только что сделанный подход: "записал 100 на 8", "сделал ещё восемь", "100х8", "закрыл подход". НЕ используй для тренировки задним числом — для этого есть log_completed_workout. Если упражнение не названо, подход идёт в то, которое сейчас выполняется.',
+      parameters: {
+        type: 'object',
+        properties: {
+          weight: { type: 'number', description: 'Вес в кг. 0 для упражнений с собственным весом' },
+          reps: { type: 'number', description: 'Количество повторений' },
+          rpe: { type: 'number', description: 'Тяжесть подхода по шкале 6-10, если пользователь её назвал' },
+          exerciseName: { type: 'string', description: 'Название упражнения. Опускай, если подход в текущее упражнение' },
+        },
+        required: ['reps'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'log_water',
       description: 'Записать выпитую воду в дневник пользователя. Используй когда пользователь сообщает что выпил воду или другой напиток (чай, кофе считаются). 1 стакан ≈ 250 мл, 1 бутылка ≈ 500 мл.',
       parameters: {
@@ -4863,6 +4880,48 @@ export async function executeTool(
       resultText: `Приём пищи "${label}" добавлен: ${itemSummary}. Итого: ${totalCalories} ккал, Б${totalProtein}г, Ж${totalFats}г, У${totalCarbs}г`,
       actionDescription: description,
       actionData: { mealId: created.id, mealType: safeMealType, totalCalories, totalProtein, totalFats, totalCarbs },
+    };
+  }
+
+  if (toolName === 'log_active_set') {
+    // The running session lives in the client's store — a workout reaches the
+    // database in one piece when it finishes — so this tool validates and
+    // hands the numbers back for the app to apply, exactly like log_water.
+    const activeSetSchema = z.object({
+      weight: z.union([z.number(), z.string()]).optional(),
+      reps: z.union([z.number(), z.string()]),
+      rpe: z.union([z.number(), z.string()]).optional(),
+      exerciseName: z.string().max(200).optional(),
+    });
+    const parsedAs = activeSetSchema.safeParse(toolInput);
+    if (!parsedAs.success) {
+      return { resultText: `Ошибка параметров log_active_set: ${parsedAs.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+    const reps = Math.round(Number(parsedAs.data.reps));
+    if (!Number.isFinite(reps) || reps < 1 || reps > 999) {
+      return { resultText: 'Не понял количество повторений', actionDescription: '' };
+    }
+    // 0 is meaningful here — pull-ups and dips are logged at bodyweight.
+    const rawWeight = parsedAs.data.weight;
+    const weight = rawWeight === undefined ? 0 : Number(rawWeight);
+    if (!Number.isFinite(weight) || weight < 0 || weight > 2000) {
+      return { resultText: 'Не понял вес', actionDescription: '' };
+    }
+    const rawRpe = parsedAs.data.rpe;
+    const rpe = rawRpe === undefined ? undefined : Number(rawRpe);
+    const rpeOk = rpe === undefined || (Number.isFinite(rpe) && rpe >= 1 && rpe <= 10);
+
+    const label = weight > 0 ? `${weight}×${reps}` : `${reps} повт.`;
+    const where = parsedAs.data.exerciseName ? ` (${parsedAs.data.exerciseName})` : '';
+    return {
+      resultText: `Подход записан: ${label}${where}`,
+      actionDescription: `Подход ${label}${where}`,
+      actionData: {
+        weight,
+        reps,
+        rpe: rpeOk ? rpe : undefined,
+        exerciseName: parsedAs.data.exerciseName,
+      },
     };
   }
 
