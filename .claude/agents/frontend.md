@@ -16,11 +16,11 @@ RESULT:
 
 ## Critical Project Facts
 
-**Client root:** `C:/Users/sevka/Desktop/1223/work/giron/`
+**Client root:** `C:/Users/sevka/Desktop/1223/work/iron-gym/`
 
 **TypeScript check:**
 ```bash
-cd C:/Users/sevka/Desktop/1223/work/giron && npx tsc --noEmit
+cd C:/Users/sevka/Desktop/1223/work/iron-gym && npx tsc --noEmit
 ```
 
 **Key file locations:**

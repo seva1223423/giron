@@ -121,16 +121,16 @@ src/__tests__/                  — client tests (Jest, 81 suites, 2030 tests)
 
 ```bash
 # Run all server tests
-cd C:/Users/sevka/Desktop/1223/work/giron/server && npx jest --no-coverage --forceExit
+cd C:/Users/sevka/Desktop/1223/work/iron-gym/server && npx jest --no-coverage --forceExit
 
 # Run specific server test file
-cd C:/Users/sevka/Desktop/1223/work/giron/server && npx jest auth --no-coverage --forceExit
+cd C:/Users/sevka/Desktop/1223/work/iron-gym/server && npx jest auth --no-coverage --forceExit
 
 # Run all client tests
-cd C:/Users/sevka/Desktop/1223/work/giron && npx jest --no-coverage --forceExit
+cd C:/Users/sevka/Desktop/1223/work/iron-gym && npx jest --no-coverage --forceExit
 
 # Run with verbose output (individual test names)
-cd C:/Users/sevka/Desktop/1223/work/giron/server && npx jest --no-coverage --forceExit --verbose
+cd C:/Users/sevka/Desktop/1223/work/iron-gym/server && npx jest --no-coverage --forceExit --verbose
 ```
 
 **Expected baseline:** 1379 server tests pass (38 suites), 2030 client tests pass (81 suites).

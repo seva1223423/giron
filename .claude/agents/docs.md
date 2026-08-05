@@ -32,7 +32,7 @@ Run these each time you audit, in parallel where possible. They are cheap and ca
 
 **Counts (grep-based):**
 ```bash
-cd C:/Users/sevka/Desktop/1223/work/giron
+cd C:/Users/sevka/Desktop/1223/work/iron-gym
 grep -cE "^model [A-Z]" server/prisma/schema.prisma            # Prisma model count
 ls src/store/ | grep -v index.ts | wc -l                       # Zustand store count
 ls src/components/ | grep -v index.ts | wc -l                  # Reusable component count
@@ -87,6 +87,6 @@ Then open CLAUDE.md and compare. If CLAUDE.md says "22 models" and schema has 34
   - Client: `npm test -- --no-coverage --forceExit 2>&1 | tail -5` (expected: 81 suites, ~2030 tests)
 - **Screen count / store count drifts** → `frontend` agent added a screen or store; `docs` agent updates the Architecture section tallies. Run `ls src/store/ | grep -v index.ts | wc -l`.
 - **Knowledge module count drifts** → `ai-coach` agent added a module; `docs` agent updates the knowledge count in CLAUDE.md (`25 модулей знаний` line).
-- **Stale agent file paths** → if a path like `C:/Users/sevka/Projects/iron-gym` appears in `.claude/agents/*.md`, `docs` agent corrects it to `C:/Users/sevka/Desktop/1223/work/giron`. This is drift from project relocation.
+- **Stale agent file paths** → if a path like `C:/Users/sevka/Projects/iron-gym` appears in `.claude/agents/*.md`, `docs` agent corrects it to `C:/Users/sevka/Desktop/1223/work/iron-gym`. This is drift from project relocation.
 - **project_status.md narrative rot** → runs autonomously; if a task is marked "в процессе" but the code shows it's done, `docs` agent deletes the line (prefer deletion over archival).
 - **Contradictions between CLAUDE.md and README.md** → CLAUDE.md wins. `docs` agent trims README to a pointer rather than trying to keep both in sync.

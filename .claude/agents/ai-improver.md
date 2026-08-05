@@ -460,7 +460,7 @@ word". Big UX win for `motivation`, `technique_question`, `general` intents.
 ## Phase 4: Test (10-20 min)
 ```bash
 # Fast feedback first
-cd work/giron/server && npm test -- --testPathPatterns="<your-file>"
+cd work/iron-gym/server && npm test -- --testPathPatterns="<your-file>"
 
 # Then full suite
 npm test
@@ -623,13 +623,13 @@ delegation. Just signal in RESULT what you'd want delegated.
 ## 11.1 Find current behavior
 ```bash
 # Where is feature X handled?
-grep -rn "feature_x" work/giron/server/src --include="*.ts" | head -5
+grep -rn "feature_x" work/iron-gym/server/src --include="*.ts" | head -5
 
 # What tests cover it?
-grep -rln "feature_x" work/giron/server/src/__tests__ | head -3
+grep -rln "feature_x" work/iron-gym/server/src/__tests__ | head -3
 
 # How often does this code path run? (look at metrics endpoint)
-grep -rn "incrementCounter\|recordLatency" work/giron/server/src/services
+grep -rn "incrementCounter\|recordLatency" work/iron-gym/server/src/services
 ```
 
 ## 11.2 Token budget math
@@ -648,7 +648,7 @@ console.log([...'болит спина'.matchAll(re)]);
 
 ## 11.4 Run only AI tests, fast
 ```bash
-cd work/giron/server && npm test -- --testPathPatterns="ai|memory|context"
+cd work/iron-gym/server && npm test -- --testPathPatterns="ai|memory|context"
 ```
 
 ## 11.5 Estimate cost impact of a change
@@ -685,7 +685,7 @@ Run this audit:
 ```bash
 # Find every user-data-mutating endpoint on the server
 grep -rn "router\.\(post\|patch\|put\|delete\)" \
-  work/giron/server/src/routes \
+  work/iron-gym/server/src/routes \
   --include="*.ts" \
   | grep -v "/admin\|/auth\|/__tests__"
 ```
@@ -694,7 +694,7 @@ For each endpoint, check: is there an AI tool that calls it?
 
 ```bash
 # Get current AI tool list
-grep -A1 "name:.*'.*'" work/giron/server/src/routes/ai.ts \
+grep -A1 "name:.*'.*'" work/iron-gym/server/src/routes/ai.ts \
   | grep "name:" | head -50
 ```
 
@@ -760,7 +760,7 @@ For each tool, walk these 6 checks:
 
 ```bash
 # Find tool case bodies in executeTool
-grep -n "case '.*':" work/giron/server/src/routes/ai.ts | head -50
+grep -n "case '.*':" work/iron-gym/server/src/routes/ai.ts | head -50
 
 # For each, read 30 lines around it; check for the 6 reliability points
 ```

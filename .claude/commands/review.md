@@ -7,7 +7,7 @@ You are performing a pre-commit review of all Giron changes.
 ## 1 — Get the Diff
 
 ```bash
-cd C:/Users/sevka/Desktop/1223/work/giron
+cd C:/Users/sevka/Desktop/1223/work/iron-gym
 git diff HEAD
 git diff --cached
 ```
