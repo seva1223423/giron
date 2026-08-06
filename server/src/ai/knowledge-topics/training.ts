@@ -2942,11 +2942,17 @@ export function recommendTrainingSplit(daysPerWeek: number, goal: string | null,
   // но выбор шёл только по цели — и новичок на четырёх днях получал вариант с
   // пометкой «продвинутый». Уровень приходил в функцию и не использовался.
   const level = (fitnessLevel || '').toLowerCase();
+  const isBeginner = /beginner|новичок/.test(level);
+  const isAdvanced = /advanced|expert|продвинут/.test(level);
   const beginnerOption = options.find((o) => /новичк|начинающ|поддержк/.test(o.best));
   const advancedOption = options.find((o) => /продвинут/.test(o.best));
+  // Не на каждой частоте есть вариант с пометкой «для новичков» — на четырёх
+  // днях их два, и один прямо помечен продвинутым. Тогда достаточно его не
+  // выбирать: любой другой новичку подходит больше.
+  const notAdvanced = options.find((o) => !/продвинут/.test(o.best));
   const goalFilter =
-    (/beginner|новичок/.test(level) && beginnerOption) ? beginnerOption
-    : (/advanced|expert|продвинут/.test(level) && advancedOption) ? advancedOption
+    isBeginner ? (beginnerOption ?? notAdvanced ?? options[0])
+    : isAdvanced ? (advancedOption ?? options[options.length - 1])
     : goal === 'strength' ? options[0]
     : options[options.length - 1];
 

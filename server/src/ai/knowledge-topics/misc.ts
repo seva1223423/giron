@@ -257,6 +257,18 @@ export function getSmartRestSuggestion(
   lastRpe: number | null,
   userGoal: string | null,
 ): { restSeconds: number; reason: string } {
+  // Категория задаёт вилку отдыха раньше, чем снаряд: между подходами
+  // растяжки не отдыхают две минуты, а между интервалами кардио — не по
+  // силовым правилам. exerciseCategory приходила сюда и не использовалась,
+  // так что планке назначались те же 90 секунд, что и жиму.
+  if (exerciseCategory === 'flexibility') {
+    return { restSeconds: 20, reason: 'Растяжка — 15-30 сек между подходами, дольше не нужно.' };
+  }
+  if (exerciseCategory === 'cardio') {
+    const cardioRest = lastRpe !== null && lastRpe >= 9 ? 120 : 60;
+    return { restSeconds: cardioRest, reason: `Кардио-интервал — ${cardioRest} сек, чтобы пульс успел опуститься.` };
+  }
+
   // Base rest by exercise type
   let baseRest = 90;
 
@@ -876,8 +888,18 @@ export function buildSocialProof(
 
   if (lines.length === 0) return '';
 
+  // Достижение измеряется тем, ради чего человек ходит. Цель приходила сюда и
+  // не использовалась: худеющему сообщали, сколько он часов провёл в зале, —
+  // а это не то число, которое он ждёт.
+  const goalLine = {
+    WEIGHT_LOSS: 'Но главный показатель у тебя не число тренировок, а то, что рабочие веса не падают на дефиците.',
+    MUSCLE_GAIN: 'Но главный показатель у тебя не число тренировок, а прибавка веса при растущих силовых.',
+    STRENGTH: 'Но главный показатель у тебя не число тренировок, а килограммы на штанге в базовых движениях.',
+    ENDURANCE: 'Но главный показатель у тебя не число тренировок, а тот же темп при более низком пульсе.',
+  }[String(userGoal || '')];
+
   return `\n\n## 🌟 ДОСТИЖЕНИЯ
-${lines.join('\n')}
+${lines.join('\n')}${goalLine ? `\n${goalLine}` : ''}
 → Используй для мотивации — люди любят знать что они впереди.`;
 }
 export function calibrateResponseLength(
@@ -1030,9 +1052,22 @@ export function optimizeMuscleGroupSynergy(
 
   if (nextSuggestions.length === 0) return '';
 
+  // Совет «дальше антагонисты» верен для сплита и вреден для фулбади, где
+  // следующая тренировка — снова всё тело. Тип программы приходил в функцию
+  // и не использовался, так что человеку на Full Body предлагали разбивку.
+  const type = (programType || '').toLowerCase();
+  const programNote =
+    /full ?body|фулбади|всё тело|все тело/.test(type)
+      ? '\nНо у тебя Full Body: следующая тренировка — снова всё тело, меняются не группы, а упражнения и веса.'
+      : /ppl|push|pull/.test(type)
+        ? '\nЭто как раз следующий день твоего PPL.'
+        : /upper|lower|верх|низ/.test(type)
+          ? '\nПо схеме Upper/Lower следующая — противоположная половина тела.'
+          : '';
+
   return `\n\n## 🔀 ОПТИМАЛЬНАЯ СЛЕДУЮЩАЯ ТРЕНИРОВКА
 На основе последней тренировки (${lastWorkoutMuscles.slice(0, 3).map(m => muscleRu[m] || m).join(', ')}):
-${nextSuggestions.join('\n')}
+${nextSuggestions.join('\n')}${programNote}
 Предложи это если пользователь спрашивает что тренировать дальше.`;
 }
 export function predictSoreness(
@@ -1098,9 +1133,26 @@ export function manageConversationFlow(
 
   if (overusedTopics.length === 0) return '';
 
+  // Тема, о которой человек спрашивает прямо сейчас, — не «заезженная», а
+  // ровно та, которая ему нужна. Раньше intent приходил сюда и не
+  // использовался: третий вопрос подряд про питание получал в контекст
+  // указание «не повторяй тему питания».
+  const intentTopic: Record<string, string> = {
+    nutrition_query: 'nutrition',
+    technique_question: 'workout',
+    workout_modify: 'workout',
+    program_creation: 'workout',
+    analytics_query: 'progress',
+    motivation: 'motivation',
+  };
+  const asking = intentTopic[currentIntent];
+  const stale = overusedTopics.filter((t) => t !== asking);
+
+  if (stale.length === 0) return '';
+
   return `\n\n## 🔄 УПРАВЛЕНИЕ ДИАЛОГОМ
-Темы, которые уже обсуждались много раз: ${overusedTopics.join(', ')}
-НЕ ПОВТОРЯЙ эти темы без прямого запроса пользователя. Внеси разнообразие в ответы.`;
+Темы, которые уже обсуждались много раз: ${stale.join(', ')}
+НЕ ПОВТОРЯЙ эти темы без прямого запроса пользователя. Внеси разнообразие в ответы.${asking ? `\nПро «${asking}» пользователь спрашивает сейчас — это исключение, отвечай полноценно.` : ''}`;
 }
 export function recommendAccessories(
   mainLifts: string[],
@@ -1130,8 +1182,24 @@ export function recommendAccessories(
 
   if (recommendations.length === 0) return '';
 
+  // Подсобка нужна для двух разных вещей: закрыть отстающее и не перегрузить
+  // новичка. Обе — weakMuscles и userLevel — приходили сюда и не
+  // использовались: список был одинаковым для первого месяца и для человека
+  // с явно отстающей спиной.
+  const weakLine = weakMuscles.length > 0
+    ? `\nОтстают: ${weakMuscles.join(', ')} — подсобку на них ставь первой в подсобной части, пока есть силы.`
+    : '';
+
+  const level = (userLevel || '').toUpperCase();
+  const levelLine =
+    level === 'BEGINNER'
+      ? '\nНа старте бери по одному подсобному упражнению на движение, не больше. Прогресс сейчас даёт база, а не объём подсобки.'
+      : (level === 'ADVANCED' || level === 'EXPERT')
+        ? '\nНа твоём уровне подсобка — это адресная работа по слабому звену в самом движении, а не «добить мышцу».'
+        : '';
+
   return `\n\n## 🎯 ПОДСОБНЫЕ УПРАЖНЕНИЯ
-${recommendations.map(r => `- ${r}`).join('\n')}
+${recommendations.map(r => `- ${r}`).join('\n')}${weakLine}${levelLine}
 Предложи подсобку если пользователь хочет улучшить основные движения.`;
 }
 export function checkGoalAlignment(
@@ -1374,8 +1442,18 @@ export function buildEmotionalResponse(
 
   if (detected.length === 0) return '';
 
+  // Стрик — это факт, которым отвечают на «у меня не получается». Он
+  // приходил в функцию и не использовался, так что эмпатия строилась на
+  // пустом месте, хотя доказательство обратного лежало рядом.
+  const streakLine =
+    currentStreak >= 4 && /фрустрирован|тревожится/.test(detected.join(' '))
+      ? `\nПри этом стрик — ${currentStreak}. Если человек говорит, что ничего не выходит, это число и есть возражение: сошлись на него, а не на общие слова.`
+      : currentStreak >= 8 && /гордится|восторге/.test(detected.join(' '))
+        ? `\nСтрик ${currentStreak} — похвали именно постоянство, оно тут заслуженнее разового результата.`
+        : '';
+
   return `\n\n## 💝 ЭМОЦИОНАЛЬНЫЙ КОНТЕКСТ
-${detected.slice(0, 2).join('\n')}
+${detected.slice(0, 2).join('\n')}${streakLine}
 Приоритет: эмоциональная поддержка > информация. Сначала прояви эмпатию, потом давай советы.`;
 }
 export function detectKnowledgeGaps(
@@ -1815,8 +1893,18 @@ export function generateMonthlyChallenge(
   const levelChallenges = challenges.filter(c => c.level === (fitnessLevel || 'beginner') || c.level === 'any');
   const pick = levelChallenges[currentStreak % levelChallenges.length] || levelChallenges[0];
 
+  // Вызов месяца выбирался по уровню и стрику, но не по тому, ради чего
+  // человек тренируется: цель приходила в функцию и не использовалась.
+  // Худеющему могли предложить прибавлять 2.5 кг в базе каждую неделю.
+  const goalTwist = {
+    WEIGHT_LOSS: 'Под твою цель: считай вызов выполненным, если за месяц вес снизился, а рабочие веса остались прежними.',
+    MUSCLE_GAIN: 'Под твою цель: добавь к вызову +1 кг собственного веса за месяц — без этого прибавка силы будет медленной.',
+    STRENGTH: 'Под твою цель: измеряй вызов не тренировками, а суммой в трёх базовых движениях на конец месяца.',
+    ENDURANCE: 'Под твою цель: добавь к вызову одну длинную тренировку в неделю — она и двигает выносливость.',
+  }[String(goal || '')];
+
   return `\n\n## 🏆 ВЫЗОВ МЕСЯЦА: ${pick.name}
-${pick.description}
+${pick.description}${goalTwist ? `\n${goalTwist}` : ''}
 Хочешь принять вызов? Скажи "да" — и я буду следить за прогрессом.`;
 }
 export function checkOvertainingSyndrome(
@@ -1979,9 +2067,26 @@ export function suggestBodyPartSpecialization(message: string, muscleGroupVolume
 
   const exList = specializations[requestedMuscle] ?? specializations['руки'];
 
+  // Специализация имеет смысл на отстающей группе и вредна на той, что и так
+  // получает больше всех. Объёмы по группам приходили в функцию и не
+  // использовались, так что «хочу руки» одобрялось и тому, кто уже качает их
+  // трижды в неделю.
+  const volumes = Object.entries(muscleGroupVolumes || {}).filter(([, v]) => v > 0);
+  let volumeNote = '';
+  if (volumes.length >= 3) {
+    const sorted = [...volumes].sort((a, b) => b[1] - a[1]);
+    const topGroup = sorted[0][0].toLowerCase();
+    const asked = requestedMuscle.toLowerCase();
+    const alreadyTop = topGroup.includes(asked) || asked.includes(topGroup);
+    const lowest = sorted[sorted.length - 1];
+    volumeNote = alreadyTop
+      ? `\n⚠️ По объёму «${topGroup}» и так на первом месте у тебя. Ещё специализация сверху даст мало — отстаёт «${lowest[0]}».`
+      : `\nПо объёму меньше всего получает «${lowest[0]}» (${Math.round(lowest[1])} кг за период) — если выбирать, куда добавлять, то туда.`;
+  }
+
   return `\n\n🎯 Специализация на ${specialRequests[requestedMuscle]}:
 Добавьте эти упражнения 2 раза в неделю:
-${exList.map(ex => `• ${ex}`).join('\n')}
+${exList.map(ex => `• ${ex}`).join('\n')}${volumeNote}
 
 Для заметного результата: 6-8 недель акцентированной работы на эту группу.`;
 }
@@ -2033,6 +2138,16 @@ export function getHormonalOptimizationTips(message: string, goal: string | null
   const isRelevant = ['гормоны', 'тестостерон', 'кортизол', 'гормон роста', 'инсулин', 'гормональный фон'].some(kw => lowerMsg.includes(kw));
   if (!isRelevant) return '';
 
+  // Один и тот же текст выдавался человеку на сушке и на массе, хотя главный
+  // гормональный фактор у них разный. Цель приходила в функцию и не
+  // использовалась вообще.
+  const goalHormoneNote = {
+    WEIGHT_LOSS: '\n**Главное на дефиците:** глубокий дефицит и недосып роняют тестостерон сильнее, чем любые добавки его поднимают. Дефицит держи умеренным, сон — в приоритете.',
+    MUSCLE_GAIN: '\n**Главное на наборе:** гормональный отклик от тренировки короткий и на рост влияет слабо. Решают питание и объём, а не «выброс тестостерона» после приседа.',
+    STRENGTH: '\n**Главное на силе:** кортизол от долгих тяжёлых сессий бьёт по восстановлению нервной системы. Держи тренировку в 60-75 минут, остальное — вред.',
+    ENDURANCE: '\n**Главное на выносливости:** большие объёмы кардио при недоедании роняют тестостерон и щитовидку. Углеводы тут не враг, а условие.',
+  }[String(goal || '')] || '';
+
   return `\n\n⚗️ Гормональная оптимизация для тренировок:
 
 **Тестостерон (анаболизм):**
@@ -2049,7 +2164,8 @@ export function getHormonalOptimizationTips(message: string, goal: string | null
 **Гормон роста (жиросжигание + восстановление):**
 • Пик выброса: первые 2 часа сна — не ешьте за 2-3 часа до сна
 • HIIT-тренировки дают +450% GH vs кардио в равномерном темпе
-• Интерваль­ное голодание 16/8 увеличивает базовый GH`;
+• Интерваль­ное голодание 16/8 увеличивает базовый GH
+${goalHormoneNote}`;
 }
 export function explainMuscleFliberTypes(message: string): string {
   const lowerMsg = message.toLowerCase();
@@ -2325,6 +2441,18 @@ export function getBodyCompositionGoal(message: string, userGoalStr: string | nu
   lines.push('• Максимальный набор мышц (натурально): 1-2 кг/мес у начинающих, 0.5кг/мес у продвинутых');
   lines.push('• Оптимальное жиросжигание: 0.5-1% веса тела в неделю (сохраняет мышцы)');
   lines.push('• Рекомпозиция (одновременно набор + жиросжигание): возможна у новичков и людей с лишним весом, медленно');
+
+  // Три ожидания разом — это выбор, который человек делает сам, хотя цель у
+  // него уже указана. userGoalStr приходил сюда и не использовался.
+  const goalTarget = {
+    weight_loss: `• Твоя цель — похудение${weightKg ? `: ориентир ${(weightKg * 0.0075).toFixed(1)}-${(weightKg * 0.01).toFixed(1)} кг в неделю` : ''}. Быстрее — уходят мышцы.`,
+    cutting: `• Твоя цель — сушка${weightKg ? `: ориентир ${(weightKg * 0.0075).toFixed(1)}-${(weightKg * 0.01).toFixed(1)} кг в неделю` : ''}. Быстрее — уходят мышцы.`,
+    muscle_gain: '• Твоя цель — набор: ориентир 0.25-0.5 кг в неделю. Больше — это в основном жир, а не мышцы.',
+    hypertrophy: '• Твоя цель — набор: ориентир 0.25-0.5 кг в неделю. Больше — это в основном жир, а не мышцы.',
+    strength: '• Твоя цель — сила: вес можно держать на месте, ориентир — рост рабочих весов при неизменной массе.',
+    endurance: '• Твоя цель — выносливость: резкое снижение веса ударит по объёмам, держи умеренный дефицит.',
+  }[String(userGoalStr || '').toLowerCase()];
+  if (goalTarget) lines.push(goalTarget);
   lines.push('');
   lines.push('💡 Весы — плохой показатель прогресса. Используй: обхваты, фото, ощущение одежды, силовые показатели.');
 
