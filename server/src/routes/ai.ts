@@ -3833,6 +3833,20 @@ export function clientDayShift(clientDate: string | undefined, days: number): st
     .toISOString().slice(0, 10);
 }
 
+/**
+ * The instant the user's current day began, on their clock.
+ *
+ * `clientTzOffsetMinutes` is signed minutes from UTC, matching the client's
+ * `-getTimezoneOffset()`. Absent — an older build — it falls back to UTC,
+ * which is the behaviour this replaces rather than a correct answer.
+ */
+export function dailyQuotaFloor(clientTzOffsetMinutes?: number): Date {
+  const dayMs = 24 * 60 * 60 * 1000;
+  const tzOffsetMs = (clientTzOffsetMinutes ?? 0) * 60 * 1000;
+  const localNowMs = Date.now() + tzOffsetMs;
+  return new Date(Math.floor(localNowMs / dayMs) * dayMs - tzOffsetMs);
+}
+
 /** Longer than this and a message is treated as carrying its own topic. */
 const FOLLOW_UP_MAX_CHARS = 50;
 /** Enough of the previous question to keep its keywords, not its essay. */
@@ -7893,6 +7907,11 @@ const chatRequestSchema = z.object({
   stream: z.boolean().optional(),
   clientDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(), // client's local YYYY-MM-DD date
   clientHour: z.number().int().min(0).max(23).optional(), // client's local hour (0-23) for time-aware hints
+  // Signed minutes from UTC, matching `-getTimezoneOffset()`. The daily
+  // message quota resets on this clock. Same field, same convention and same
+  // reason as the food-scan routes below. Optional: an old build sends
+  // nothing and gets the previous UTC behaviour.
+  clientTzOffsetMinutes: z.number().int().min(-14 * 60).max(14 * 60).optional(),
   nutritionTargets: z.object({
     calories: z.number().finite().min(0).max(100000),
     protein: z.number().finite().min(0).max(10000),
@@ -7952,8 +7971,18 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const chatParsed = chatRequestSchema.safeParse(req.body);
     if (!chatParsed.success) return res.status(400).json({ error: chatParsed.error.errors[0].message });
-    const { message, nutritionTargets: clientNutritionTargets, waterMl, weekPlan, activeWorkout: clientActiveWorkout, cardioSessions, sleepEntries, stream: streamMode, clientDate, clientHour } = chatParsed.data;
+    const { message, nutritionTargets: clientNutritionTargets, waterMl, weekPlan, activeWorkout: clientActiveWorkout, cardioSessions, sleepEntries, stream: streamMode, clientDate, clientHour, clientTzOffsetMinutes } = chatParsed.data;
     const todayDate = clientDate ?? new Date().toISOString().split('T')[0];
+    // When the free-tier day starts. The food-scan routes already resolve this
+    // on the user's clock; the chat quota did not, so its day began at UTC
+    // midnight — 03:00 in Moscow, 10:00 in Vladivostok. Someone who ran out of
+    // messages in the afternoon stayed locked out past their own midnight and
+    // well into the next morning.
+    //
+    // There were also two different floors in one request: the early exit
+    // derived one from the client's date, the transaction that actually
+    // enforces derived another from the server's. One now, for both.
+    const quotaDayFloor = dailyQuotaFloor(clientTzOffsetMinutes);
 
     const userId = req.userId!;
 
@@ -8001,11 +8030,10 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
     // Rate limit check BEFORE SSE headers — once headers are flushed we can't send 402 JSON.
     // Free-tier users: max 10 AI messages/day. Paid plans: unlimited.
     const AI_FREE_DAILY_LIMIT = 10;
-    const rateLimitFloor = new Date(`${todayDate}T00:00:00.000Z`);
     // Fetch subscription + today's count in parallel — saves 1 RTT for free users
     const [userSub, todayCountPre] = await Promise.all([
       prisma.subscription.findUnique({ where: { userId }, select: { plan: true, status: true, endDate: true } }),
-      prisma.chatMessage.count({ where: { userId, role: 'user', createdAt: { gte: rateLimitFloor } } }),
+      prisma.chatMessage.count({ where: { userId, role: 'user', createdAt: { gte: quotaDayFloor } } }),
     ]);
     const isPaidSub = userSub && (userSub.status === 'active' || userSub.status === 'cancelled') && userSub.plan !== 'free' && (!userSub.endDate || userSub.endDate >= new Date());
     // Fast early exit (non-atomic) — the atomic check+save happens below at message persist time
@@ -8497,10 +8525,8 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     // Save user message — atomically re-check the daily limit inside a transaction to prevent
     // concurrent requests from racing past the early count check above.
     if (!isPaidSub) {
-      const rateLimitDate = new Date().toISOString().split('T')[0];
-      const todayFloor = new Date(`${rateLimitDate}T00:00:00.000Z`);
       const limitResult = await prisma.$transaction(async (tx) => {
-        const count = await tx.chatMessage.count({ where: { userId, role: 'user', createdAt: { gte: todayFloor } } });
+        const count = await tx.chatMessage.count({ where: { userId, role: 'user', createdAt: { gte: quotaDayFloor } } });
         if (count >= AI_FREE_DAILY_LIMIT) return { limited: true };
         await tx.chatMessage.create({ data: { role: 'user', content: message, userId } });
         return { limited: false };

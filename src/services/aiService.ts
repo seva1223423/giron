@@ -76,6 +76,15 @@ export interface AIStarter {
 // 12s + fallback" was the OLD value before the system prompt grew).
 const AI_REQUEST_TIMEOUT_MS = 60_000;
 
+/**
+ * Signed minutes from UTC, the `-getTimezoneOffset()` convention the food-scan
+ * routes already use. The free-tier message quota resets on this clock; without
+ * it the server's day began at UTC midnight — 03:00 in Moscow, 10:00 in
+ * Vladivostok — and someone who ran out of messages in the afternoon stayed
+ * locked out past their own midnight.
+ */
+const tzOffsetMinutes = () => -new Date().getTimezoneOffset();
+
 export const aiService = {
   async chat(
     message: string,
@@ -94,7 +103,7 @@ export const aiService = {
     const clientHour = new Date().getHours();
     const { data } = await api.post(
       '/ai/chat',
-      { message, nutritionTargets, waterMl, weekPlan, activeWorkout, cardioSessions, sleepEntries, clientDate, clientHour },
+      { message, nutritionTargets, waterMl, weekPlan, activeWorkout, cardioSessions, sleepEntries, clientDate, clientHour, clientTzOffsetMinutes: tzOffsetMinutes() },
       { timeout: AI_REQUEST_TIMEOUT_MS },
     );
     return { message: data.message, actions: data.actions ?? [], meta: data.meta };
@@ -124,7 +133,11 @@ export const aiService = {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ message, nutritionTargets, waterMl, weekPlan, cardioSessions, sleepEntries, stream: true, clientDate, clientHour }),
+      // activeWorkout was in this function's signature but not in its body, so
+      // the running session never left the phone on the streaming path — which
+      // is the path the chat actually uses. The coach was blind to the workout
+      // in front of the person, and only the fallback request could see it.
+      body: JSON.stringify({ message, nutritionTargets, waterMl, weekPlan, activeWorkout, cardioSessions, sleepEntries, stream: true, clientDate, clientHour, clientTzOffsetMinutes: tzOffsetMinutes() }),
       signal,
     });
 
