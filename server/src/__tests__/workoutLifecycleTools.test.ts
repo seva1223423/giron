@@ -61,6 +61,44 @@ describe('start_workout', () => {
   });
 });
 
+describe('generate_warmup', () => {
+  const warmup = (input: Record<string, unknown> = {}) =>
+    executeTool('generate_warmup', input, 'u1');
+
+  test('produces an action instead of describing a button', async () => {
+    // This tool used to be a stub: it answered "разминка будет добавлена через
+    // кнопку 🔥 Разминка" and did nothing, so the coach announced a warm-up
+    // that never appeared on the screen.
+    const r = await warmup();
+    expect(r.actionDescription).not.toBe('');
+    expect(r.actionData).toBeDefined();
+    expect(r.resultText).not.toMatch(/кнопк/i);
+  });
+
+  test('says what the warm-up actually is', async () => {
+    const r = await warmup();
+    expect(r.resultText).toContain('40%');
+    expect(r.resultText).toContain('80%');
+  });
+
+  test('carries the exercise the person named', async () => {
+    const r = await warmup({ exerciseName: 'Жим лёжа' });
+    expect(r.actionData?.exerciseName).toBe('Жим лёжа');
+    expect(r.resultText).toContain('Жим лёжа');
+  });
+
+  test('with no exercise named, means "the one I am on"', async () => {
+    const r = await warmup();
+    expect(r.actionData?.exerciseName).toBeUndefined();
+  });
+
+  test('treats a blank name as no name at all', async () => {
+    // Otherwise the app would look for an exercise called "   " and refuse.
+    const r = await warmup({ exerciseName: '   ' });
+    expect(r.actionData?.exerciseName).toBeUndefined();
+  });
+});
+
 describe('finish_workout', () => {
   test('is a plain signal — the session lives in the app', async () => {
     const r = await executeTool('finish_workout', {}, 'u1');

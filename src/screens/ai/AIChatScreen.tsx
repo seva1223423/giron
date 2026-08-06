@@ -24,6 +24,7 @@ import { CurrentWorkoutPanel } from './components/CurrentWorkoutPanel';
 import { toast } from '../../components/app-modal/toast';
 import { startWorkoutSafe } from '../../utils/startWorkoutSafe';
 import { startPlannedDay } from '../../utils/startFromPlan';
+import { applyCoachSet, applyCoachWarmup } from '../../utils/coachActions';
 import { exercises as localExercises } from '../../data/exercises';
 import type { Exercise } from '../../types';
 
@@ -98,50 +99,9 @@ function liveWorkoutPayload(active: ReturnType<typeof useWorkoutStore.getState>[
 }
 
 
-/**
- * Apply a set the coach logged into the running session.
- *
- * Returns false when there is nothing to apply — no session, or an exercise
- * name that matches nothing in it. The caller tells the user rather than
- * silently doing nothing, which is the failure mode this whole action type
- * exists to avoid: the coach saying "записал" when nothing moved.
- */
-function applyCoachSet(data: { weight?: number; reps?: number; rpe?: number; exerciseName?: string }): boolean {
-  const store = useWorkoutStore.getState();
-  const active = store.activeWorkout;
-  if (!active || typeof data.reps !== 'number') return false;
-
-  const exercises = active.workout.exercises ?? [];
-  let exIndex = active.currentExerciseIndex ?? 0;
-
-  if (data.exerciseName) {
-    const needle = data.exerciseName.toLowerCase().trim();
-    const found = exercises.findIndex((ex) => {
-      const name = (ex.exercise?.name ?? '').toLowerCase();
-      return name === needle || name.includes(needle) || needle.includes(name);
-    });
-    if (found < 0) return false;
-    exIndex = found;
-  }
-
-  const target = exercises[exIndex];
-  if (!target) return false;
-
-  // Fill the next unfinished set; if every planned set is done, add one —
-  // an extra set is a normal thing to do and refusing it would be worse.
-  let setIndex = (target.sets ?? []).findIndex((st) => !st.completed);
-  if (setIndex < 0) {
-    store.addSet(exIndex);
-    setIndex = (useWorkoutStore.getState().activeWorkout?.workout.exercises[exIndex].sets.length ?? 1) - 1;
-  }
-
-  store.completeSet(exIndex, setIndex, {
-    weight: data.weight ?? 0,
-    reps: data.reps,
-    ...(typeof data.rpe === 'number' ? { rpe: data.rpe } : {}),
-  });
-  return true;
-}
+// applyCoachSet / applyCoachWarmup moved to utils/coachActions.ts — they are
+// pure logic over the store, and importing this screen to test them drags in
+// navigation and half of expo.
 
 
 /**
@@ -632,6 +592,11 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         if (types.includes('finish_workout')) {
           const finished = useWorkoutStore.getState().finishWorkout();
           if (!finished) toast.warn('Сейчас нет активной тренировки');
+        }
+        if (types.includes('generate_warmup')) {
+          const warmupAction = actions.find((act) => act.type === 'generate_warmup');
+          const problem = applyCoachWarmup((warmupAction?.data ?? {}) as any);
+          if (problem) toast.warn(problem);
         }
         if (types.includes('log_active_set')) {
           const setAction = actions.find((act) => act.type === 'log_active_set');

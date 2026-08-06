@@ -2816,11 +2816,11 @@ const AI_TOOLS: DeepSeekTool[] = [
     type: 'function',
     function: {
       name: 'generate_warmup',
-      description: 'Сгенерировать разминку для текущей тренировки на основе рабочих весов. Используй когда пользователь говорит: "добавь разминку", "нужна разминка перед тренировкой".',
+      description: 'Добавить разминочные подходы к упражнению в ИДУЩЕЙ тренировке. Веса считаются от рабочего: 40%, 60%, 80% на 8, 5 и 3 повторения. Используй когда пользователь говорит: "добавь разминку", "нужна разминка перед жимом". Работает только когда тренировка запущена.',
       parameters: {
         type: 'object',
         properties: {
-          workoutName: { type: 'string', description: 'Название тренировки' },
+          exerciseName: { type: 'string', description: 'К какому упражнению добавить. Если не указано — к текущему упражнению тренировки.' },
         },
       },
     },
@@ -6525,14 +6525,24 @@ export async function executeTool(
 
   if (toolName === 'generate_warmup') {
     const generateWarmupSchema = z.object({
-      workoutName: z.string().max(200).optional(),
+      exerciseName: z.string().max(200).optional(),
     });
     const parsed = generateWarmupSchema.safeParse(toolInput);
     if (!parsed.success) {
       return { resultText: `Ошибка параметров generate_warmup: ${parsed.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
     }
-    const { workoutName } = parsed.data;
-    return { resultText: 'Разминочные подходы будут автоматически добавлены при начале тренировки через кнопку "🔥 Разминка"', actionDescription: 'Информация о разминке', actionData: { workoutName } };
+    // This used to return a sentence telling the person to go press a button,
+    // while the tool itself did nothing — the coach announced a warm-up that
+    // never appeared. The app already knows how to build one; the percentages
+    // live next to that code so the two cannot drift apart. So this carries
+    // intent, exactly like start_workout and log_active_set do.
+    const name = parsed.data.exerciseName?.trim();
+    const where = name ? ` к «${name}»` : '';
+    return {
+      resultText: `Разминка добавлена${where}: 40%, 60% и 80% от рабочего веса на 8, 5 и 3 повторения.`,
+      actionDescription: name ? `Разминка: ${name}` : 'Разминка добавлена',
+      actionData: name ? { exerciseName: name } : {},
+    };
   }
 
   if (toolName === 'set_workout_duration_goal') {

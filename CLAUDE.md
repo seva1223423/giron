@@ -127,7 +127,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 **16 сторов:** auth, workout (самый сложный — PR-детекция, суперсеты, недельный план), nutrition, subscription (лимиты: 10 AI msg/день, 5 сканов), theme, settings, trainer, cardio, connection, measurements, onboardingTips, sleep, support, recipes, health, density
 
-**20 компонентов** (`src/components/*.tsx`): AnimatedPressable, Button, Card, DiffCard, ErrorBoundary, FadeIn, ForceUpdateModal, GoogleAuthButton (mode: `login|link`), HitTarget, Icon, Input, MacroBar, PaywallModal, Pill, ProgressRing, SkeletonLoader, Spinner, Sticker, Tooltip + папка `components/app-modal/` (AppModalProvider, ToastHost, installAppAlert)
+**21 компонент** (`src/components/*.tsx`): AnimatedPressable, Button, Card, DiffCard, ErrorBoundary, FadeIn, ForceUpdateModal, HitTarget, Icon, Input, MacroBar, NetworkStatusBar, NumberSheet, NumberWheel, PaywallModal, Pill, ProgressRing, SkeletonLoader, Spinner, Sticker, Tooltip + папка `components/app-modal/` (AppModalProvider, ToastHost, installAppAlert)
 
 **16 сервисов:** api.ts (axios + JWT auto-refresh), admin, ai, auth, cardio, news, notification, nutrition, support, trainer, user, workout, otaUpdater, recipe, voice, health/
 
@@ -161,13 +161,13 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
   - `GET /admin/cron-health` — in-memory liveness ledger for retention/digest/keep-warm crons (resets on dyno restart)
   - `GET /admin/metrics/key` includes `onboardingFunnel` block (per-step drop-off from User.onboardingStepLog)
   - `POST /admin/test-notification` — fires test push and/or email to caller's account; verifies both channels work end-to-end
-- `ai.ts` (~19.9k строк) — **главный маршрут** (intent classification → mood detection → TF-IDF knowledge selection → аналитические блоки → AI call → tool-функции)
+- `ai.ts` (~20.1k строк) — **главный маршрут** (intent classification → mood detection → TF-IDF knowledge selection → аналитические блоки → AI call → tool-функции)
 
 ### AI система (server/src/routes/ai.ts + services/)
 - Intent: data_logging, program_creation, workout_modify, technique_question, nutrition_query, analytics_query, greeting, complaint, motivation, general
 - **45 inline-инструментов** в `ai.ts`: update_user_profile, log_body_weight, delete_body_weight, log_body_measurement, delete_body_measurement, create_workout, log_completed_workout, modify_workout, swap_exercise, add_superset, generate_warmup, set_workout_duration_goal, create_program, delete_program, set_weekly_plan, adjust_all_weights, activate_program, start_workout, finish_workout, log_active_set, log_meal, delete_meal, modify_meal, update_nutrition_targets, log_water, set_water_target, find_recipes, add_recipe_to_diary, log_cardio, delete_cardio, log_sleep, delete_sleep, set_rest_timer, set_notifications, analyze_progress, suggest_next_workout, get_pr_history, compare_periods, search_exercises, explain_exercise, update_memory, navigate_to_screen, get_health_summary, get_sleep_breakdown, get_readiness_score
 - **6 контекстных инструментов** (`server/src/ai/contextTools.ts`) — это ДРУГОЙ список: get_workout_analysis, get_nutrition_analysis, get_recovery_status, get_progress_data, get_exercise_history, search_fitness_knowledge
-- 26 модулей знаний (server/src/knowledge/, 6547 строк)
+- 25 модулей знаний (server/src/knowledge/, 6547 строк)
 - AI Memory (9 категорий: preference, habit, injury, allergy, schedule, personality, goal, equipment, milestone)
 - Кэш: TTL 4ч, max 200, кэшируются только intent=technique_question/general
 - LLM Router (`services/llm/router.ts`): объявлена fallback chain через env `AI_PRIMARY_PROVIDER`/`AI_FALLBACK_CHAIN`, но реально подключён **только Mistral adapter** (yandex/gigachat закомментированы). Ollama (`localAI.ts`) к роутеру НЕ подключён — используется только для food vision как опция.
@@ -205,9 +205,9 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 src/
   screens/       — admin, ai, auth, cardio, health, home, news, nutrition, onboarding, profile, progress, settings, support, tracker, trainer, workouts (16 областей)
   store/         — 16 Zustand-сторов (все persist через AsyncStorage)
-  components/    — 19 переиспользуемых компонентов + components/app-modal/ (AppModalProvider, ToastHost, installAppAlert)
+  components/    — 21 переиспользуемый компонент + components/app-modal/ (AppModalProvider, ToastHost, installAppAlert)
   navigation/    — AppNavigator.tsx (трёхступенчатый: Auth/Onboarding/Main)
-  services/      — 15 API-сервисов (+ health/)
+  services/      — 16 API-сервисов (+ health/)
   hooks/         — useHaptic.ts, useSafeTop.ts, useAchievementCheck.ts, usePedometer.ts
   theme/         — colors (light/dark), typography (18 стилей), spacing, borderRadius
   types/         — index.ts (все типы: User, Exercise, Workout, Program, Meal, NewsArticle, ChatMessage...)
@@ -219,7 +219,7 @@ server/
     routes/      — auth, user, workout, nutrition, news, subscription, ai, trainer, cardio, support, admin, recipes, health, logging (14 файлов)
     services/    — deepseekAI, localAI, newsRefreshService, telegramLogger, emailService, smsService, pushService, retentionService, adminDigestService, aiMemoryService, errorReporter, …
     middleware/  — auth.ts (JWT verify)
-    knowledge/   — 26 модулей (6547 строк, тренировки/питание/добавки/физиология/психология)
+    knowledge/   — 25 модулей (6547 строк, тренировки/питание/добавки/физиология/психология)
     models/      — (пусто, используется Prisma)
     controllers/ — (пусто, логика в routes)
     utils/       — утилиты
@@ -242,12 +242,12 @@ server/
 # Клиент
 npm start              # expo start
 npm run android        # expo start --android
-npm test               # jest (client unit tests, 120 суитов, 5508 тестов)
+npm test               # jest (client unit tests, 126 суитов, 5552 теста)
 
 # Сервер
 cd server
 npm run dev            # tsx watch src/index.ts (порт 3001)
-npm test               # jest (server integration tests, 103 суита, 2786 тестов)
+npm test               # jest (server integration tests, 106 суитов, 2817 тестов)
                        # Новые суиты добавлены в rounds 2-18 (2026-04-28):
                        # retentionService, adminDigestService, cronHealth,
                        # aiMetrics, memCache, activityTracker
