@@ -386,8 +386,19 @@ export function findSimilarWorkouts(
 
   if (templates.length === 0) return '';
 
-  return `\n\n## 📋 ЛУЧШИЕ ТРЕНИРОВКИ ИЗ ИСТОРИИ
-${templates.slice(0, 5).join('\n')}
+  // Когда спрашивают про конкретные мышцы, пять лучших тренировок вообще —
+  // не ответ. targetMuscles приходил сюда и не использовался, так что на
+  // вопрос про спину прилетал список, где спины могло не быть совсем.
+  const focused = !targetMuscles?.length
+    ? templates
+    : templates.filter((t) => targetMuscles.some((m) => t.toLowerCase().includes(m.toLowerCase())));
+  const list = focused.length > 0 ? focused : templates;
+  const note = targetMuscles?.length && focused.length === 0
+    ? `\n(Тренировок именно на ${targetMuscles.join(', ')} в истории нет — ниже общий список.)`
+    : '';
+
+  return `\n\n## 📋 ЛУЧШИЕ ТРЕНИРОВКИ ИЗ ИСТОРИИ${note}
+${list.slice(0, 5).join('\n')}
 → Используй как референс при составлении новых тренировок или когда пользователь просит идеи.`;
 }
 export interface PlateauStrategy {
@@ -943,10 +954,20 @@ export function recommendSplit(
 
   if (recommendations.length === 0) return '';
 
+  // Расписание сплита ничего не стоит, если мышцы под него не восстановились.
+  // muscleRecovery приходил сюда и не использовался: сплит предлагали с
+  // понедельника, не глядя, что ноги ещё не отошли от субботы.
+  const notReady = muscleRecovery
+    .filter((m) => m.status === 'fresh' || (m.status === 'recovering' && m.hoursSinceTraining < 24))
+    .map((m) => m.muscle);
+  const startNote = notReady.length === 0
+    ? ''
+    : `\nНачинать с сегодняшнего дня не стоит: ${notReady.join(', ')} ещё восстанавливаются. Сдвинь начало или поставь первым день на другие группы.`;
+
   const rec = recommendations[0]; // primary recommendation
   return `\n\n## 📋 РЕКОМЕНДУЕМЫЙ СПЛИТ
 ${rec.name}: ${rec.description}
-Расписание: ${rec.schedule}
+Расписание: ${rec.schedule}${startNote}
 ${recommendations.length > 1 ? `Альтернатива: ${recommendations[1].name} — ${recommendations[1].description}` : ''}
 → Предлагай при создании или обсуждении программы.`;
 }
@@ -2063,8 +2084,19 @@ export function suggestExerciseProgression(
   };
 
   const nameL = exerciseName.toLowerCase();
+  // Новичку показывать оба направления бессмысленно: ему нужна одна сторона,
+  // а «сложнее» звучит как приглашение туда полезть. Уровень раньше приходил
+  // в функцию и не использовался — ответ был одинаковым для первого месяца и
+  // для десятого года.
+  const level = (userLevel || '').toUpperCase();
   for (const [key, prog] of Object.entries(progressions)) {
     if (nameL.includes(key)) {
+      if (level === 'BEGINNER') {
+        return `${exerciseName}: если тяжело — ${prog.easier}. Усложнять рано: сначала техника и стабильный вес.`;
+      }
+      if (level === 'ADVANCED' || level === 'EXPERT') {
+        return `${exerciseName}: сложнее → ${prog.harder} (облегчённый вариант — ${prog.easier}, для разгрузочных недель).`;
+      }
       return `${exerciseName}: проще → ${prog.easier} | сложнее → ${prog.harder}`;
     }
   }
@@ -2226,9 +2258,21 @@ export function optimizeTrainingSplit(
   const dayData = splits[Math.min(daysPerWeek, 6)] || splits[3];
   const split = dayData[experience || 'intermediate'] || dayData['any'] || dayData['beginner'] || Object.values(dayData)[0];
 
+  // Одна и та же схема дней работает на разные цели по-разному, а цель
+  // приходила в функцию и не использовалась — обоснование было дословно
+  // одинаковым и для похудения, и для силы.
+  const rationale = {
+    STRENGTH: 'Обоснование: под силу в каждом дне первым идёт одно базовое движение в малом числе повторов, остальное — подсобка.',
+    MUSCLE_GAIN: 'Обоснование: под массу важнее суммарный недельный объём на группу, поэтому каждую мышцу лучше нагружать дважды за неделю.',
+    WEIGHT_LOSS: 'Обоснование: на дефиците силовые дни держат мышцы, а кардио лучше ставить отдельно или после штанги, а не вместо неё.',
+    ENDURANCE: 'Обоснование: под выносливость силовые дни короче и служат профилактикой травм — основной объём остаётся в кардио.',
+    muscle_gain: 'Обоснование: под массу важнее суммарный недельный объём на группу, поэтому каждую мышцу лучше нагружать дважды за неделю.',
+    weight_loss: 'Обоснование: на дефиците силовые дни держат мышцы, а кардио лучше ставить отдельно или после штанги, а не вместо неё.',
+  }[String(goal || '')] || 'Обоснование: высокая частота стимуляции мышц при достаточном восстановлении.';
+
   return `\n\n## 📅 ОПТИМАЛЬНЫЙ СПЛИТ (${daysPerWeek} дн/нед)
 ${split}
-Обоснование: высокая частота стимуляции мышц при достаточном восстановлении.`;
+${rationale}`;
 }
 export function detectTrainingPhaseAdvanced(
   weeksSinceStart: number,
@@ -2281,8 +2325,27 @@ export function suggestWorkoutTemplate(
 Можно добавить разминку, растяжку, дополнительные изолирующие.`;
   }
 
+  // Шаблон был про одно время и ни про что больше: и мышцы, и доступный
+  // инвентарь приходили в функцию и не использовались. Человек спрашивал
+  // «40 минут, только гантели, спина», а получал «жим + тяга + ноги».
+  const muscleLine = targetMuscles.length > 0
+    ? `\nПод ${targetMuscles.join(', ')}: первыми ставь базовые движения именно на эти группы, изоляцию — в конец.`
+    : '';
+
+  const eq = (equipment || '').toLowerCase();
+  const equipLine =
+    /дом|home|нет|без|bodyweight|собствен/.test(eq)
+      ? '\nБез инвентаря: замени штангу на односторонние и статические варианты — отжимания в упоре, выпады, ягодичный мостик, планка. Нагрузку добавляй темпом и паузами, а не весом.'
+      : /гантел|dumbbell/.test(eq)
+        ? '\nТолько гантели: базу собирай из жима и тяги гантелей, приседа-гоблет и румынской тяги. Отсутствие штанги не мешает — мешает отсутствие прогрессии.'
+        : /резин|band|эспандер/.test(eq)
+          ? '\nРезины: нагрузка растёт к концу амплитуды, поэтому бери больше повторов и следи за натяжением в начальной точке.'
+          : eq
+            ? `\nИнвентарь: ${equipment} — подбирай упражнения под то, что есть, не предлагай недоступное.`
+            : '';
+
   return `\n\n## ⏱️ ШАБЛОН ПОД ${availableMinutes} МИНУТ
-${template}`;
+${template}${muscleLine}${equipLine}`;
 }
 export function rankExercisesByGoal(
   goal: string | null,
@@ -2329,8 +2392,22 @@ export function getWorkoutTimingInsight(
     'ночь': 'Поздние тренировки могут нарушать сон. Если чувствуешь проблемы со сном — сдвинь тренировку раньше.',
   };
 
+  // Время суток значит разное в зависимости от цели, а цель приходила сюда и
+  // не использовалась: совет про утро был один и тот же и для похудения, и
+  // для силовых рекордов.
+  const goalTiming = {
+    STRENGTH: period === 'утро'
+      ? 'Для силы утро — худшее время: пик силовых приходится на вторую половину дня. Если рекорд важен, ставь тяжёлые подходы на вечер, а утром работай в лёгком объёме.'
+      : 'Для силы это удачное время — температура тела и нервная система на пике.',
+    WEIGHT_LOSS: 'Для похудения время не решает: решает суточный дефицит. Тренируйся тогда, когда получится делать это регулярно.',
+    MUSCLE_GAIN: 'Для массы важнее не время, а чтобы в предыдущие 2-3 часа была еда — иначе объём вытянуть тяжело.',
+    ENDURANCE: period === 'утро'
+      ? 'Для выносливости утро подходит хорошо, но длинные объёмы натощак не бери — только лёгкие.'
+      : 'Для выносливости это нормальное время; следи, чтобы длинные тренировки не приходились на жару.',
+  }[String(goal || '')];
+
   return `\n\n## 🕐 ТВОЁ ВРЕМЯ ТРЕНИРОВОК: ${period} (~${avgHour}:00)
-${advice[period]}`;
+${advice[period]}${goalTiming ? `\n${goalTiming}` : ''}`;
 }
 export function suggestWeightProgression(
   exerciseName: string,
@@ -2861,7 +2938,17 @@ export function recommendTrainingSplit(daysPerWeek: number, goal: string | null,
   };
 
   const options = splits[Math.min(daysPerWeek, 6)] ?? splits[3];
-  const goalFilter = goal === 'strength' ? options[0] : options[options.length - 1];
+  // Варианты уже подписаны «для новичков» / «для среднего» / «для продвинутых»,
+  // но выбор шёл только по цели — и новичок на четырёх днях получал вариант с
+  // пометкой «продвинутый». Уровень приходил в функцию и не использовался.
+  const level = (fitnessLevel || '').toLowerCase();
+  const beginnerOption = options.find((o) => /новичк|начинающ|поддержк/.test(o.best));
+  const advancedOption = options.find((o) => /продвинут/.test(o.best));
+  const goalFilter =
+    (/beginner|новичок/.test(level) && beginnerOption) ? beginnerOption
+    : (/advanced|expert|продвинут/.test(level) && advancedOption) ? advancedOption
+    : goal === 'strength' ? options[0]
+    : options[options.length - 1];
 
   return `\n\n📋 Рекомендуемый сплит для ${daysPerWeek} дней/неделю:
 **${goalFilter.name}**
@@ -2900,10 +2987,19 @@ export function adviseVolumeProgression(weeklyVolumeCurrent: number, weeklyVolum
     return `\n\n📈 Предупреждение: объём тренировок вырос на ${Math.round(changePct)}% за неделю. Безопасный прирост — не более 10% в неделю. Резкий скачок увеличивает риск травм и перетренированности.`;
   }
   if (changePct < -30) {
-    return `\n\n📉 Объём снизился на ${Math.round(Math.abs(changePct))}%. Если это не запланированная разгрузка — проверьте восстановление и мотивацию.`;
+    // На дефиците падение объёма — ожидаемое явление, а не тревожный знак.
+    // Цель приходила в функцию и не использовалась, так что худеющему
+    // советовали «проверить мотивацию» за то, что происходит само собой.
+    const cutting = goal === 'WEIGHT_LOSS' || goal === 'weight_loss' || goal === 'cutting';
+    return cutting
+      ? `\n\n📉 Объём снизился на ${Math.round(Math.abs(changePct))}%. На дефиците это нормально — сил меньше. Важно не удержать объём, а удержать рабочие веса: именно они показывают, что уходит жир, а не мышцы.`
+      : `\n\n📉 Объём снизился на ${Math.round(Math.abs(changePct))}%. Если это не запланированная разгрузка — проверьте восстановление и мотивацию.`;
   }
   if (changePct >= 5 && changePct <= 10) {
-    return `\n\n📈 Объём растёт оптимально (+${Math.round(changePct)}%/неделю) — отличная прогрессия нагрузки!`;
+    const massing = goal === 'MUSCLE_GAIN' || goal === 'muscle_gain' || goal === 'hypertrophy';
+    return massing
+      ? `\n\n📈 Объём растёт оптимально (+${Math.round(changePct)}%/неделю) — для набора это и есть главный двигатель роста.`
+      : `\n\n📈 Объём растёт оптимально (+${Math.round(changePct)}%/неделю) — отличная прогрессия нагрузки!`;
   }
 
   return '';
@@ -2965,12 +3061,22 @@ export function guideIntraWorkoutFuel(workoutDurationMinutes: number, goal: stri
 
   const needsFuel = workoutDurationMinutes >= 75;
 
+  // Блок уже знал, что совет разный при наборе и при похудении, но выдавал обе
+  // строки всем: цель приходила в функцию и не использовалась. Человек читал
+  // два взаимоисключающих указания и выбирал сам.
+  const cutting = goal === 'WEIGHT_LOSS' || goal === 'weight_loss' || goal === 'cutting';
+  const massing = goal === 'MUSCLE_GAIN' || goal === 'muscle_gain' || goal === 'hypertrophy';
+  const goalFuel = cutting
+    ? '• На дефиците: достаточно воды + BCAA 5-10г — калорий нет, катаболизм придержат.'
+    : massing
+      ? '• На наборе: 15-20г простых углеводов каждые 45-60 мин поддерживают анаболизм.'
+      : '• На наборе — 15-20г простых углеводов; на дефиците — вода + BCAA 5-10г.';
+
   return `\n\n⚡ Топливо во время тренировки (${workoutDurationMinutes} мин):
 ${needsFuel
   ? `Тренировка >75 мин — дозаправка необходима:
 • Каждые 45-60 мин: 20-30г быстрых углеводов (банан, спортивный гель, изотоник)
-• При наборе: 15-20г простых углеводов поддерживают анаболизм
-• При похудении: достаточно воды + BCAA 5-10г (нет калорий, антикатаболик)`
+${goalFuel}`
   : `Тренировка 60-75 мин: достаточно воды. Еда не нужна.`}`;
 }
 export function explainExerciseAnatomy(message: string): string {

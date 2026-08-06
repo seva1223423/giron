@@ -830,9 +830,19 @@ export function buildRecoveryNutritionGuide(
 
   const applicable = foods[lastWorkoutIntensity] || foods['moderate'];
 
+  // Порции после тренировки на дефиците и на массе — разные, и цель приходила
+  // сюда, не влияя ни на что: человеку на похудении предлагали грудку с рисом
+  // на 60 г углеводов ровно теми же словами, что и на наборе.
+  const goalNote = {
+    WEIGHT_LOSS: 'На дефиците: белок оставь как есть, углеводы урежь примерно вдвое. Приём после тренировки — не бонус сверх нормы, а часть дневной калорийности.',
+    MUSCLE_GAIN: 'На массе: это самый удобный момент добрать углеводы за день — после нагрузки они уходят в мышцы охотнее всего.',
+    STRENGTH: 'На силе главное — белок и достаточно углеводов, чтобы восстановить гликоген к следующей тяжёлой сессии.',
+    ENDURANCE: 'На выносливость углеводы важнее белка: 1-1.2 г на кг веса в первые два часа, иначе следующая длинная тренировка не пойдёт.',
+  }[String(userGoal || '')];
+
   return `\n\n## 🥗 ЕДА ДЛЯ ВОССТАНОВЛЕНИЯ
 После ${lastWorkoutIntensity === 'heavy' ? 'тяжёлой' : lastWorkoutIntensity === 'moderate' ? 'средней' : 'лёгкой'} тренировки:
-${applicable.map(f => `- ${f}`).join('\n')}
+${applicable.map(f => `- ${f}`).join('\n')}${goalNote ? `\n${goalNote}` : ''}
 Предложи конкретную еду если пользователь спрашивает что поесть.`;
 }
 export function bustNutritionMyths(message: string): string {
@@ -1202,7 +1212,16 @@ export function rankProteinSources(message: string, goal: string | null): string
 
   const lines = sources.map(s => `• **${s.food}**: ${s.per100g}г белка/100г (усвоение ${s.absorption}) — ${s.note}`).join('\n');
 
-  return `\n\n🥩 Рейтинг источников белка:\n${lines}`;
+  // Список один, но выбирают из него по-разному. Цель приходила в функцию и
+  // не использовалась — рейтинг был одинаковым на сушке и на массе.
+  const goalLine = {
+    WEIGHT_LOSS: 'На дефиците смотри не только на белок: грудка и треска дают его почти без калорий, говядина и целые яйца — заметно дороже по калорийности.',
+    MUSCLE_GAIN: 'На массе жирность источника — плюс, а не минус: она добирает калории. Творог 5% и целые яйца удобнее обезжиренных.',
+    STRENGTH: 'На силе бери говядину и яйца: цельные продукты дают ещё креатин и железо, которых нет в изоляте.',
+    ENDURANCE: 'На выносливость белок нужен в меньшем объёме, но регулярно — рыба и яйца между приёмами, а не одна большая порция.',
+  }[String(goal || '')];
+
+  return `\n\n🥩 Рейтинг источников белка:\n${lines}${goalLine ? `\n${goalLine}` : ''}`;
 }
 export function calculateMacros(bodyWeightKg: number | null, goal: string | null, activityLevel: string | null, message: string): string {
   const lowerMsg = message.toLowerCase();
