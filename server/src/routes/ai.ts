@@ -3816,6 +3816,32 @@ for (const [, keywords] of KEYWORD_MAPPINGS) {
   for (const k of keywords) getKeywordIDF(k);
 }
 
+/** Longer than this and a message is treated as carrying its own topic. */
+const FOLLOW_UP_MAX_CHARS = 50;
+/** Enough of the previous question to keep its keywords, not its essay. */
+const CARRIED_CONTEXT_MAX_CHARS = 300;
+
+/**
+ * The text the ~1400 knowledge blocks are matched against.
+ *
+ * Each block gates itself on a keyword regex over the message. That works for
+ * "стоит ли пить креатин?" and then fails on the very next turn: "а сколько
+ * грамм?" carries no keyword, so the block switches off exactly when the
+ * person is digging further into the topic they just raised — the model
+ * answers the follow-up with less to go on than it had for the question.
+ *
+ * A follow-up that short cannot stand on its own, so it is matched together
+ * with the question before it. Longer messages carry their own topic and are
+ * left alone; otherwise every block from the previous turn would linger into
+ * an unrelated question.
+ */
+export function buildTopicQuery(message: string, previousUserMessage: string): string {
+  const trimmed = message.trim();
+  const previous = previousUserMessage.trim();
+  if (trimmed.length > FOLLOW_UP_MAX_CHARS || !previous) return message;
+  return `${previous.slice(0, CARRIED_CONTEXT_MAX_CHARS)} ${message}`;
+}
+
 /**
  * TF-IDF-inspired knowledge module selection.
  * Improvements over simple keyword counting:
@@ -8018,6 +8044,11 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
       weekMeals,
     } = _ctx;
 
+    // history is newest-first and does not yet contain this message — it is
+    // written to the database further down.
+    const previousUserMessage = history.find((m) => m.role === 'user')?.content ?? '';
+    const topicQuery = buildTopicQuery(message, previousUserMessage);
+
     const weekPlanIdToName = new Map<string, string>();
     weekPlanExercisesRaw.forEach((ex) => weekPlanIdToName.set(ex.id, ex.name));
 
@@ -10236,7 +10267,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const bodyPartSpecContext = suggestBodyPartSpecialization(message, {});
 
     // ─── Block 249: Training environment tips ──────
-    const environmentTipsContext = getTrainingEnvironmentTips(message);
+    const environmentTipsContext = getTrainingEnvironmentTips(topicQuery);
 
     // ─── Block 250: Periodization explainer ──────
     const periodizationExplainerContext = explainPeriodizationToUser(message, totalWorkoutsEver);
@@ -10275,7 +10306,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const strengthToWeightContext261 = trackStrengthToWeight(strengthBestLifts ?? {}, user?.weightKg ?? null);
 
     // ─── Block 262: Sleep optimization tips ──────
-    const sleepOptimizationContext = getSleepOptimizationTips(message);
+    const sleepOptimizationContext = getSleepOptimizationTips(topicQuery);
 
     // ─── Block 263: Recovery modalities ──────
     const recoveryModalitiesContext = educateRecoveryModalities(message);
@@ -10363,7 +10394,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const nutritionPeriodizationContext = adviseNutritionPeriodization(userGoalStr, totalWorkoutsLast30Days > 0 ? Math.round(totalWorkoutsLast30Days / 4.3) : 3);
 
     // ─── Block 290: Russian sports motivation ──────
-    const russianSportsMomentContext = getRussianSportsMoment(message);
+    const russianSportsMomentContext = getRussianSportsMoment(topicQuery);
 
     // ─── Block 291: Rest day planner ──────
     const restDayPlannerContext = planRestDayActivity(message, fatigueData.status);
@@ -10426,7 +10457,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const badWeatherContext = adviseTrainingInBadConditions(message);
 
     // ─── Block 311: Sleep debt impact ──────
-    const sleepDebtContext = getSleepDebtImpact(message);
+    const sleepDebtContext = getSleepDebtImpact(topicQuery);
 
     // ─── Block 312: Post-workout stretching ──────
     const postWorkoutStretchContext = getPostWorkoutStretch(message, exerciseNamesForBreathing);
@@ -10441,13 +10472,13 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const muscleFrequencyContext = getTrainingFrequencyByMuscle(message, userGoalStr);
 
     // ─── Block 316: Warmup weight scheme ──────
-    const warmupWeightContext = getWarmupWeightScheme(message);
+    const warmupWeightContext = getWarmupWeightScheme(topicQuery);
 
     // ─── Block 317: Drop set protocol ──────
-    const dropSetContext = getDropSetProtocol(message);
+    const dropSetContext = getDropSetProtocol(topicQuery);
 
     // ─── Block 318: Paused reps and tempo ──────
-    const pausedRepsContext = getPausedRepsAdvice(message);
+    const pausedRepsContext = getPausedRepsAdvice(topicQuery);
 
     // ─── Block 319: Nutrient deficiency alerts ──────
     const nutrientDeficiencyContext = getNutrientDeficiencyAlerts(message, userGoalStr);
@@ -10462,13 +10493,13 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const supersetGuideContext = adviseSupersets(message);
 
     // ─── Block 323: Mindful eating ──────
-    const mindfulEatingContext = getMindfulEatingTips(message);
+    const mindfulEatingContext = getMindfulEatingTips(topicQuery);
 
     // ─── Block 324: Pre-workout meal plan ──────
     const preWorkoutMealContext = getPreWorkoutMealPlan(message, userGoalStr);
 
     // ─── Block 325: Recovery drink guide ──────
-    const recoveryDrinkContext = getRecoveryDrinkGuide(message);
+    const recoveryDrinkContext = getRecoveryDrinkGuide(topicQuery);
 
     // ─── Block 326: Bodyweight progressions ──────
     const bodyweightProgContext = adviseBodyweightProgressions(message);
@@ -10477,109 +10508,109 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const coachPersonaContext = getCoachPersona(message, totalWorkoutsEver);
 
     // ─── Block 328: Grip variations ──────
-    const gripVariationsContext = getGripVariations(message);
+    const gripVariationsContext = getGripVariations(topicQuery);
 
     // ─── Block 329: Habit stacking ──────
-    const habitStackingContext = getHabitStackingTips(message);
+    const habitStackingContext = getHabitStackingTips(topicQuery);
 
     // ─── Block 330: Body composition goal ──────
     const bodyCompGoalContext = getBodyCompositionGoal(message, userGoalStr, user?.weightKg ?? null, user?.heightCm ?? null);
 
     // ─── Block 331: Exercise form setup ──────
-    const properSetupContext = getProperSetup(message);
+    const properSetupContext = getProperSetup(topicQuery);
 
     // ─── Block 332: Stress and recovery link ──────
-    const stressRecoveryContext = getStressRecoveryLink(message);
+    const stressRecoveryContext = getStressRecoveryLink(topicQuery);
 
     // ─── Block 333: Speed and power training ──────
-    const speedPowerContext = getSpeedPowerTraining(message);
+    const speedPowerContext = getSpeedPowerTraining(topicQuery);
 
     // ─── Block 334: Endurance for strength athletes ──────
-    const enduranceContext = getEnduranceForStrength(message);
+    const enduranceContext = getEnduranceForStrength(topicQuery);
 
     // ─── Block 335: Mobility self-assessment advanced ──────
-    const mobilityAssessmentAdvContext = getMobilityAssessmentAdvanced(message);
+    const mobilityAssessmentAdvContext = getMobilityAssessmentAdvanced(topicQuery);
 
     // ─── Block 336: Training log guide ──────
     const trainingLogContext = getTrainingLogGuide(message, totalWorkoutsEver);
 
     // ─── Block 337: Protein quality guide ──────
-    const proteinQualityContext = getProteinQualityGuide(message);
+    const proteinQualityContext = getProteinQualityGuide(topicQuery);
 
     // ─── Block 338: Smart substitution ──────
     const smartSubContext = getSmartSubstitution(message, injuryZones);
 
     // ─── Block 339: Cutting mistakes ──────
-    const cuttingMistakesContext = getCuttingMistakes(message);
+    const cuttingMistakesContext = getCuttingMistakes(topicQuery);
 
     // ─── Block 340: Bulking mistakes ──────
-    const bulkingMistakesContext = getBulkingMistakes(message);
+    const bulkingMistakesContext = getBulkingMistakes(topicQuery);
 
     // ─── Block 341: Morning vs evening training ──────
-    const morningEveningContext = getMorningVsEveningTraining(message);
+    const morningEveningContext = getMorningVsEveningTraining(topicQuery);
 
     // ─── Block 342: Mental toughness ──────
-    const mentalToughnessContext = getMentalToughnessGuide(message);
+    const mentalToughnessContext = getMentalToughnessGuide(topicQuery);
 
     // ─── Block 343: Tracking metrics ──────
-    const trackingMetricsContext = getTrackingMetrics(message);
+    const trackingMetricsContext = getTrackingMetrics(topicQuery);
 
     // ─── Block 344: Beginner frequency ──────
     const beginnerFrequencyContext = getBeginnerFrequency(message, totalWorkoutsEver);
 
     // ─── Block 345: Program design principles ──────
-    const programDesignContext = getProgramDesignPrinciples(message);
+    const programDesignContext = getProgramDesignPrinciples(topicQuery);
 
     // ─── Block 346: Nighttime nutrition ──────
-    const nightNutritionContext = getNighttimeNutrition(message);
+    const nightNutritionContext = getNighttimeNutrition(topicQuery);
 
     // ─── Block 347: Injury prevention top 5 ──────
-    const injuryPrevTop5Context = getInjuryPrevTop5(message);
+    const injuryPrevTop5Context = getInjuryPrevTop5(topicQuery);
 
     // ─── Block 348: Fitness age ──────
-    const fitnessAgeContext = getFitnessAgeVsRealAge(message);
+    const fitnessAgeContext = getFitnessAgeVsRealAge(topicQuery);
 
     // ─── Block 349: Alcohol impact ──────
-    const alcoholContext = getAlcoholImpact(message);
+    const alcoholContext = getAlcoholImpact(topicQuery);
 
     // ─── Block 350: Seasonal training full ──────
-    const seasonalTrainingFullContext = getSeasonalTrainingFull(message);
+    const seasonalTrainingFullContext = getSeasonalTrainingFull(topicQuery);
 
     // ─── Block 351: Caffeine guide ──────
-    const caffeineGuideContext = getCaffeineGuide(message);
+    const caffeineGuideContext = getCaffeineGuide(topicQuery);
 
     // ─── Block 352: Belt usage ──────
-    const beltUsageContext = getBeltUsageGuide(message);
+    const beltUsageContext = getBeltUsageGuide(topicQuery);
 
     // ─── Block 353: Kettlebell guide ──────
-    const kettlebellContext = getKettlebellGuide(message);
+    const kettlebellContext = getKettlebellGuide(topicQuery);
 
     // ─── Block 354: Resistance band guide ──────
-    const resistanceBandContext = getResistanceBandGuide(message);
+    const resistanceBandContext = getResistanceBandGuide(topicQuery);
 
     // ─── Block 355: Core training guide ──────
-    const coreTrainingContext = getCoreTrainingGuide(message);
+    const coreTrainingContext = getCoreTrainingGuide(topicQuery);
 
     // ─── Block 356: Forearm and grip training ──────
-    const forearmContext = getForearmTrainingGuide(message);
+    const forearmContext = getForearmTrainingGuide(topicQuery);
 
     // ─── Block 357: Calves guide ──────
-    const calvesContext = getCalvesGuide(message);
+    const calvesContext = getCalvesGuide(topicQuery);
 
     // ─── Block 358: Home gym essentials ──────
-    const homeGymContext = getHomeGymEssentials(message);
+    const homeGymContext = getHomeGymEssentials(topicQuery);
 
     // ─── Block 359: Neck and posture ──────
-    const neckPostureContext = getNeckPostureGuide(message);
+    const neckPostureContext = getNeckPostureGuide(topicQuery);
 
     // ─── Block 360: Deload week protocol ──────
     const deloadWeekProtocolContext = getDeloadWeekProtocol(message, totalWorkoutsEver);
 
     // ─── Block 361: Travel workout protocol ──────
-    const travelWorkoutContext = getTravelWorkoutProtocol(message);
+    const travelWorkoutContext = getTravelWorkoutProtocol(topicQuery);
 
     // ─── Block 362: Office stretch breaks ──────
-    const officeStretchContext = getOfficeStretchBreaks(message);
+    const officeStretchContext = getOfficeStretchBreaks(topicQuery);
 
     // ─── Block 363: Women's training guide ──────
     const womensTrainingContext = getWomensTrainingGuide(message, (user as any)?.gender ?? null);
@@ -10588,64 +10619,64 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const seniorFitnessContext = getSeniorFitnessGuide(message, user?.dateOfBirth ?? null);
 
     // ─── Block 365: Creatine full guide ──────
-    const creatineFullContext = getCreatineFullGuide(message);
+    const creatineFullContext = getCreatineFullGuide(topicQuery);
 
     // ─── Block 366: Protein powder guide ──────
-    const proteinPowderContext = getProteinPowderGuide(message);
+    const proteinPowderContext = getProteinPowderGuide(topicQuery);
 
     // ─── Block 367: Swimming benefits ──────
-    const swimmingContext = getSwimmingBenefits(message);
+    const swimmingContext = getSwimmingBenefits(topicQuery);
 
     // ─── Block 368: Running guide ──────
-    const runningContext = getRunningGuide(message);
+    const runningContext = getRunningGuide(topicQuery);
 
     // ─── Block 369: Yoga for athletes ──────
-    const yogaContext = getYogaForAthletes(message);
+    const yogaContext = getYogaForAthletes(topicQuery);
 
     // ─── Block 370: Supplement stack ──────
     const supplementStackGoalContext = getSupplementStack(message, userGoalStr);
 
     // ─── Block 371: Isometric training ──────
-    const isometricTrainingContext = getIsometricTrainingGuide(message);
+    const isometricTrainingContext = getIsometricTrainingGuide(topicQuery);
 
     // ─── Block 372: Calisthenics ──────
-    const calisthenicsContext = getCalisthenicsProgressions(message);
+    const calisthenicsContext = getCalisthenicsProgressions(topicQuery);
 
     // ─── Block 373: Intensity plateau breaker ──────
-    const intensityPlateauContext = getIntensityTechniquesPlateauBreaker(message);
+    const intensityPlateauContext = getIntensityTechniquesPlateauBreaker(topicQuery);
 
     // ─── Block 374: Macro tracking simplified ──────
-    const macroTrackingContext = getMacroTrackingSimplified(message);
+    const macroTrackingContext = getMacroTrackingSimplified(topicQuery);
 
     // ─── Block 375: Powerlifting vs bodybuilding ──────
-    const plVsBbContext = getPowerliftingVsBodybuilding(message);
+    const plVsBbContext = getPowerliftingVsBodybuilding(topicQuery);
 
     // ─── Block 376: Eating for recovery ──────
-    const eatingForRecoveryContext = getEatingForRecovery(message);
+    const eatingForRecoveryContext = getEatingForRecovery(topicQuery);
 
     // ─── Block 377: Strength for weight loss ──────
     const strengthWeightLossContext = getStrengthForWeightLoss(message, userGoalStr ?? '');
 
     // ─── Block 378: Wearables tracking ──────
-    const wearablesContext = getWearablesFitnessTracking(message);
+    const wearablesContext = getWearablesFitnessTracking(topicQuery);
 
     // ─── Block 379: Busy schedule workout ──────
     const busyScheduleContext = getBusyScheduleWorkout(message, plannedDays);
 
     // ─── Block 380: Sleep performance ──────
-    const sleepPerformanceContext = getSleepPerformanceGuide(message);
+    const sleepPerformanceContext = getSleepPerformanceGuide(topicQuery);
 
     // ─── Block 381: Grip strength training ──────
-    const gripStrengthTrainingContext = getGripStrengthTraining(message);
+    const gripStrengthTrainingContext = getGripStrengthTraining(topicQuery);
 
     // ─── Block 382: Eccentric training ──────
-    const eccentricContext = getEccentricTraining(message);
+    const eccentricContext = getEccentricTraining(topicQuery);
 
     // ─── Block 383: Contrast training PAP ──────
-    const contrastTrainingContext = getContrastTraining(message);
+    const contrastTrainingContext = getContrastTraining(topicQuery);
 
     // ─── Block 384: Partial reps ──────
-    const partialRepsContext = getPartialRepsStrategy(message);
+    const partialRepsContext = getPartialRepsStrategy(topicQuery);
 
     // ─── Block 385: Lower back pain training ──────
     const lowerBackContext = getTrainingAroundLowerBack(message, injuryZones);
@@ -10654,2203 +10685,2203 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const strengthStandardsWeightContext = getStrengthStandardsByWeight(message, user?.weightKg ?? null);
 
     // ─── Block 387: Training type warmup ──────
-    const trainingTypeWarmupContext = getTrainingTypeWarmup(message);
+    const trainingTypeWarmupContext = getTrainingTypeWarmup(topicQuery);
 
     // ─── Block 388: Gym anxiety ──────
-    const gymAnxietyContext = getGymAnxietyGuide(message);
+    const gymAnxietyContext = getGymAnxietyGuide(topicQuery);
 
     // ─── Block 389: Outdoor training ──────
-    const outdoorTrainingContext = getOutdoorTrainingGuide(message);
+    const outdoorTrainingContext = getOutdoorTrainingGuide(topicQuery);
 
     // ─── Block 390: Martial arts and gym ──────
-    const martialArtsContext = getMartialArtsAndGym(message);
+    const martialArtsContext = getMartialArtsAndGym(topicQuery);
 
     // ─── Block 391: Vegetarian athlete nutrition ──────
-    const vegetarianAthleteContext = getVegetarianAthleteNutrition(message);
+    const vegetarianAthleteContext = getVegetarianAthleteNutrition(topicQuery);
 
     // ─── Block 392: Gut health ──────
-    const gutHealthAthletesContext = getGutHealthForAthletes(message);
+    const gutHealthAthletesContext = getGutHealthForAthletes(topicQuery);
 
     // ─── Block 393: Testosterone optimization ──────
-    const testosteroneContext = getTestosteroneOptimization(message);
+    const testosteroneContext = getTestosteroneOptimization(topicQuery);
 
     // ─── Block 394: Altitude training ──────
-    const altitudeTrainingContext = getAltitudeTraining(message);
+    const altitudeTrainingContext = getAltitudeTraining(topicQuery);
 
     // ─── Block 395: Pre-competition prep ──────
-    const preCompContext = getPreCompetitionPrep(message);
+    const preCompContext = getPreCompetitionPrep(topicQuery);
 
     // ─── Block 396: Inter-session recovery ──────
-    const interSessionContext = getInterSessionRecovery(message);
+    const interSessionContext = getInterSessionRecovery(topicQuery);
 
     // ─── Block 397: Injury comeback full ──────
     const injuryComebackFullContext = getInjuryComebackFull(message, injuryZones);
 
     // ─── Block 398: Discipline guide ──────
-    const disciplineContext = getBuildingDisciplineGuide(message);
+    const disciplineContext = getBuildingDisciplineGuide(topicQuery);
 
     // ─── Block 399: Active recovery day ──────
-    const activeRecoveryDayContext = getActiveRecoveryDay(message);
+    const activeRecoveryDayContext = getActiveRecoveryDay(topicQuery);
 
     // ─── Block 400: Personalized frequency ──────
     const personalizedFrequencyContext = getPersonalizedFrequencyAdvice(message, totalWorkoutsEver, plannedDays);
 
     // ─── Block 401: Breathing during exercise ──────
-    const breathingExerciseContext = getBreathingDuringExercise(message);
+    const breathingExerciseContext = getBreathingDuringExercise(topicQuery);
 
     // ─── Block 402: Compound vs isolation ──────
-    const compoundIsolationContext = getCompoundVsIsolation(message);
+    const compoundIsolationContext = getCompoundVsIsolation(topicQuery);
 
     // ─── Block 403: Refeeds and diet breaks ──────
-    const refeedContext = getRefeedAndDietBreaks(message);
+    const refeedContext = getRefeedAndDietBreaks(topicQuery);
 
     // ─── Block 404: Intra-workout nutrition adv ──────
-    const intraWorkoutAdvContext = getIntraWorkoutNutritionAdv(message);
+    const intraWorkoutAdvContext = getIntraWorkoutNutritionAdv(topicQuery);
 
     // ─── Block 405: Body fat measurement ──────
-    const bodyFatMeasurementContext = getBodyFatMeasurement(message);
+    const bodyFatMeasurementContext = getBodyFatMeasurement(topicQuery);
 
     // ─── Block 406: Strength for seniors ──────
     const seniorStrengthContext = getStrengthTrainingSeniors(message, user?.dateOfBirth ?? null);
 
     // ─── Block 407: Sport-specific conditioning ──────
-    const sportConditioningContext = getSportSpecificConditioning(message);
+    const sportConditioningContext = getSportSpecificConditioning(topicQuery);
 
     // ─── Block 408: Progressive overload tracking ──────
-    const overloadTrackingContext = getProgressiveOverloadTracking(message);
+    const overloadTrackingContext = getProgressiveOverloadTracking(topicQuery);
 
     // ─── Block 409: Fasted training analysis ──────
-    const fastedTrainingContext = getFastedTrainingAnalysis(message);
+    const fastedTrainingContext = getFastedTrainingAnalysis(topicQuery);
 
     // ─── Block 410: Mind-body connection ──────
-    const mindBodyContext = getMindBodyConnection(message);
+    const mindBodyContext = getMindBodyConnection(topicQuery);
 
     // ─── Block 411: Volume by muscle group ──────
-    const volumeByMuscleContext = getVolumeByMuscleGroup(message);
+    const volumeByMuscleContext = getVolumeByMuscleGroup(topicQuery);
 
     // ─── Block 412: Wrist and elbow health ──────
-    const wristElbowContext = getWristElbowHealth(message);
+    const wristElbowContext = getWristElbowHealth(topicQuery);
 
     // ─── Block 413: Shoulder health ──────
-    const shoulderHealthContext = getShoulderHealthGuide(message);
+    const shoulderHealthContext = getShoulderHealthGuide(topicQuery);
 
     // ─── Block 414: Knee health ──────
-    const kneeHealthContext = getKneeHealthGuide(message);
+    const kneeHealthContext = getKneeHealthGuide(topicQuery);
 
     // ─── Block 415: Macro timing by goal ──────
     const macroTimingGoalContext = getMacroTimingByGoal(message, userGoalStr ?? '');
 
     // ─── Block 416: Dehydration impact ──────
-    const dehydrationImpactContext = getDehydrationImpact(message);
+    const dehydrationImpactContext = getDehydrationImpact(topicQuery);
 
     // ─── Block 417: Foam rolling advanced ──────
-    const foamRollingAdvContext = getFoamRollingAdvanced(message);
+    const foamRollingAdvContext = getFoamRollingAdvanced(topicQuery);
 
     // ─── Block 418: Training during illness ──────
-    const illnessTrainingContext = getTrainingDuringIllness(message);
+    const illnessTrainingContext = getTrainingDuringIllness(topicQuery);
 
     // ─── Block 419: Beginner supplement guide ──────
     const beginnerSupplementContext = getBeginnerSupplementGuide(message, totalWorkoutsEver);
 
     // ─── Block 420: Body signals guide ──────
-    const bodySignalsContext = getBodySignalsGuide(message);
+    const bodySignalsContext = getBodySignalsGuide(topicQuery);
 
     // ─── Block 421: Pyramid training ──────
-    const pyramidTrainingContext = getPyramidTraining(message);
+    const pyramidTrainingContext = getPyramidTraining(topicQuery);
 
     // ─── Block 422: Workout duration efficiency ──────
-    const workoutDurationContext = getWorkoutDurationEfficiency(message);
+    const workoutDurationContext = getWorkoutDurationEfficiency(topicQuery);
 
     // ─── Block 423: Metabolic syndrome exercise ──────
-    const metabolicSyndromeContext = getMetabolicSyndromeExercise(message);
+    const metabolicSyndromeContext = getMetabolicSyndromeExercise(topicQuery);
 
     // ─── Block 424: Running technique ──────
-    const runningTechniqueContext = getRunningTechnique(message);
+    const runningTechniqueContext = getRunningTechnique(topicQuery);
 
     // ─── Block 425: Protein synthesis window myth ──────
-    const proteinWindowContext = getProteinSynthesisWindowMyth(message);
+    const proteinWindowContext = getProteinSynthesisWindowMyth(topicQuery);
 
     // ─── Block 426: CrossFit basics ──────
-    const crossFitContext = getCrossFitBasics(message);
+    const crossFitContext = getCrossFitBasics(topicQuery);
 
     // ─── Block 427: BFR training ──────
-    const bfrContext = getBFRTraining(message);
+    const bfrContext = getBFRTraining(topicQuery);
 
     // ─── Block 428: Hip flexor health ──────
-    const hipFlexorContext = getHipFlexorHealth(message);
+    const hipFlexorContext = getHipFlexorHealth(topicQuery);
 
     // ─── Block 429: Calorie counting accuracy ──────
-    const calorieAccuracyContext = getCalorieCountingAccuracy(message);
+    const calorieAccuracyContext = getCalorieCountingAccuracy(topicQuery);
 
     // ─── Block 430: DOMS science ──────
-    const domsScienceContext = getDOMSScience(message);
+    const domsScienceContext = getDOMSScience(topicQuery);
 
     // ─── Block 431: Ankle mobility for squats ──────
-    const ankleMobilityContext = getAnkleMobilitySquats(message);
+    const ankleMobilityContext = getAnkleMobilitySquats(topicQuery);
 
     // ─── Block 432: Thoracic spine mobility ──────
-    const thoracicMobilityContext = getThoracicSpineMobility(message);
+    const thoracicMobilityContext = getThoracicSpineMobility(topicQuery);
 
     // ─── Block 433: Home workout no equipment ──────
-    const homeWorkoutNoEquipContext = getHomeWorkoutNoEquipment(message);
+    const homeWorkoutNoEquipContext = getHomeWorkoutNoEquipment(topicQuery);
 
     // ─── Block 434: Sticking point analysis ──────
-    const stickingPointContext = getStickingPointAnalysis(message);
+    const stickingPointContext = getStickingPointAnalysis(topicQuery);
 
     // ─── Block 435: Seasonal periodization ──────
-    const seasonalPeriodizationContext = getSeasonalPeriodizationRec(message);
+    const seasonalPeriodizationContext = getSeasonalPeriodizationRec(topicQuery);
 
     // ─── Block 436: Nutrition by body type ──────
-    const bodyTypeNutritionContext = getNutritionByBodyType(message);
+    const bodyTypeNutritionContext = getNutritionByBodyType(topicQuery);
 
     // ─── Block 437: Fitness level protocols ──────
     const fitnessLevelProtocolContext = getFitnessLevelProtocols(message, totalWorkoutsEver);
 
     // ─── Block 438: Shift worker nutrition ──────
-    const shiftWorkerContext = getShiftWorkerNutrition(message);
+    const shiftWorkerContext = getShiftWorkerNutrition(topicQuery);
 
     // ─── Block 439: SMART goal setting ──────
-    const smartGoalContext = getSmartGoalSetting(message);
+    const smartGoalContext = getSmartGoalSetting(topicQuery);
 
     // ─── Block 440: Rest periods between sets ──────
-    const restPeriodsContext = getRestPeriodsBetweenSets(message);
+    const restPeriodsContext = getRestPeriodsBetweenSets(topicQuery);
 
     // ─── Block 441: Creatine protocol ──────
-    const creatineProtocolContext = getCreatineProtocol(message);
+    const creatineProtocolContext = getCreatineProtocol(topicQuery);
 
     // ─── Block 442: Training boredom fix ──────
-    const trainingBoredomContext = getTrainingBoredomFix(message);
+    const trainingBoredomContext = getTrainingBoredomFix(topicQuery);
 
     // ─── Block 443: Myofascial release ──────
-    const myofascialContext = getMyofascialRelease(message);
+    const myofascialContext = getMyofascialRelease(topicQuery);
 
     // ─── Block 444: Natural training frequency ──────
-    const naturalFrequencyContext = getNaturalTrainingFrequency(message);
+    const naturalFrequencyContext = getNaturalTrainingFrequency(topicQuery);
 
     // ─── Block 445: Post-activation potentiation ──────
-    const papContext = getPostActivationPotentiation(message);
+    const papContext = getPostActivationPotentiation(topicQuery);
 
     // ─── Block 446: Digestive health athletes ──────
-    const digestiveHealthContext = getDigestiveHealthAthletes(message);
+    const digestiveHealthContext = getDigestiveHealthAthletes(topicQuery);
 
     // ─── Block 447: Loaded stretching ──────
-    const loadedStretchingContext = getLoadedStretching(message);
+    const loadedStretchingContext = getLoadedStretching(topicQuery);
 
     // ─── Block 448: Splits by goal ──────
-    const splitsByGoalContext = getSplitsByGoal(message);
+    const splitsByGoalContext = getSplitsByGoal(topicQuery);
 
     // ─── Block 449: Fatigue signal reading ──────
-    const fatigueSignalContext = getFatigueSignalReading(message);
+    const fatigueSignalContext = getFatigueSignalReading(topicQuery);
 
     // ─── Block 450: Equipment accessories guide ──────
-    const equipmentAccessoriesContext = getEquipmentAccessoriesGuide(message);
+    const equipmentAccessoriesContext = getEquipmentAccessoriesGuide(topicQuery);
 
     // ─── Block 451: Eccentric overload advanced ──────
-    const eccentricOverloadAdvContext = getEccentricOverloadAdv(message);
+    const eccentricOverloadAdvContext = getEccentricOverloadAdv(topicQuery);
 
     // ─── Block 452: Mindful eating advanced ──────
-    const mindfulEatingAdvContext = getMindfulEatingAdv(message);
+    const mindfulEatingAdvContext = getMindfulEatingAdv(topicQuery);
 
     // ─── Block 453: Grip for pulling strength ──────
-    const gripPullingContext = getGripForPullingStrength(message);
+    const gripPullingContext = getGripForPullingStrength(topicQuery);
 
     // ─── Block 454: Muscle blood flow / pump ──────
-    const muscleBloodFlowContext = getMuscleBloodFlow(message);
+    const muscleBloodFlowContext = getMuscleBloodFlow(topicQuery);
 
     // ─── Block 455: Temperature therapy ──────
-    const temperatureTherapyContext = getTemperatureTherapy(message);
+    const temperatureTherapyContext = getTemperatureTherapy(topicQuery);
 
     // ─── Block 456: Overhead pressing health ──────
-    const overheadPressingContext = getOverheadPressingHealth(message);
+    const overheadPressingContext = getOverheadPressingHealth(topicQuery);
 
     // ─── Block 457: Training adaptation timeline ──────
-    const adaptationTimelineContext = getTrainingAdaptationTimeline(message);
+    const adaptationTimelineContext = getTrainingAdaptationTimeline(topicQuery);
 
     // ─── Block 458: Protein for weight loss ──────
-    const proteinWeightLossContext = getProteinWeightLossPreservation(message);
+    const proteinWeightLossContext = getProteinWeightLossPreservation(topicQuery);
 
     // ─── Block 459: Training for longevity ──────
-    const longevityTrainingContext = getTrainingForLongevity(message);
+    const longevityTrainingContext = getTrainingForLongevity(topicQuery);
 
     // ─── Block 460: Minimal time consistency ──────
-    const minimalTimeContext = getMinimalTimeConsistency(message);
+    const minimalTimeContext = getMinimalTimeConsistency(topicQuery);
 
     // ─── Block 461: Neck training ──────
-    const neckTrainingContext = getNeckTraining(message);
+    const neckTrainingContext = getNeckTraining(topicQuery);
 
     // ─── Block 462: Hip thrust guide ──────
-    const hipThrustContext = getHipThrustGuide(message);
+    const hipThrustContext = getHipThrustGuide(topicQuery);
 
     // ─── Block 463: Bench angle guide ──────
-    const benchAngleContext = getBenchAngleGuide(message);
+    const benchAngleContext = getBenchAngleGuide(topicQuery);
 
     // ─── Block 464: Valsalva breathing ──────
-    const valsalvaContext = getValsalvaBreathing(message);
+    const valsalvaContext = getValsalvaBreathing(topicQuery);
 
     // ─── Block 465: Sleep and muscle growth ──────
-    const sleepMuscleContext = getSleepMuscleGrowth(message);
+    const sleepMuscleContext = getSleepMuscleGrowth(topicQuery);
 
     // ─── Block 466: Hypertrophy vs strength scheme ──────
-    const hypertrophyStrengthSchemeContext = getHypertrophyVsStrengthScheme(message);
+    const hypertrophyStrengthSchemeContext = getHypertrophyVsStrengthScheme(topicQuery);
 
     // ─── Block 467: Calves training effective ──────
-    const calvesEffectiveContext = getCalvesTrainingEffective(message);
+    const calvesEffectiveContext = getCalvesTrainingEffective(topicQuery);
 
     // ─── Block 468: Training after illness ──────
-    const afterIllnessContext = getTrainingAfterIllness(message);
+    const afterIllnessContext = getTrainingAfterIllness(topicQuery);
 
     // ─── Block 469: Intra-workout snacks ──────
-    const intraWorkoutSnacksContext = getIntraWorkoutSnacks(message);
+    const intraWorkoutSnacksContext = getIntraWorkoutSnacks(topicQuery);
 
     // ─── Block 470: Competition psychology ──────
-    const competitionPsychContext = getCompetitionPsychology(message);
+    const competitionPsychContext = getCompetitionPsychology(topicQuery);
 
     // ─── Block 471: Pre-workout caffeine timing ──────
-    const caffeineTimingContext = getPreWorkoutCaffeineTiming(message);
+    const caffeineTimingContext = getPreWorkoutCaffeineTiming(topicQuery);
 
     // ─── Block 472: Romanian deadlift guide ──────
-    const rdlGuideContext = getRomanianDeadliftGuide(message);
+    const rdlGuideContext = getRomanianDeadliftGuide(topicQuery);
 
     // ─── Block 473: Fascia health ──────
-    const fasciaHealthContext = getFasciaHealth(message);
+    const fasciaHealthContext = getFasciaHealth(topicQuery);
 
     // ─── Block 474: Cardio fat loss LISS vs HIIT ──────
-    const cardioFatLossContext = getCardioFatLossComparison(message);
+    const cardioFatLossContext = getCardioFatLossComparison(topicQuery);
 
     // ─── Block 475: Pre-workout meal timing ──────
-    const preWorkoutMealTimingContext = getPreWorkoutMealTiming(message);
+    const preWorkoutMealTimingContext = getPreWorkoutMealTiming(topicQuery);
 
     // ─── Block 476: Bench press arch ──────
-    const benchArchContext = getBenchPressArch(message);
+    const benchArchContext = getBenchPressArch(topicQuery);
 
     // ─── Block 477: Triceps specialization ──────
-    const tricepsSpecContext = getTricepsSpecialization(message);
+    const tricepsSpecContext = getTricepsSpecialization(topicQuery);
 
     // ─── Block 478: Biceps specialization ──────
-    const bicepsSpecContext = getBicepsSpecialization(message);
+    const bicepsSpecContext = getBicepsSpecialization(topicQuery);
 
     // ─── Block 479: Dehydration performance ──────
-    const dehydrationPerfContext = getDehydrationPerformance(message);
+    const dehydrationPerfContext = getDehydrationPerformance(topicQuery);
 
     // ─── Block 480: Progressive overload methods ──────
-    const overloadMethodsContext = getProgressiveOverloadMethods(message);
+    const overloadMethodsContext = getProgressiveOverloadMethods(topicQuery);
 
     // ─── Block 481: Front squat technique ──────
-    const frontSquatContext = getFrontSquatTechnique(message);
+    const frontSquatContext = getFrontSquatTechnique(topicQuery);
 
     // ─── Block 482: Weighted vest training ──────
-    const weightedVestContext = getWeightedVestTraining(message);
+    const weightedVestContext = getWeightedVestTraining(topicQuery);
 
     // ─── Block 483: Overhead squat mobility ──────
-    const ohsMobilityContext = getOverheadSquatMobility(message);
+    const ohsMobilityContext = getOverheadSquatMobility(topicQuery);
 
     // ─── Block 484: Supersets time efficiency ──────
-    const supersetsTimeContext = getSupersetsTimeEfficiency(message);
+    const supersetsTimeContext = getSupersetsTimeEfficiency(topicQuery);
 
     // ─── Block 485: Training log benefits ──────
-    const trainingLogBenefitsContext = getTrainingLogBenefits(message);
+    const trainingLogBenefitsContext = getTrainingLogBenefits(topicQuery);
 
     // ─── Block 486: Vitamin D athletes ──────
-    const vitaminDContext = getVitaminDAthletes(message);
+    const vitaminDContext = getVitaminDAthletes(topicQuery);
 
     // ─── Block 487: Omega-3 athletes ──────
-    const omega3Context = getOmega3Athletes(message);
+    const omega3Context = getOmega3Athletes(topicQuery);
 
     // ─── Block 488: Metabolic flexibility ──────
-    const metabolicFlexibilityContext = getMetabolicFlexibility(message);
+    const metabolicFlexibilityContext = getMetabolicFlexibility(topicQuery);
 
     // ─── Block 489: Explosive power training ──────
-    const explosiveTrainingContext = getExplosivenessPowerTraining(message);
+    const explosiveTrainingContext = getExplosivenessPowerTraining(topicQuery);
 
     // ─── Block 490: Before sleep stretching ──────
-    const sleepStretchingContext = getBeforeSleepStretching(message);
+    const sleepStretchingContext = getBeforeSleepStretching(topicQuery);
 
     // ─── Block 491: Collagen joint health ──────
-    const collagenJointContext = getCollagenJointHealth(message);
+    const collagenJointContext = getCollagenJointHealth(topicQuery);
 
     // ─── Block 492: Magnesium recovery ──────
-    const magnesiumContext = getMagnesiumRecovery(message);
+    const magnesiumContext = getMagnesiumRecovery(topicQuery);
 
     // ─── Block 493: Home gym budget ──────
-    const homeGymBudgetContext = getHomeGymBudget(message);
+    const homeGymBudgetContext = getHomeGymBudget(topicQuery);
 
     // ─── Block 494: Cutting mistakes advanced ──────
-    const cuttingMistakesAdvContext = getCuttingMistakesAdv(message);
+    const cuttingMistakesAdvContext = getCuttingMistakesAdv(topicQuery);
 
     // ─── Block 495: Shoulder impingement prevention ──────
-    const shoulderImpingementContext = getShoulderImpingementPrev(message);
+    const shoulderImpingementContext = getShoulderImpingementPrev(topicQuery);
 
     // ─── Block 496: Protein absorption meals ──────
-    const proteinAbsorptionContext = getProteinAbsorptionMeals(message);
+    const proteinAbsorptionContext = getProteinAbsorptionMeals(topicQuery);
 
     // ─── Block 497: Lower body imbalances ──────
-    const lowerBodyImbalanceContext = getLowerBodyImbalances(message);
+    const lowerBodyImbalanceContext = getLowerBodyImbalances(topicQuery);
 
     // ─── Block 498: Deload week programming ──────
-    const deloadWeekProgramContext = getDeloadWeekProgramming(message);
+    const deloadWeekProgramContext = getDeloadWeekProgramming(topicQuery);
 
     // ─── Block 499: Compound movements priority ──────
-    const compoundPriorityAdvContext = getCompoundMovementsPriority(message);
+    const compoundPriorityAdvContext = getCompoundMovementsPriority(topicQuery);
 
     // ─── Block 500: AI coaching milestone ──────
     const aiCoachingMilestoneContext = getAICoachingMilestone(message, totalWorkoutsEver);
 
     // ─── Block 501: Training in heat ──────
-    const trainingHeatContext = getTrainingInHeat(message);
+    const trainingHeatContext = getTrainingInHeat(topicQuery);
 
     // ─── Block 502: Pull-up progressions ──────
-    const pullUpProgressionContext = getPullUpProgressions(message);
+    const pullUpProgressionContext = getPullUpProgressions(topicQuery);
 
     // ─── Block 503: Dips technique ──────
-    const dipsTechniqueContext = getDipsTechnique(message);
+    const dipsTechniqueContext = getDipsTechnique(topicQuery);
 
     // ─── Block 504: Lateral agility ──────
-    const lateralAgilityContext = getLateralAgility(message);
+    const lateralAgilityContext = getLateralAgility(topicQuery);
 
     // ─── Block 505: Wrist/elbow rehab ──────
-    const wristElbowRehabContext = getWristElbowRehab(message);
+    const wristElbowRehabContext = getWristElbowRehab(topicQuery);
 
     // ─── Block 506: Barbell row variations ──────
-    const barbellRowVarContext = getBarbellRowVariations(message);
+    const barbellRowVarContext = getBarbellRowVariations(topicQuery);
 
     // ─── Block 507: Intermittent fasting athletes ──────
-    const ifAthletesContext = getIntermittentFastingAthletes(message);
+    const ifAthletesContext = getIntermittentFastingAthletes(topicQuery);
 
     // ─── Block 508: Bulking strategies ──────
-    const bulkingStrategiesContext = getBulkingStrategies(message);
+    const bulkingStrategiesContext = getBulkingStrategies(topicQuery);
 
     // ─── Block 509: Rack pulls guide ──────
-    const rackPullsContext = getRackPullsGuide(message);
+    const rackPullsContext = getRackPullsGuide(topicQuery);
 
     // ─── Block 510: Sustainable routine ──────
-    const sustainableRoutineContext = getSustainableRoutine(message);
+    const sustainableRoutineContext = getSustainableRoutine(topicQuery);
 
     // ─── Block 511: Sprinting body composition ──────
-    const sprintingBodyCompContext = getSprintingBodyComp(message);
+    const sprintingBodyCompContext = getSprintingBodyComp(topicQuery);
 
     // ─── Block 512: Overhead mobility for pressing ──────
-    const overheadMobilityContext = getOverheadMobility(message);
+    const overheadMobilityContext = getOverheadMobility(topicQuery);
 
     // ─── Block 513: Caloric needs estimation ──────
-    const caloricNeedsContext = getCaloricNeedsEstimation(message);
+    const caloricNeedsContext = getCaloricNeedsEstimation(topicQuery);
 
     // ─── Block 514: Soreness vs injury ──────
-    const sorenessVsInjuryContext = getMuscleSorenessVsInjury(message);
+    const sorenessVsInjuryContext = getMuscleSorenessVsInjury(topicQuery);
 
     // ─── Block 515: Lat building guide ──────
-    const latBuildingContext = getLatBuildingGuide(message);
+    const latBuildingContext = getLatBuildingGuide(topicQuery);
 
     // ─── Block 516: Training around knee pain ──────
-    const kneePainTrainingContext = getTrainingAroundKneePain(message);
+    const kneePainTrainingContext = getTrainingAroundKneePain(topicQuery);
 
     // ─── Block 517: Power cleans guide ──────
-    const powerCleansContext = getPowerCleansGuide(message);
+    const powerCleansContext = getPowerCleansGuide(topicQuery);
 
     // ─── Block 518: Flexibility for muscle growth ──────
-    const flexibilityMuscleGrowthContext = getFlexibilityMuscleGrowth(message);
+    const flexibilityMuscleGrowthContext = getFlexibilityMuscleGrowth(topicQuery);
 
     // ─── Block 519: Shoulder external rotation ──────
-    const shoulderExternalRotContext = getShoulderExternalRotation(message);
+    const shoulderExternalRotContext = getShoulderExternalRotation(topicQuery);
 
     // ─── Block 520: DOMS science detailed ──────
-    const domsScienceDetailedContext = getSorenesScienceDetailed(message);
+    const domsScienceDetailedContext = getSorenesScienceDetailed(topicQuery);
 
     // ─── Block 521: Trap training comprehensive ──────
-    const trapTrainingContext = getTrapTrainingGuide(message);
+    const trapTrainingContext = getTrapTrainingGuide(topicQuery);
 
     // ─── Block 522: Blood sugar and training ──────
-    const bloodSugarContext = getBloodSugarTraining(message);
+    const bloodSugarContext = getBloodSugarTraining(topicQuery);
 
     // ─── Block 523: Muscle memory science ──────
-    const muscleMemoryContext = getMuscleMemoryScience(message);
+    const muscleMemoryContext = getMuscleMemoryScience(topicQuery);
 
     // ─── Block 524: Training with scoliosis ──────
-    const scoliosisContext = getTrainingWithScoliosis(message);
+    const scoliosisContext = getTrainingWithScoliosis(topicQuery);
 
     // ─── Block 525: Pre-exhaust technique ──────
-    const preExhaustContext = getPreExhaustTechnique(message);
+    const preExhaustContext = getPreExhaustTechnique(topicQuery);
 
     // ─── Block 526: Electrolytes guide ──────
-    const electrolytesContext = getElectrolytesGuide(message);
+    const electrolytesContext = getElectrolytesGuide(topicQuery);
 
     // ─── Block 527: Posterior chain development ──────
-    const posteriorChainContext = getPosteriorChainDev(message);
+    const posteriorChainContext = getPosteriorChainDev(topicQuery);
 
     // ─── Block 528: Stress and cortisol management ──────
-    const stressCortisolContext = getStressCortisolManagement(message);
+    const stressCortisolContext = getStressCortisolManagement(topicQuery);
 
     // ─── Block 529: Abdominal training science ──────
-    const abdominalContext = getAbdominalTrainingScience(message);
+    const abdominalContext = getAbdominalTrainingScience(topicQuery);
 
     // ─── Block 530: Training plateaus psychology ──────
-    const plateauPsychContext = getPlateauPsychology(message);
+    const plateauPsychContext = getPlateauPsychology(topicQuery);
 
     // ─── Block 531: Rotator cuff strengthening ──────
-    const rotatorCuffContext = getRotatorCuffStrengthening(message);
+    const rotatorCuffContext = getRotatorCuffStrengthening(topicQuery);
 
     // ─── Block 532: Ankle stability and rehab ──────
-    const ankleStabilityContext = getAnkleStabilityRehab(message);
+    const ankleStabilityContext = getAnkleStabilityRehab(topicQuery);
 
     // ─── Block 533: Hormonal optimization natural ──────
-    const hormonalOptContext = getHormonalOptimizationNatural(message);
+    const hormonalOptContext = getHormonalOptimizationNatural(topicQuery);
 
     // ─── Block 534: Gym equipment maintenance ──────
-    const equipMaintenanceContext = getGymEquipmentMaintenance(message);
+    const equipMaintenanceContext = getGymEquipmentMaintenance(topicQuery);
 
     // ─── Block 535: Deload indicators advanced ──────
     const deloadIndicatorsContext = getDeloadIndicatorsAdvanced(message, totalWorkoutsEver);
 
     // ─── Block 536: Training with herniated disc ──────
-    const herniaTrainingContext = getTrainingWithHernia(message);
+    const herniaTrainingContext = getTrainingWithHernia(topicQuery);
 
     // ─── Block 537: Reverse dieting ──────
-    const reverseDietContext = getReverseDieting(message);
+    const reverseDietContext = getReverseDieting(topicQuery);
 
     // ─── Block 538: Breathing patterns in lifts ──────
-    const breathingPatternsContext = getBreathingPatternsLifts(message);
+    const breathingPatternsContext = getBreathingPatternsLifts(topicQuery);
 
     // ─── Block 539: Genetic potential estimation ──────
-    const geneticPotentialContext = getGeneticPotentialEstimation(message);
+    const geneticPotentialContext = getGeneticPotentialEstimation(topicQuery);
 
     // ─── Block 540: Wrist wraps and accessories ──────
-    const wristWrapsContext = getWristWrapsAccessories(message);
+    const wristWrapsContext = getWristWrapsAccessories(topicQuery);
 
     // ─── Block 541: Training frequency by muscle group ──────
-    const freqByMuscleContext = getTrainingFrequencyByMuscleAdv(message);
+    const freqByMuscleContext = getTrainingFrequencyByMuscleAdv(topicQuery);
 
     // ─── Block 542: Squat depth science ──────
-    const squatDepthContext = getSquatDepthScience(message);
+    const squatDepthContext = getSquatDepthScience(topicQuery);
 
     // ─── Block 543: Post-workout window truth ──────
-    const postWorkoutWindowTruthContext = getPostWorkoutWindowTruth(message);
+    const postWorkoutWindowTruthContext = getPostWorkoutWindowTruth(topicQuery);
 
     // ─── Block 544: Warm-up science comprehensive ──────
-    const warmupScienceContext = getWarmupScienceComprehensive(message);
+    const warmupScienceContext = getWarmupScienceComprehensive(topicQuery);
 
     // ─── Block 545: Muscle imbalance correction ──────
-    const imbalanceCorrectionContext = getMuscleImbalanceCorrection(message);
+    const imbalanceCorrectionContext = getMuscleImbalanceCorrection(topicQuery);
 
     // ─── Block 546: Alcohol and fitness impact ──────
-    const alcoholFitnessContext = getAlcoholFitnessImpact(message);
+    const alcoholFitnessContext = getAlcoholFitnessImpact(topicQuery);
 
     // ─── Block 547: Joint-friendly alternatives ──────
-    const jointFriendlyContext = getJointFriendlyAlternatives(message);
+    const jointFriendlyContext = getJointFriendlyAlternatives(topicQuery);
 
     // ─── Block 548: Caffeine cycling strategy ──────
-    const caffeineCyclingContext = getCaffeineCyclingStrategy(message);
+    const caffeineCyclingContext = getCaffeineCyclingStrategy(topicQuery);
 
     // ─── Block 549: Mind-muscle connection advanced ──────
-    const mindMuscleAdvContext = getMindMuscleAdvanced(message);
+    const mindMuscleAdvContext = getMindMuscleAdvanced(topicQuery);
 
     // ─── Block 550: Training journal best practices ──────
-    const trainingJournalContext = getTrainingJournalPractices(message);
+    const trainingJournalContext = getTrainingJournalPractices(topicQuery);
 
     // ─── Block 551: Periodization models comparison ──────
-    const periodizationModelsContext = getPeriodizationModelsComparison(message);
+    const periodizationModelsContext = getPeriodizationModelsComparison(topicQuery);
 
     // ─── Block 552: Tendon health and training ──────
-    const tendonHealthContext = getTendonHealthTraining(message);
+    const tendonHealthContext = getTendonHealthTraining(topicQuery);
 
     // ─── Block 553: Muscle soreness vs growth ──────
-    const sorenessVsGrowthContext = getMuscleSorenessVsGrowth(message);
+    const sorenessVsGrowthContext = getMuscleSorenessVsGrowth(topicQuery);
 
     // ─── Block 554: Posture correction exercises ──────
-    const postureCorrectionContext = getPostureCorrectionExercises(message);
+    const postureCorrectionContext = getPostureCorrectionExercises(topicQuery);
 
     // ─── Block 555: Training in cold weather ──────
-    const coldWeatherContext = getTrainingInCold(message);
+    const coldWeatherContext = getTrainingInCold(topicQuery);
 
     // ─── Block 556: Protein sources ranking ──────
-    const proteinSourcesContext = getProteinSourcesRanking(message);
+    const proteinSourcesContext = getProteinSourcesRanking(topicQuery);
 
     // ─── Block 557: Rest-pause technique ──────
-    const restPauseContext = getRestPauseTechnique(message);
+    const restPauseContext = getRestPauseTechnique(topicQuery);
 
     // ─── Block 558: Foam rolling science ──────
-    const foamRollingSciContext = getFoamRollingScience(message);
+    const foamRollingSciContext = getFoamRollingScience(topicQuery);
 
     // ─── Block 559: Training with resistance bands adv ──────
-    const resistanceBandAdvContext = getResistanceBandTrainingAdv(message);
+    const resistanceBandAdvContext = getResistanceBandTrainingAdv(topicQuery);
 
     // ─── Block 560: Carb timing for performance ──────
-    const carbTimingContext = getCarbTimingPerformance(message);
+    const carbTimingContext = getCarbTimingPerformance(topicQuery);
 
     // ─── Block 561: Glycemic index for athletes ──────
-    const glycemicIndexContext = getGlycemicIndexAthletes(message);
+    const glycemicIndexContext = getGlycemicIndexAthletes(topicQuery);
 
     // ─── Block 562: Leg press variations ──────
-    const legPressVarContext = getLegPressVariations(message);
+    const legPressVarContext = getLegPressVariations(topicQuery);
 
     // ─── Block 563: Sleep optimization for athletes ──────
-    const sleepOptAthletesContext = getSleepOptimizationAthletes(message);
+    const sleepOptAthletesContext = getSleepOptimizationAthletes(topicQuery);
 
     // ─── Block 564: Training for bone density ──────
-    const boneDensityContext = getTrainingBoneDensity(message);
+    const boneDensityContext = getTrainingBoneDensity(topicQuery);
 
     // ─── Block 565: Machine vs free weights ──────
-    const machineVsFreeContext = getMachineVsFreeWeights(message);
+    const machineVsFreeContext = getMachineVsFreeWeights(topicQuery);
 
     // ─── Block 566: Gut microbiome and performance ──────
-    const gutMicrobiomeContext = getGutMicrobiomePerformance(message);
+    const gutMicrobiomeContext = getGutMicrobiomePerformance(topicQuery);
 
     // ─── Block 567: Volume autoregulation ──────
-    const volumeAutoregContext = getVolumeAutoregulation(message);
+    const volumeAutoregContext = getVolumeAutoregulation(topicQuery);
 
     // ─── Block 568: Plyometrics for strength ──────
-    const plyometricsContext = getPlyometricsStrength(message);
+    const plyometricsContext = getPlyometricsStrength(topicQuery);
 
     // ─── Block 569: Sodium and water retention ──────
-    const sodiumWaterContext = getSodiumWaterRetention(message);
+    const sodiumWaterContext = getSodiumWaterRetention(topicQuery);
 
     // ─── Block 570: Training motivation strategies ──────
-    const motivationContext = getTrainingMotivationStrategies(message);
+    const motivationContext = getTrainingMotivationStrategies(topicQuery);
 
     // ─── Block 571: Chest fly variations ──────
-    const chestFlyContext = getChestFlyVariations(message);
+    const chestFlyContext = getChestFlyVariations(topicQuery);
 
     // ─── Block 572: Whey vs casein vs plant protein ──────
-    const proteinPowderCompContext = getProteinPowderComparison(message);
+    const proteinPowderCompContext = getProteinPowderComparison(topicQuery);
 
     // ─── Block 573: Functional fitness ──────
-    const functionalFitnessContext = getFunctionalFitness(message);
+    const functionalFitnessContext = getFunctionalFitness(topicQuery);
 
     // ─── Block 574: Insulin sensitivity ──────
-    const insulinSensitivityContext = getInsulinSensitivity(message);
+    const insulinSensitivityContext = getInsulinSensitivity(topicQuery);
 
     // ─── Block 575: Training with flat feet ──────
-    const flatFeetContext = getTrainingFlatFeet(message);
+    const flatFeetContext = getTrainingFlatFeet(topicQuery);
 
     // ─── Block 576: Bench press grip width ──────
-    const benchGripWidthContext = getBenchPressGripWidth(message);
+    const benchGripWidthContext = getBenchPressGripWidth(topicQuery);
 
     // ─── Block 577: Anti-inflammatory nutrition ──────
-    const antiInflammatoryContext = getAntiInflammatoryNutrition(message);
+    const antiInflammatoryContext = getAntiInflammatoryNutrition(topicQuery);
 
     // ─── Block 578: Cable exercises benefits ──────
-    const cableExercisesContext = getCableExercisesBenefits(message);
+    const cableExercisesContext = getCableExercisesBenefits(topicQuery);
 
     // ─── Block 579: Zinc and magnesium ──────
-    const zincMagnesiumContext = getZincMagnesiumAthletes(message);
+    const zincMagnesiumContext = getZincMagnesiumAthletes(topicQuery);
 
     // ─── Block 580: Training age vs chronological ──────
-    const trainingVsChronoContext = getTrainingVsChronologicalAge(message);
+    const trainingVsChronoContext = getTrainingVsChronologicalAge(topicQuery);
 
     // ─── Block 581: Deadlift variations guide ──────
-    const deadliftVarContext = getDeadliftVariationsGuide(message);
+    const deadliftVarContext = getDeadliftVariationsGuide(topicQuery);
 
     // ─── Block 582: Beta-alanine guide ──────
-    const betaAlanineContext = getBetaAlanineGuide(message);
+    const betaAlanineContext = getBetaAlanineGuide(topicQuery);
 
     // ─── Block 583: Proper deadlift bracing ──────
-    const bracingContext = getDeadliftBracing(message);
+    const bracingContext = getDeadliftBracing(topicQuery);
 
     // ─── Block 584: Citrulline guide ──────
-    const citrullineContext = getCitrullineGuide(message);
+    const citrullineContext = getCitrullineGuide(topicQuery);
 
     // ─── Block 585: Overhead press form ──────
-    const ohpFormContext = getOverheadPressForm(message);
+    const ohpFormContext = getOverheadPressForm(topicQuery);
 
     // ─── Block 586: Metabolic conditioning ──────
-    const metconContext = getMetabolicConditioning(message);
+    const metconContext = getMetabolicConditioning(topicQuery);
 
     // ─── Block 587: Shoulder press variations ──────
-    const shoulderPressVarContext = getShoulderPressVariations(message);
+    const shoulderPressVarContext = getShoulderPressVariations(topicQuery);
 
     // ─── Block 588: Calorie tracking accuracy ──────
-    const calorieTrackingContext = getCalorieTrackingAccuracy(message);
+    const calorieTrackingContext = getCalorieTrackingAccuracy(topicQuery);
 
     // ─── Block 589: Hip hinge pattern ──────
-    const hipHingeContext = getHipHingePattern(message);
+    const hipHingeContext = getHipHingePattern(topicQuery);
 
     // ─── Block 590: Iron deficiency in athletes ──────
-    const ironDeficiencyContext = getIronDeficiencyAthletes(message);
+    const ironDeficiencyContext = getIronDeficiencyAthletes(topicQuery);
 
     // ─── Block 591: Glute activation ──────
-    const gluteActivationContext = getGluteActivation(message);
+    const gluteActivationContext = getGluteActivation(topicQuery);
 
     // ─── Block 592: Vitamin B12 ──────
-    const vitaminB12Context = getVitaminB12Performance(message);
+    const vitaminB12Context = getVitaminB12Performance(topicQuery);
 
     // ─── Block 593: Training with knee pain ──────
-    const kneePainContext = getTrainingKneePain(message);
+    const kneePainContext = getTrainingKneePain(topicQuery);
 
     // ─── Block 594: Meal prep strategies ──────
-    const mealPrepStrategyContext = getMealPrepStrategies(message);
+    const mealPrepStrategyContext = getMealPrepStrategies(topicQuery);
 
     // ─── Block 595: Cluster sets ──────
-    const clusterSetsContext = getClusterSets(message);
+    const clusterSetsContext = getClusterSets(topicQuery);
 
     // ─── Block 596: Lat pulldown vs pull-ups ──────
-    const latPulldownContext = getLatPulldownVsPullUp(message);
+    const latPulldownContext = getLatPulldownVsPullUp(topicQuery);
 
     // ─── Block 597: Potassium and muscle function ──────
-    const potassiumContext = getPotassiumMuscleFunction(message);
+    const potassiumContext = getPotassiumMuscleFunction(topicQuery);
 
     // ─── Block 598: Shoulder impingement training ──────
-    const shoulderImpingementAdvContext = getShoulderImpingementTraining(message);
+    const shoulderImpingementAdvContext = getShoulderImpingementTraining(topicQuery);
 
     // ─── Block 599: Minimal effective volume ──────
-    const mevContext = getMinimalEffectiveVolume(message);
+    const mevContext = getMinimalEffectiveVolume(topicQuery);
 
     // ─── Block 600: Glycogen replenishment ──────
-    const glycogenReplenishContext = getGlycogenReplenishment(message);
+    const glycogenReplenishContext = getGlycogenReplenishment(topicQuery);
 
     // ─── Block 601: Pec training optimization ──────
-    const pecTrainingContext = getPecTrainingOptimization(message);
+    const pecTrainingContext = getPecTrainingOptimization(topicQuery);
 
     // ─── Block 602: Digestive enzymes ──────
-    const digestiveEnzymesContext = getDigestiveEnzymes(message);
+    const digestiveEnzymesContext = getDigestiveEnzymes(topicQuery);
 
     // ─── Block 603: Trap bar deadlift ──────
-    const trapBarContext = getTrapBarDeadlift(message);
+    const trapBarContext = getTrapBarDeadlift(topicQuery);
 
     // ─── Block 604: Anti-aging exercise ──────
-    const antiAgingContext = getAntiAgingExercise(message);
+    const antiAgingContext = getAntiAgingExercise(topicQuery);
 
     // ─── Block 605: Unilateral training ──────
-    const unilateralContext = getUnilateralTraining(message);
+    const unilateralContext = getUnilateralTraining(topicQuery);
 
     // ─── Block 606: Pre-workout supplements ──────
-    const preWorkoutSuppContext = getPreWorkoutSupplements(message);
+    const preWorkoutSuppContext = getPreWorkoutSupplements(topicQuery);
 
     // ─── Block 607: Hamstring training ──────
-    const hamstringContext = getHamstringTraining(message);
+    const hamstringContext = getHamstringTraining(topicQuery);
 
     // ─── Block 608: Blood pressure exercise ──────
-    const bloodPressureContext = getBloodPressureExercise(message);
+    const bloodPressureContext = getBloodPressureExercise(topicQuery);
 
     // ─── Block 609: Grip types ──────
-    const gripTypesContext = getGripTypesApplications(message);
+    const gripTypesContext = getGripTypesApplications(topicQuery);
 
     // ─── Block 610: Cortisol management ──────
-    const cortisolMgmtContext = getCortisolManagement(message);
+    const cortisolMgmtContext = getCortisolManagement(topicQuery);
 
     // ─── Block 611: Rear delt training ──────
-    const rearDeltContext = getRearDeltTraining(message);
+    const rearDeltContext = getRearDeltTraining(topicQuery);
 
     // ─── Block 612: Taurine for athletes ──────
-    const taurineContext = getTaurineAthletes(message);
+    const taurineContext = getTaurineAthletes(topicQuery);
 
     // ─── Block 613: Dumbbell vs barbell ──────
-    const dbVsBbContext = getDumbbellVsBarbell(message);
+    const dbVsBbContext = getDumbbellVsBarbell(topicQuery);
 
     // ─── Block 614: Insulin and muscle growth ──────
-    const insulinGrowthContext = getInsulinMuscleGrowth(message);
+    const insulinGrowthContext = getInsulinMuscleGrowth(topicQuery);
 
     // ─── Block 615: Beginner periodization ──────
-    const beginnerPeriodContext = getBeginnerPeriodization(message);
+    const beginnerPeriodContext = getBeginnerPeriodization(topicQuery);
 
     // ─── Block 616: Recovery nutrition timing ──────
-    const recoveryNutrTimingContext = getRecoveryNutritionTiming(message);
+    const recoveryNutrTimingContext = getRecoveryNutritionTiming(topicQuery);
 
     // ─── Block 617: Scapular health ──────
-    const scapularHealthContext = getScapularHealth(message);
+    const scapularHealthContext = getScapularHealth(topicQuery);
 
     // ─── Block 618: Time under tension ──────
-    const tutScienceContext = getTimeUnderTensionScience(message);
+    const tutScienceContext = getTimeUnderTensionScience(topicQuery);
 
     // ─── Block 619: Protein types comparison ──────
-    const proteinTypesContext = getProteinTypesComparison(message);
+    const proteinTypesContext = getProteinTypesComparison(topicQuery);
 
     // ─── Block 620: Adductor/abductor training ──────
-    const adductorAbductorContext = getAdductorAbductorTraining(message);
+    const adductorAbductorContext = getAdductorAbductorTraining(topicQuery);
 
     // ─── Block 621: Sumo vs conventional deadlift ──────
-    const sumoVsConvContext = getSumoVsConventional(message);
+    const sumoVsConvContext = getSumoVsConventional(topicQuery);
 
     // ─── Block 622: Vitamin D athletic ──────
-    const vitDathleticContext = getVitaminDAthletic(message);
+    const vitDathleticContext = getVitaminDAthletic(topicQuery);
 
     // ─── Block 623: Cable machine guide ──────
-    const cableMachineContext = getCableMachineGuide(message);
+    const cableMachineContext = getCableMachineGuide(topicQuery);
 
     // ─── Block 624: Thermic effect of food ──────
-    const tefContext = getThermicEffectFood(message);
+    const tefContext = getThermicEffectFood(topicQuery);
 
     // ─── Block 625: Progressive calisthenics ──────
-    const progCalisthenicsContext = getProgressiveCalisthenics(message);
+    const progCalisthenicsContext = getProgressiveCalisthenics(topicQuery);
 
     // ─── Block 626: Neck training safety ──────
-    const neckSafetyContext = getNeckTrainingSafety(message);
+    const neckSafetyContext = getNeckTrainingSafety(topicQuery);
 
     // ─── Block 627: Selenium and thyroid ──────
-    const seleniumContext = getSeleniumThyroid(message);
+    const seleniumContext = getSeleniumThyroid(topicQuery);
 
     // ─── Block 628: Smith machine exercises ──────
-    const smithMachineContext = getSmithMachineExercises(message);
+    const smithMachineContext = getSmithMachineExercises(topicQuery);
 
     // ─── Block 629: Muscle soreness management ──────
-    const sorenessManageContext = getMuscleSorenessManage(message);
+    const sorenessManageContext = getMuscleSorenessManage(topicQuery);
 
     // ─── Block 630: Resistance bands only ──────
-    const bandsOnlyContext = getResistanceBandsOnly(message);
+    const bandsOnlyContext = getResistanceBandsOnly(topicQuery);
 
     // ─── Block 631: Leg curl variations ──────
-    const legCurlVarContext = getLegCurlVariations(message);
+    const legCurlVarContext = getLegCurlVariations(topicQuery);
 
     // ─── Block 632: Iodine and thyroid ──────
-    const iodineContext = getIodineThyroid(message);
+    const iodineContext = getIodineThyroid(topicQuery);
 
     // ─── Block 633: Mechanical drop sets ──────
-    const mechDropSetsContext = getMechanicalDropSets(message);
+    const mechDropSetsContext = getMechanicalDropSets(topicQuery);
 
     // ─── Block 634: Concentric vs eccentric ──────
-    const concVsEccContext = getConcentricVsEccentric(message);
+    const concVsEccContext = getConcentricVsEccentric(topicQuery);
 
     // ─── Block 635: Ashwagandha ──────
-    const ashwagandhaContext = getAshwagandhaPerformance(message);
+    const ashwagandhaContext = getAshwagandhaPerformance(topicQuery);
 
     // ─── Block 636: Chest supported rows ──────
-    const chestSupportedContext = getChestSupportedRows(message);
+    const chestSupportedContext = getChestSupportedRows(topicQuery);
 
     // ─── Block 637: Antioxidants and exercise ──────
-    const antioxidantsContext = getAntioxidantsExercise(message);
+    const antioxidantsContext = getAntioxidantsExercise(topicQuery);
 
     // ─── Block 638: Landmine exercises ──────
-    const landmineContext = getLandmineExercises(message);
+    const landmineContext = getLandmineExercises(topicQuery);
 
     // ─── Block 639: Carb sources ranking ──────
-    const carbSourcesContext = getCarbSourcesRanking(message);
+    const carbSourcesContext = getCarbSourcesRanking(topicQuery);
 
     // ─── Block 640: Rotational core ──────
-    const rotationalCoreContext = getRotationalCore(message);
+    const rotationalCoreContext = getRotationalCore(topicQuery);
 
     // ─── Block 641: Proper breathing ──────
-    const properBreathingContext = getProperBreathingExercise(message);
+    const properBreathingContext = getProperBreathingExercise(topicQuery);
 
     // ─── Block 642: Fat sources ──────
-    const fatSourcesContext = getFatSourcesAthletes(message);
+    const fatSourcesContext = getFatSourcesAthletes(topicQuery);
 
     // ─── Block 643: Mind-body connection ──────
-    const mindBodyConnContext = getMindBodyConnectionScience(message);
+    const mindBodyConnContext = getMindBodyConnectionScience(topicQuery);
 
     // ─── Block 644: Back squat form ──────
-    const backSquatFormContext = getBackSquatForm(message);
+    const backSquatFormContext = getBackSquatForm(topicQuery);
 
     // ─── Block 645: Probiotics ──────
-    const probioticsContext = getProbioticsAthletes(message);
+    const probioticsContext = getProbioticsAthletes(topicQuery);
 
     // ─── Block 646: Front squat technique ──────
-    const frontSquatTechContext = getFrontSquatTechniqueAdv(message);
+    const frontSquatTechContext = getFrontSquatTechniqueAdv(topicQuery);
 
     // ─── Block 647: Sodium intake ──────
-    const sodiumIntakeContext = getSodiumIntakeAthletes(message);
+    const sodiumIntakeContext = getSodiumIntakeAthletes(topicQuery);
 
     // ─── Block 648: Pendlay row ──────
-    const pendlayRowContext = getPendlayRow(message);
+    const pendlayRowContext = getPendlayRow(topicQuery);
 
     // ─── Block 649: Fiber intake ──────
-    const fiberIntakeContext = getFiberIntakeOptimization(message);
+    const fiberIntakeContext = getFiberIntakeOptimization(topicQuery);
 
     // ─── Block 650: Conjugate method ──────
-    const conjugateContext = getConjugateMethod(message);
+    const conjugateContext = getConjugateMethod(topicQuery);
 
     // ─── Block 651: Shoulder mobility drills ──────
-    const shoulderMobilityContext = getShoulderMobilityDrills(message);
+    const shoulderMobilityContext = getShoulderMobilityDrills(topicQuery);
     // ─── Block 652: Chromium blood sugar ──────
-    const chromiumContext = getChromiumBloodSugar(message);
+    const chromiumContext = getChromiumBloodSugar(topicQuery);
     // ─── Block 653: RDL vs SLDL ──────
-    const rdlVsSldlContext = getRdlVsSldl(message);
+    const rdlVsSldlContext = getRdlVsSldl(topicQuery);
     // ─── Block 654: Post-injury return ──────
-    const postInjuryReturnContext = getPostInjuryReturn(message);
+    const postInjuryReturnContext = getPostInjuryReturn(topicQuery);
     // ─── Block 655: Seated vs standing ──────
-    const seatedVsStandingContext = getSeatedVsStanding(message);
+    const seatedVsStandingContext = getSeatedVsStanding(topicQuery);
     // ─── Block 656: Coconut water sport ──────
-    const coconutWaterContext = getCoconutWaterSport(message);
+    const coconutWaterContext = getCoconutWaterSport(topicQuery);
     // ─── Block 657: Goblet squat ──────
-    const gobletSquatContext = getGobletSquat(message);
+    const gobletSquatContext = getGobletSquat(topicQuery);
     // ─── Block 658: Iron zinc interaction ──────
-    const ironZincContext = getIronZincInteraction(message);
+    const ironZincContext = getIronZincInteraction(topicQuery);
     // ─── Block 659: Inverted row progression ──────
-    const invertedRowContext = getInvertedRowProgression(message);
+    const invertedRowContext = getInvertedRowProgression(topicQuery);
     // ─── Block 660: Appetite management ──────
-    const appetiteContext = getAppetiteManagement(message);
+    const appetiteContext = getAppetiteManagement(topicQuery);
 
     // ─── Block 661: Trap bar farmers walk ──────
-    const trapBarFarmersContext = getTrapBarFarmersWalk(message);
+    const trapBarFarmersContext = getTrapBarFarmersWalk(topicQuery);
     // ─── Block 662: Zinc supplementation ──────
-    const zincSuppContext = getZincSupplementation(message);
+    const zincSuppContext = getZincSupplementation(topicQuery);
     // ─── Block 663: Sissy squat ──────
-    const sissySquatContext = getSissySquat(message);
+    const sissySquatContext = getSissySquat(topicQuery);
     // ─── Block 664: Colostrum supplement ──────
-    const colostrumContext = getColostrumSupplement(message);
+    const colostrumContext = getColostrumSupplement(topicQuery);
     // ─── Block 665: Cable crossover variations ──────
-    const cableCrossoverContext = getCableCrossoverVar(message);
+    const cableCrossoverContext = getCableCrossoverVar(topicQuery);
     // ─── Block 666: L-glutamine guide ──────
-    const glutamineContext = getLGlutamineGuide(message);
+    const glutamineContext = getLGlutamineGuide(topicQuery);
     // ─── Block 667: Bulgarian split squat adv ──────
-    const bulgarianSplitContext = getBulgarianSplitSquatAdv(message);
+    const bulgarianSplitContext = getBulgarianSplitSquatAdv(topicQuery);
     // ─── Block 668: Phosphatidylserine ──────
-    const phosphatidylserineContext = getPhosphatidylserine(message);
+    const phosphatidylserineContext = getPhosphatidylserine(topicQuery);
     // ─── Block 669: Meadows row ──────
-    const meadowsRowContext = getMeadowsRow(message);
+    const meadowsRowContext = getMeadowsRow(topicQuery);
     // ─── Block 670: Vitamin K2 calcium ──────
-    const vitaminK2Context = getVitaminK2Calcium(message);
+    const vitaminK2Context = getVitaminK2Calcium(topicQuery);
 
     // ─── Block 671: Serratus anterior ──────
-    const serratusContext = getSerratusAnterior(message);
+    const serratusContext = getSerratusAnterior(topicQuery);
     // ─── Block 672: Carnitine fat metabolism ──────
-    const carnitineContext = getCarnitineFatMetabolism(message);
+    const carnitineContext = getCarnitineFatMetabolism(topicQuery);
     // ─── Block 673: Hip mobility complex ──────
-    const hipMobilityContext = getHipMobilityComplex(message);
+    const hipMobilityContext = getHipMobilityComplex(topicQuery);
     // ─── Block 674: Rhodiola rosea ──────
-    const rhodiolaContext = getRhodiolaRosea(message);
+    const rhodiolaContext = getRhodiolaRosea(topicQuery);
     // ─── Block 675: Chest dip technique ──────
-    const chestDipContext = getChestDipTechnique(message);
+    const chestDipContext = getChestDipTechnique(topicQuery);
     // ─── Block 676: CoQ10 energy ──────
-    const coq10Context = getCoQ10Energy(message);
+    const coq10Context = getCoQ10Energy(topicQuery);
     // ─── Block 677: Face pull form ──────
-    const facePullContext = getFacePullForm(message);
+    const facePullContext = getFacePullForm(topicQuery);
     // ─── Block 678: Betaine performance ──────
-    const betaineContext = getBetainePerformance(message);
+    const betaineContext = getBetainePerformance(topicQuery);
     // ─── Block 679: Hack squat ──────
-    const hackSquatContext = getHackSquat(message);
+    const hackSquatContext = getHackSquat(topicQuery);
     // ─── Block 680: Taurine athletic ──────
-    const taurineAthleticContext = getTaurineAthletic(message);
+    const taurineAthleticContext = getTaurineAthletic(topicQuery);
 
     // ─── Block 681: Pendulum squat ──────
-    const pendulumSquatContext = getPendulumSquat(message);
+    const pendulumSquatContext = getPendulumSquat(topicQuery);
     // ─── Block 682: Astaxanthin ──────
-    const astaxanthinContext = getAstaxanthinGuide(message);
+    const astaxanthinContext = getAstaxanthinGuide(topicQuery);
     // ─── Block 683: Reverse grip bench ──────
-    const reverseGripBenchContext = getReverseGripBench(message);
+    const reverseGripBenchContext = getReverseGripBench(topicQuery);
     // ─── Block 684: Boron mineral ──────
-    const boronContext = getBoronMineral(message);
+    const boronContext = getBoronMineral(topicQuery);
     // ─── Block 685: Lat pulldown variations adv ──────
-    const latPulldownVarContext = getLatPulldownVarAdv(message);
+    const latPulldownVarContext = getLatPulldownVarAdv(topicQuery);
     // ─── Block 686: PQQ mitochondrial ──────
-    const pqqContext = getPqqMitochondrial(message);
+    const pqqContext = getPqqMitochondrial(topicQuery);
     // ─── Block 687: Jefferson curl ──────
-    const jeffersonCurlContext = getJeffersonCurl(message);
+    const jeffersonCurlContext = getJeffersonCurl(topicQuery);
     // ─── Block 688: Glycine sleep recovery ──────
-    const glycineContext = getGlycineSleepRecovery(message);
+    const glycineContext = getGlycineSleepRecovery(topicQuery);
     // ─── Block 689: Zercher squat ──────
-    const zercherContext = getZercherSquat(message);
+    const zercherContext = getZercherSquat(topicQuery);
     // ─── Block 690: Adaptogenic mushrooms ──────
-    const adaptogenicMushroomsContext = getAdaptogenicMushrooms(message);
+    const adaptogenicMushroomsContext = getAdaptogenicMushrooms(topicQuery);
 
     // ─── Block 691: Glute-ham raise ──────
-    const gluteHamContext = getGluteHamRaise(message);
+    const gluteHamContext = getGluteHamRaise(topicQuery);
     // ─── Block 692: Shilajit guide ──────
-    const shilajitContext = getShilajitGuide(message);
+    const shilajitContext = getShilajitGuide(topicQuery);
     // ─── Block 693: Close grip bench ──────
-    const closeGripBenchContext = getCloseGripBench(message);
+    const closeGripBenchContext = getCloseGripBench(topicQuery);
     // ─── Block 694: Curcumin bioavailability ──────
-    const curcuminContext = getCurcuminBioavailability(message);
+    const curcuminContext = getCurcuminBioavailability(topicQuery);
     // ─── Block 695: Seal row ──────
-    const sealRowContext = getSealRow(message);
+    const sealRowContext = getSealRow(topicQuery);
     // ─── Block 696: Electrolyte balance sport ──────
-    const electrolyteBalanceContext = getElectrolyteBalanceSport(message);
+    const electrolyteBalanceContext = getElectrolyteBalanceSport(topicQuery);
     // ─── Block 697: Deficit deadlift ──────
-    const deficitDeadliftContext = getDeficitDeadlift(message);
+    const deficitDeadliftContext = getDeficitDeadlift(topicQuery);
     // ─── Block 698: NAC guide ──────
-    const nacContext = getNacGuide(message);
+    const nacContext = getNacGuide(topicQuery);
     // ─── Block 699: Spoto press ──────
-    const spotoPressContext = getSpotoPress(message);
+    const spotoPressContext = getSpotoPress(topicQuery);
     // ─── Block 700: Berberine metabolic ──────
-    const berberineContext = getBerberineMetabolic(message);
+    const berberineContext = getBerberineMetabolic(topicQuery);
 
     // ─── Block 701: Pin press ──────
-    const pinPressContext = getPinPress(message);
+    const pinPressContext = getPinPress(topicQuery);
     // ─── Block 702: Spirulina guide ──────
-    const spirulinaContext = getSpirulinaGuide(message);
+    const spirulinaContext = getSpirulinaGuide(topicQuery);
     // ─── Block 703: Pause squat ──────
-    const pauseSquatContext = getPauseSquat(message);
+    const pauseSquatContext = getPauseSquat(topicQuery);
     // ─── Block 704: Fulvic acid ──────
-    const fulvicAcidContext = getFulvicAcid(message);
+    const fulvicAcidContext = getFulvicAcid(topicQuery);
     // ─── Block 705: Anderson squat ──────
-    const andersonSquatContext = getAndersonSquat(message);
+    const andersonSquatContext = getAndersonSquat(topicQuery);
     // ─── Block 706: Digestive health athlete ──────
-    const digestiveHealthAthleteContext = getDigestiveHealthAthlete(message);
+    const digestiveHealthAthleteContext = getDigestiveHealthAthlete(topicQuery);
     // ─── Block 707: Floor press ──────
-    const floorPressContext = getFloorPress(message);
+    const floorPressContext = getFloorPress(topicQuery);
     // ─── Block 708: Quercetin endurance ──────
-    const quercetinContext = getQuercetinEndurance(message);
+    const quercetinContext = getQuercetinEndurance(topicQuery);
     // ─── Block 709: Good morning ──────
-    const goodMorningContext = getGoodMorning(message);
+    const goodMorningContext = getGoodMorning(topicQuery);
     // ─── Block 710: Resveratrol longevity ──────
-    const resveratrolContext = getResveratrolLongevity(message);
+    const resveratrolContext = getResveratrolLongevity(topicQuery);
 
     // ─── Block 711: Safety squat bar ──────
-    const ssbContext = getSafetySquatBar(message);
+    const ssbContext = getSafetySquatBar(topicQuery);
     // ─── Block 712: Apigenin sleep ──────
-    const apigeninContext = getApigeninSleep(message);
+    const apigeninContext = getApigeninSleep(topicQuery);
     // ─── Block 713: Snatch grip deadlift ──────
-    const snatchGripContext = getSnatchGripDeadlift(message);
+    const snatchGripContext = getSnatchGripDeadlift(topicQuery);
     // ─── Block 714: EAA guide ──────
-    const eaaContext = getEaaGuide(message);
+    const eaaContext = getEaaGuide(topicQuery);
     // ─── Block 715: Tempo contrast training ──────
-    const tempoContrastContext = getTempoContrastTraining(message);
+    const tempoContrastContext = getTempoContrastTraining(topicQuery);
     // ─── Block 716: Chlorella detox ──────
-    const chlorellaContext = getChlorellaDetox(message);
+    const chlorellaContext = getChlorellaDetox(topicQuery);
     // ─── Block 717: Pendlay row strict ──────
-    const pendlayStrictContext = getPendlayRowStrict(message);
+    const pendlayStrictContext = getPendlayRowStrict(topicQuery);
     // ─── Block 718: HMB supplement ──────
-    const hmbContext = getHmbSupplement(message);
+    const hmbContext = getHmbSupplement(topicQuery);
     // ─── Block 719: Reverse hyper ──────
-    const reverseHyperContext = getReverseHyper(message);
+    const reverseHyperContext = getReverseHyper(topicQuery);
     // ─── Block 720: Alpha-GPC cognitive ──────
-    const alphaGpcContext = getAlphaGpcCognitive(message);
+    const alphaGpcContext = getAlphaGpcCognitive(topicQuery);
 
     // ─── Block 721: Belt squat ──────
-    const beltSquatContext = getBeltSquat(message);
+    const beltSquatContext = getBeltSquat(topicQuery);
     // ─── Block 722: Tongkat ali ──────
-    const tongkatAliContext = getTongkatAli(message);
+    const tongkatAliContext = getTongkatAli(topicQuery);
     // ─── Block 723: Larsen press ──────
-    const larsenPressContext = getLarsenPress(message);
+    const larsenPressContext = getLarsenPress(topicQuery);
     // ─── Block 724: Fenugreek testosterone ──────
-    const fenugreekContext = getFenugreekTestosterone(message);
+    const fenugreekContext = getFenugreekTestosterone(topicQuery);
     // ─── Block 725: Z press ──────
-    const zPressContext = getZPress(message);
+    const zPressContext = getZPress(topicQuery);
     // ─── Block 726: Elderberry immune ──────
-    const elderberryContext = getElderberryImmune(message);
+    const elderberryContext = getElderberryImmune(topicQuery);
     // ─── Block 727: JM press ──────
-    const jmPressContext = getJmPress(message);
+    const jmPressContext = getJmPress(topicQuery);
     // ─── Block 728: Maca root ──────
-    const macaContext = getMacaRoot(message);
+    const macaContext = getMacaRoot(topicQuery);
     // ─── Block 729: Viking press ──────
-    const vikingPressContext = getVikingPress(message);
+    const vikingPressContext = getVikingPress(topicQuery);
     // ─── Block 730: Black seed oil ──────
-    const blackSeedContext = getBlackSeedOil(message);
+    const blackSeedContext = getBlackSeedOil(topicQuery);
 
     // ─── Block 731-740 calls ──────
-    const gripStrengthAdvContext = getGripStrengthAdvanced(message);
-    const ashwagandhaCortisolContext = getAshwagandhaCortisolGuide(message);
-    const forwardReverseLungeContext = getForwardVsReverseLunge(message);
-    const omega3AthleteContext = getOmega3AthleteDosage(message);
-    const singleLegRdlContext = getSingleLegRDL(message);
-    const bVitaminsContext = getBVitaminsSport(message);
-    const sissyHackContext = getSissyHackSquat(message);
-    const zincTestosteroneContext = getZincTestosterone(message);
-    const cablePullThroughContext = getCablePullThrough(message);
-    const arachidonicContext = getArachidonicAcid(message);
+    const gripStrengthAdvContext = getGripStrengthAdvanced(topicQuery);
+    const ashwagandhaCortisolContext = getAshwagandhaCortisolGuide(topicQuery);
+    const forwardReverseLungeContext = getForwardVsReverseLunge(topicQuery);
+    const omega3AthleteContext = getOmega3AthleteDosage(topicQuery);
+    const singleLegRdlContext = getSingleLegRDL(topicQuery);
+    const bVitaminsContext = getBVitaminsSport(topicQuery);
+    const sissyHackContext = getSissyHackSquat(topicQuery);
+    const zincTestosteroneContext = getZincTestosterone(topicQuery);
+    const cablePullThroughContext = getCablePullThrough(topicQuery);
+    const arachidonicContext = getArachidonicAcid(topicQuery);
 
     // ─── Block 741-750 calls ──────
-    const lateralDeltContext = getLateralDeltTraining(message);
-    const lTheanineContext = getLTheanineFocus(message);
-    const pausedBulgarianContext = getPausedBulgarianSplit(message);
-    const creatineHclContext = getCreatineHclVsMono(message);
-    const reverseGripRowContext = getReverseGripRow(message);
-    const magTaurateContext = getMagnesiumTaurate(message);
-    const legExtVarContext = getLegExtensionVariations(message);
-    const collagenAdvContext = getCollagenAdvancedGuide(message);
-    const rearDeltAdvContext = getRearDeltAdvanced(message);
-    const glucosamineContext = getGlucosamineChondroitin(message);
+    const lateralDeltContext = getLateralDeltTraining(topicQuery);
+    const lTheanineContext = getLTheanineFocus(topicQuery);
+    const pausedBulgarianContext = getPausedBulgarianSplit(topicQuery);
+    const creatineHclContext = getCreatineHclVsMono(topicQuery);
+    const reverseGripRowContext = getReverseGripRow(topicQuery);
+    const magTaurateContext = getMagnesiumTaurate(topicQuery);
+    const legExtVarContext = getLegExtensionVariations(topicQuery);
+    const collagenAdvContext = getCollagenAdvancedGuide(topicQuery);
+    const rearDeltAdvContext = getRearDeltAdvanced(topicQuery);
+    const glucosamineContext = getGlucosamineChondroitin(topicQuery);
 
     // ─── Block 751-760 calls ──────
-    const tricepsCompleteContext = getTricepsCompleteGuide(message);
-    const melatoninRecovContext = getMelatoninRecovery(message);
-    const pendulumRevHyperContext = getPendulumReverseHyperMachine(message);
-    const vitaminEContext = getVitaminEAntioxidant(message);
-    const cableLateralContext = getCableLateralRaise(message);
-    const msmJointsContext = getMsmJoints(message);
-    const bicepsAdvContext = getBicepsAdvancedTraining(message);
-    const electrolytesEndurContext = getElectrolytesEndurance(message);
-    const legPressAnglesContext = getLegPressAngles(message);
-    const pycnogenolContext = getPycnogenolGuide(message);
+    const tricepsCompleteContext = getTricepsCompleteGuide(topicQuery);
+    const melatoninRecovContext = getMelatoninRecovery(topicQuery);
+    const pendulumRevHyperContext = getPendulumReverseHyperMachine(topicQuery);
+    const vitaminEContext = getVitaminEAntioxidant(topicQuery);
+    const cableLateralContext = getCableLateralRaise(topicQuery);
+    const msmJointsContext = getMsmJoints(topicQuery);
+    const bicepsAdvContext = getBicepsAdvancedTraining(topicQuery);
+    const electrolytesEndurContext = getElectrolytesEndurance(topicQuery);
+    const legPressAnglesContext = getLegPressAngles(topicQuery);
+    const pycnogenolContext = getPycnogenolGuide(topicQuery);
 
     // ─── Block 761-770 calls ──────
-    const forearmDetailContext = getForearmDetailedTraining(message);
-    const curcuminPiperineContext = getCurcuminPiperine(message);
-    const hackVsLegPressContext = getHackVsLegPress(message);
-    const ironAthletesContext = getIronAthletes(message);
-    const inclineCurlContext = getInclineDumbbellCurl(message);
-    const potassiumAthContext = getPotassiumAthletes(message);
-    const absScienceContext = getAbsScienceBased(message);
-    const bcaaVsEaaContext = getBcaaVsEaaDetail(message);
-    const rdlFormContext = getRdlFormDetailed(message);
-    const citrullineAdvContext = getCitrullineMalateAdvanced(message);
+    const forearmDetailContext = getForearmDetailedTraining(topicQuery);
+    const curcuminPiperineContext = getCurcuminPiperine(topicQuery);
+    const hackVsLegPressContext = getHackVsLegPress(topicQuery);
+    const ironAthletesContext = getIronAthletes(topicQuery);
+    const inclineCurlContext = getInclineDumbbellCurl(topicQuery);
+    const potassiumAthContext = getPotassiumAthletes(topicQuery);
+    const absScienceContext = getAbsScienceBased(topicQuery);
+    const bcaaVsEaaContext = getBcaaVsEaaDetail(topicQuery);
+    const rdlFormContext = getRdlFormDetailed(topicQuery);
+    const citrullineAdvContext = getCitrullineMalateAdvanced(topicQuery);
 
     // ─── Block 771-780 calls ──────
-    const trapCompleteContext = getTrapTrainingComplete(message);
-    const nacAdvContext = getNacAdvancedGuide(message);
-    const arnoldPressContext = getArnoldPressTechnique(message);
-    const paleoDietContext = getPaleoDietAthletes(message);
-    const oneArmRowContext = getOneArmDbRow(message);
-    const periodNaturalContext = getPeriodizationNaturals(message);
-    const calvesSciContext = getCalvesScienceTraining(message);
-    const caseinBedContext = getCaseinBeforeBed(message);
-    const skullCrushContext = getSkullCrushersTechnique(message);
-    const glycemicLoadContext = getGlycemicLoadAthletes(message);
+    const trapCompleteContext = getTrapTrainingComplete(topicQuery);
+    const nacAdvContext = getNacAdvancedGuide(topicQuery);
+    const arnoldPressContext = getArnoldPressTechnique(topicQuery);
+    const paleoDietContext = getPaleoDietAthletes(topicQuery);
+    const oneArmRowContext = getOneArmDbRow(topicQuery);
+    const periodNaturalContext = getPeriodizationNaturals(topicQuery);
+    const calvesSciContext = getCalvesScienceTraining(topicQuery);
+    const caseinBedContext = getCaseinBeforeBed(topicQuery);
+    const skullCrushContext = getSkullCrushersTechnique(topicQuery);
+    const glycemicLoadContext = getGlycemicLoadAthletes(topicQuery);
 
     // ─── Block 781-790 calls ──────
-    const latsSciContext = getLatsScienceTraining(message);
-    const alphaLipoicContext = getAlphaLipoicAcid(message);
-    const benchChainsContext = getBenchWithChains(message);
-    const ketoDietContext = getKetoDietAthletes(message);
-    const seatedRowContext = getSeatedCableRow(message);
-    const inositolContext = getInositolMentalHealth(message);
-    const invertedRowDetContext = getInvertedRowDetailed(message);
-    const carnosineContext = getCarnosineSupplement(message);
-    const wideGripPullContext = getWideGripPullUps(message);
-    const dietaryFatsContext = getDietaryFatsHormones(message);
+    const latsSciContext = getLatsScienceTraining(topicQuery);
+    const alphaLipoicContext = getAlphaLipoicAcid(topicQuery);
+    const benchChainsContext = getBenchWithChains(topicQuery);
+    const ketoDietContext = getKetoDietAthletes(topicQuery);
+    const seatedRowContext = getSeatedCableRow(topicQuery);
+    const inositolContext = getInositolMentalHealth(topicQuery);
+    const invertedRowDetContext = getInvertedRowDetailed(topicQuery);
+    const carnosineContext = getCarnosineSupplement(topicQuery);
+    const wideGripPullContext = getWideGripPullUps(topicQuery);
+    const dietaryFatsContext = getDietaryFatsHormones(topicQuery);
 
     // ─── Block 791-800 calls ──────
-    const chestSciContext = getChestScienceTraining(message);
-    const psAdvContext = getPhosphatidylserineAdv(message);
-    const dipsDeepContext = getDipsDeepDive(message);
-    const ifAthletesGuideContext = getIFAthletesGuide(message);
-    const pulloverTechContext = getPulloverTechnique(message);
-    const vitaminAContext = getVitaminAAthletes(message);
-    const tbarRowContext = getTBarRowTechnique(message);
-    const probioticsAthAdvContext = getProbioticsAthletesAdv(message);
-    const inclineBenchContext = getInclineBenchPress(message);
-    const wheyCompleteContext = getWheyProteinComplete(message);
+    const chestSciContext = getChestScienceTraining(topicQuery);
+    const psAdvContext = getPhosphatidylserineAdv(topicQuery);
+    const dipsDeepContext = getDipsDeepDive(topicQuery);
+    const ifAthletesGuideContext = getIFAthletesGuide(topicQuery);
+    const pulloverTechContext = getPulloverTechnique(topicQuery);
+    const vitaminAContext = getVitaminAAthletes(topicQuery);
+    const tbarRowContext = getTBarRowTechnique(topicQuery);
+    const probioticsAthAdvContext = getProbioticsAthletesAdv(topicQuery);
+    const inclineBenchContext = getInclineBenchPress(topicQuery);
+    const wheyCompleteContext = getWheyProteinComplete(topicQuery);
 
     // ─── Block 801-810 calls ──────
-    const deadliftVarsContext = getDeadliftVariationsComplete(message);
-    const taurinePerfContext = getTaurinePerformance(message);
-    const frontRaiseSciContext = getFrontRaiseScience(message);
-    const copperZincContext = getCopperZincBalance(message);
-    const sumoDeadliftContext = getSumoDeadliftTechnique(message);
-    const rhodiolaGuideContext = getRhodiolaRoseaGuide(message);
-    const cableFlyContext = getCableFlyCrossover(message);
-    const digestiveEnzContext = getDigestiveEnzymesGuide(message);
-    const goodMorningExContext = getGoodMorningExercise(message);
-    const betaAlanineComplContext = getBetaAlanineComplete(message);
+    const deadliftVarsContext = getDeadliftVariationsComplete(topicQuery);
+    const taurinePerfContext = getTaurinePerformance(topicQuery);
+    const frontRaiseSciContext = getFrontRaiseScience(topicQuery);
+    const copperZincContext = getCopperZincBalance(topicQuery);
+    const sumoDeadliftContext = getSumoDeadliftTechnique(topicQuery);
+    const rhodiolaGuideContext = getRhodiolaRoseaGuide(topicQuery);
+    const cableFlyContext = getCableFlyCrossover(topicQuery);
+    const digestiveEnzContext = getDigestiveEnzymesGuide(topicQuery);
+    const goodMorningExContext = getGoodMorningExercise(topicQuery);
+    const betaAlanineComplContext = getBetaAlanineComplete(topicQuery);
 
     // ─── Block 811-820 calls ──────
-    const hipThrustSciContext = getHipThrustScienceGuide(message);
-    const astaxanthinAdvContext = getAstaxanthinAdvanced(message);
-    const facePullAdvContext = getFacePullAdvanced(message);
-    const boronTestContext = getBoronTestosterone(message);
-    const boxSquatContext = getBoxSquatTechnique(message);
-    const shilajitAthContext = getShilajitAthletesGuide(message);
-    const landminePressContext = getLandminePress(message);
-    const cholinePerfContext = getCholinePerformance(message);
-    const stepUpContext = getStepUpExercise(message);
-    const glutamineComplContext = getGlutamineComplete(message);
+    const hipThrustSciContext = getHipThrustScienceGuide(topicQuery);
+    const astaxanthinAdvContext = getAstaxanthinAdvanced(topicQuery);
+    const facePullAdvContext = getFacePullAdvanced(topicQuery);
+    const boronTestContext = getBoronTestosterone(topicQuery);
+    const boxSquatContext = getBoxSquatTechnique(topicQuery);
+    const shilajitAthContext = getShilajitAthletesGuide(topicQuery);
+    const landminePressContext = getLandminePress(topicQuery);
+    const cholinePerfContext = getCholinePerformance(topicQuery);
+    const stepUpContext = getStepUpExercise(topicQuery);
+    const glutamineComplContext = getGlutamineComplete(topicQuery);
 
     // ─── Block 821-830 calls ──────
-    const spotoPressAdvContext = getSpotoPressTechnique(message);
-    const vitaminKContext = getVitaminKAthletes(message);
-    const pendlayRowAdvContext = getPendlayRowTechnique(message);
-    const coq10PerfContext = getCoQ10Performance(message);
-    const zercherSquatAdvContext = getZercherSquatAdvanced(message);
-    const spirulinaChlorContext = getSpirulinaChlorella(message);
-    const closeGripDetContext = getCloseGripBenchDetailed(message);
-    const seleniumThyAthContext = getSeleniumThyroidAthletes(message);
-    const dbPulloverDetContext = getDumbbellPulloverDetailed(message);
-    const omega369Context = getOmega369Balance(message);
+    const spotoPressAdvContext = getSpotoPressTechnique(topicQuery);
+    const vitaminKContext = getVitaminKAthletes(topicQuery);
+    const pendlayRowAdvContext = getPendlayRowTechnique(topicQuery);
+    const coq10PerfContext = getCoQ10Performance(topicQuery);
+    const zercherSquatAdvContext = getZercherSquatAdvanced(topicQuery);
+    const spirulinaChlorContext = getSpirulinaChlorella(topicQuery);
+    const closeGripDetContext = getCloseGripBenchDetailed(topicQuery);
+    const seleniumThyAthContext = getSeleniumThyroidAthletes(topicQuery);
+    const dbPulloverDetContext = getDumbbellPulloverDetailed(topicQuery);
+    const omega369Context = getOmega369Balance(topicQuery);
 
     // ─── Block 831-840 calls ──────
-    const deficitDLGuideContext = getDeficitDeadliftGuide(message);
-    const pqqMitoContext = getPQQMitochondria(message);
-    const reverseLungeDeepContext = getReverseLungeDeepDive(message);
-    const fishOilQualContext = getFishOilQuality(message);
-    const floorPressTechContext = getFloorPressTechnique(message);
-    const lysineArgContext = getLysineArginine(message);
-    const bulgarianSplitAdvContext = getBulgarianSplitAdvGuide(message);
-    const folicAcidContext = getFolicAcidAthletes(message);
-    const machineChestContext = getMachineChestPressGuide(message);
-    const carnitineComplContext = getCarnitineCompleteGuide(message);
+    const deficitDLGuideContext = getDeficitDeadliftGuide(topicQuery);
+    const pqqMitoContext = getPQQMitochondria(topicQuery);
+    const reverseLungeDeepContext = getReverseLungeDeepDive(topicQuery);
+    const fishOilQualContext = getFishOilQuality(topicQuery);
+    const floorPressTechContext = getFloorPressTechnique(topicQuery);
+    const lysineArgContext = getLysineArginine(topicQuery);
+    const bulgarianSplitAdvContext = getBulgarianSplitAdvGuide(topicQuery);
+    const folicAcidContext = getFolicAcidAthletes(topicQuery);
+    const machineChestContext = getMachineChestPressGuide(topicQuery);
+    const carnitineComplContext = getCarnitineCompleteGuide(topicQuery);
 
     // ─── Block 841-850 calls ──────
-    const hangCleanContext = getHangCleanTechnique(message);
-    const resveratrolAthContext = getResveratrolAthletes(message);
-    const cableLateralDetContext = getCableLateralRaiseDet(message);
-    const vitB12AthContext = getVitaminB12Athletes(message);
-    const trapBarDLContext = getTrapBarDeadliftGuide(message);
-    const acvContext = getAppleCiderVinegar(message);
-    const declineBenchContext = getDeclineBenchPressGuide(message);
-    const sodiumBicarbContext = getSodiumBicarbonatePerf(message);
-    const hipFlexorMobContext = getHipFlexorMobility(message);
-    const colostrumGuideContext = getColostrumGuide(message);
+    const hangCleanContext = getHangCleanTechnique(topicQuery);
+    const resveratrolAthContext = getResveratrolAthletes(topicQuery);
+    const cableLateralDetContext = getCableLateralRaiseDet(topicQuery);
+    const vitB12AthContext = getVitaminB12Athletes(topicQuery);
+    const trapBarDLContext = getTrapBarDeadliftGuide(topicQuery);
+    const acvContext = getAppleCiderVinegar(topicQuery);
+    const declineBenchContext = getDeclineBenchPressGuide(topicQuery);
+    const sodiumBicarbContext = getSodiumBicarbonatePerf(topicQuery);
+    const hipFlexorMobContext = getHipFlexorMobility(topicQuery);
+    const colostrumGuideContext = getColostrumGuide(topicQuery);
 
     // ─── Block 851-860 calls ──────
-    const kbSwingContext = getKettlebellSwingGuide(message);
-    const phospholipidsContext = getPhospholipidsGuide(message);
-    const ssbSquatContext = getSafetySquatBarGuide(message);
-    const gingerAthContext = getGingerAthletes(message);
-    const overheadTriContext = getOverheadTricepsExtGuide(message);
-    const beetJuiceContext = getBeetJuicePerformance(message);
-    const hipAbductorContext = getHipAbductorWork(message);
-    const vitCComplContext = getVitaminCCompleteGuide(message);
-    const singleArmPressContext = getSingleArmDBPress(message);
-    const greenTeaExtContext = getGreenTeaExtractGuide(message);
+    const kbSwingContext = getKettlebellSwingGuide(topicQuery);
+    const phospholipidsContext = getPhospholipidsGuide(topicQuery);
+    const ssbSquatContext = getSafetySquatBarGuide(topicQuery);
+    const gingerAthContext = getGingerAthletes(topicQuery);
+    const overheadTriContext = getOverheadTricepsExtGuide(topicQuery);
+    const beetJuiceContext = getBeetJuicePerformance(topicQuery);
+    const hipAbductorContext = getHipAbductorWork(topicQuery);
+    const vitCComplContext = getVitaminCCompleteGuide(topicQuery);
+    const singleArmPressContext = getSingleArmDBPress(topicQuery);
+    const greenTeaExtContext = getGreenTeaExtractGuide(topicQuery);
 
     // ─── Block 861-870 calls ──────
-    const hackSquatBioContext = getHackSquatBiomechanics(message);
-    const ashwagandhaComplContext = getAshwagandhaComplete(message);
-    const cableRowVarContext = getCableRowVariations(message);
-    const magTypesContext = getMagnesiumTypesGuide(message);
-    const sissySquatSciContext = getSissySquatScience(message);
-    const electrolyteProtoContext = getElectrolyteProtocol(message);
-    const dbCurlVarContext = getDumbbellCurlVariations(message);
-    const probioticsComplContext = getProbioticsComplete(message);
-    const legPressComplContext = getLegPressComplete(message);
-    const mctOilContext = getMCTOilPerformance(message);
+    const hackSquatBioContext = getHackSquatBiomechanics(topicQuery);
+    const ashwagandhaComplContext = getAshwagandhaComplete(topicQuery);
+    const cableRowVarContext = getCableRowVariations(topicQuery);
+    const magTypesContext = getMagnesiumTypesGuide(topicQuery);
+    const sissySquatSciContext = getSissySquatScience(topicQuery);
+    const electrolyteProtoContext = getElectrolyteProtocol(topicQuery);
+    const dbCurlVarContext = getDumbbellCurlVariations(topicQuery);
+    const probioticsComplContext = getProbioticsComplete(topicQuery);
+    const legPressComplContext = getLegPressComplete(topicQuery);
+    const mctOilContext = getMCTOilPerformance(topicQuery);
 
     // ─── Block 871-880 calls ──────
-    const rdlComplContext = getRDLCompleteGuide(message);
-    const zincComplContext = getZincCompleteAthletes(message);
-    const latPullSciContext = getLatPulldownScience(message);
-    const collagenPeptContext = getCollagenPeptidesAdvanced(message);
-    const walkingLungeContext = getWalkingLungeTechnique(message);
-    const ironMineralContext = getIronMineralAthletes(message);
-    const chestFlySciContext = getChestFlyScience(message);
-    const digestiveProtoContext = getDigestiveProtocol(message);
-    const tricepPushContext = getTricepPushdownVariations(message);
-    const adaptogenStackContext = getAdaptogensStackGuide(message);
+    const rdlComplContext = getRDLCompleteGuide(topicQuery);
+    const zincComplContext = getZincCompleteAthletes(topicQuery);
+    const latPullSciContext = getLatPulldownScience(topicQuery);
+    const collagenPeptContext = getCollagenPeptidesAdvanced(topicQuery);
+    const walkingLungeContext = getWalkingLungeTechnique(topicQuery);
+    const ironMineralContext = getIronMineralAthletes(topicQuery);
+    const chestFlySciContext = getChestFlyScience(topicQuery);
+    const digestiveProtoContext = getDigestiveProtocol(topicQuery);
+    const tricepPushContext = getTricepPushdownVariations(topicQuery);
+    const adaptogenStackContext = getAdaptogensStackGuide(topicQuery);
 
     // ─── Block 881-890 calls ──────
-    const preacherCurlContext = getPreacherCurlGuide(message);
-    const vitD3K2Context = getVitaminD3K2Synergy(message);
-    const seatedOHPContext = getSeatedOHPGuide(message);
-    const creatineCompContext = getCreatineHCLvsMono(message);
-    const sumoSquatContext = getSumoSquatTechnique(message);
-    const potassiumComplContext = getPotassiumCompleteGuide(message);
-    const cableKickContext = getCableKickbackGuide(message);
-    const sleepSuppContext = getSleepSupplementsStack(message);
-    const pendulumSquatGContext = getPendulumSquatGuide(message);
-    const antiInflamFoodsContext = getAntiInflammatoryFoods(message);
+    const preacherCurlContext = getPreacherCurlGuide(topicQuery);
+    const vitD3K2Context = getVitaminD3K2Synergy(topicQuery);
+    const seatedOHPContext = getSeatedOHPGuide(topicQuery);
+    const creatineCompContext = getCreatineHCLvsMono(topicQuery);
+    const sumoSquatContext = getSumoSquatTechnique(topicQuery);
+    const potassiumComplContext = getPotassiumCompleteGuide(topicQuery);
+    const cableKickContext = getCableKickbackGuide(topicQuery);
+    const sleepSuppContext = getSleepSupplementsStack(topicQuery);
+    const pendulumSquatGContext = getPendulumSquatGuide(topicQuery);
+    const antiInflamFoodsContext = getAntiInflammatoryFoods(topicQuery);
 
     // ─── Block 891-900 calls ──────
-    const barbellHTContext = getBarbellHipThrustAdv(message);
-    const bVitComplContext = getBVitaminsComplex(message);
-    const inclineBenchSciContext = getInclineBenchSciGuide(message);
-    const fiberAthContext = getFiberIntakeAthletes(message);
-    const nordicHamContext = getNordicHamstringCurl(message);
-    const caffCycleProtoContext = getCaffeineCyclingProtocol(message);
-    const smithMachComplContext = getSmithMachineComplete(message);
-    const pwMealTimContext = getPostWorkoutMealTiming(message);
-    const ghdExContext = getGHDExerciseGuide(message);
-    const suppTimingMatContext = getSuppTimingMatrix(message);
+    const barbellHTContext = getBarbellHipThrustAdv(topicQuery);
+    const bVitComplContext = getBVitaminsComplex(topicQuery);
+    const inclineBenchSciContext = getInclineBenchSciGuide(topicQuery);
+    const fiberAthContext = getFiberIntakeAthletes(topicQuery);
+    const nordicHamContext = getNordicHamstringCurl(topicQuery);
+    const caffCycleProtoContext = getCaffeineCyclingProtocol(topicQuery);
+    const smithMachComplContext = getSmithMachineComplete(topicQuery);
+    const pwMealTimContext = getPostWorkoutMealTiming(topicQuery);
+    const ghdExContext = getGHDExerciseGuide(topicQuery);
+    const suppTimingMatContext = getSuppTimingMatrix(topicQuery);
 
     // ─── Block 901-910 calls ──────
-    const reverseGripDetContext = getReverseGripBenchDetailed(message);
-    const tryptophanAthContext = getTryptophanAthletes(message);
-    const tbarRowComplContext = getTBarRowComplete(message);
-    const sodiumAthProtoContext = getSodiumAthleteProtocol(message);
-    const bulgarianProgContext = getBulgarianSplitProgramming(message);
-    const quercetinPerfContext = getQuercetinPerformance(message);
-    const declinePressCompContext = getDeclinePressComplete(message);
-    const glucChondAdvContext = getGlucosamineChondAdvanced(message);
-    const calfRaiseSciContext = getCalfRaiseScience(message);
-    const preWoSuppGuideContext = getPreWorkoutSuppGuide(message);
+    const reverseGripDetContext = getReverseGripBenchDetailed(topicQuery);
+    const tryptophanAthContext = getTryptophanAthletes(topicQuery);
+    const tbarRowComplContext = getTBarRowComplete(topicQuery);
+    const sodiumAthProtoContext = getSodiumAthleteProtocol(topicQuery);
+    const bulgarianProgContext = getBulgarianSplitProgramming(topicQuery);
+    const quercetinPerfContext = getQuercetinPerformance(topicQuery);
+    const declinePressCompContext = getDeclinePressComplete(topicQuery);
+    const glucChondAdvContext = getGlucosamineChondAdvanced(topicQuery);
+    const calfRaiseSciContext = getCalfRaiseScience(topicQuery);
+    const preWoSuppGuideContext = getPreWorkoutSuppGuide(topicQuery);
 
     // ─── Block 911-920 calls ──────
-    const rackPullBioContext = getRackPullBiomechanics(message);
-    const melatoninSciContext = getMelatoninScienceRecovery(message);
-    const seatedCableAdvContext = getSeatedCableRowAdvanced(message);
-    const carbLoadContext = getCarbLoadingProtocol(message);
-    const frontSquatMobContext = getFrontSquatMobility(message);
-    const coq10UbiContext = getCoQ10UbiquinolAdvanced(message);
-    const machShoulderContext = getMachineShoulderPressGuide(message);
-    const gutBrainContext = getGutBrainAxisTraining(message);
-    const dbLatRaiseSciContext = getDBLateralRaiseScience(message);
-    const recovDrinkContext = getRecoveryDrinkRecipes(message);
+    const rackPullBioContext = getRackPullBiomechanics(topicQuery);
+    const melatoninSciContext = getMelatoninScienceRecovery(topicQuery);
+    const seatedCableAdvContext = getSeatedCableRowAdvanced(topicQuery);
+    const carbLoadContext = getCarbLoadingProtocol(topicQuery);
+    const frontSquatMobContext = getFrontSquatMobility(topicQuery);
+    const coq10UbiContext = getCoQ10UbiquinolAdvanced(topicQuery);
+    const machShoulderContext = getMachineShoulderPressGuide(topicQuery);
+    const gutBrainContext = getGutBrainAxisTraining(topicQuery);
+    const dbLatRaiseSciContext = getDBLateralRaiseScience(topicQuery);
+    const recovDrinkContext = getRecoveryDrinkRecipes(topicQuery);
 
     // ─── Block 921-930 calls ──────
-    const chestSuppRowSciContext = getChestSupportedRowScience(message);
-    const tyrosinePerfContext = getTyrosinePerformance(message);
-    const barbellShrugContext = getBarbellShrugComplete(message);
-    const waterFastContext = getWaterFastingTraining(message);
-    const legExtSciContext = getLegExtensionScience(message);
-    const ashwaKSM66Context = getAshwagandhaKSM66(message);
-    const reverseFlyCDBContext = getReverseFlyCableDB(message);
-    const citrullineDoseContext = getCitrullineDoseProtocol(message);
-    const hipMobRoutContext = getHipMobilityRoutines(message);
-    const vitETocoContext = getVitaminETocopherols(message);
+    const chestSuppRowSciContext = getChestSupportedRowScience(topicQuery);
+    const tyrosinePerfContext = getTyrosinePerformance(topicQuery);
+    const barbellShrugContext = getBarbellShrugComplete(topicQuery);
+    const waterFastContext = getWaterFastingTraining(topicQuery);
+    const legExtSciContext = getLegExtensionScience(topicQuery);
+    const ashwaKSM66Context = getAshwagandhaKSM66(topicQuery);
+    const reverseFlyCDBContext = getReverseFlyCableDB(topicQuery);
+    const citrullineDoseContext = getCitrullineDoseProtocol(topicQuery);
+    const hipMobRoutContext = getHipMobilityRoutines(topicQuery);
+    const vitETocoContext = getVitaminETocopherols(topicQuery);
 
     // ─── Block 931-940 calls ──────
-    const pendlayProgContext = getPendlayRowProgramming(message);
-    const wristStrContext = getWristStrengthGuide(message);
-    const gluteMedMinContext = getGluteMedialMinimus(message);
-    const hamInjPrevContext = getHamstringInjuryPrev(message);
-    const calciumAthContext = getCalciumAthleteProtocol(message);
-    const incDBCurlSciContext = getInclineDBCurlScience(message);
-    const mctKetoContext = getMCTKetoPerformance(message);
-    const sumoAdvContext = getSumoDeadliftAdvanced(message);
-    const lowerBackTrContext = getLowerBackTraining(message);
-    const sleepArchContext = getSleepArchitectureGuide(message);
+    const pendlayProgContext = getPendlayRowProgramming(topicQuery);
+    const wristStrContext = getWristStrengthGuide(topicQuery);
+    const gluteMedMinContext = getGluteMedialMinimus(topicQuery);
+    const hamInjPrevContext = getHamstringInjuryPrev(topicQuery);
+    const calciumAthContext = getCalciumAthleteProtocol(topicQuery);
+    const incDBCurlSciContext = getInclineDBCurlScience(topicQuery);
+    const mctKetoContext = getMCTKetoPerformance(topicQuery);
+    const sumoAdvContext = getSumoDeadliftAdvanced(topicQuery);
+    const lowerBackTrContext = getLowerBackTraining(topicQuery);
+    const sleepArchContext = getSleepArchitectureGuide(topicQuery);
 
     // ─── Block 941-950 calls ──────
-    const diabetesTrainContext = getDiabetesTrainingGuide(message);
-    const trainLogOptContext = getTrainingLogOptimal(message);
-    const musclMemMechContext = getMuscleMemoryMechanisms(message);
-    const overreachDetContext = getOverreachingDetection(message);
-    const cnsRecovContext = getCNSRecoveryProtocol(message);
-    const mindMusclNeuroContext = getMindMuscleNeuroscience(message);
-    const handGripStrContext = getHandGripStrength(message);
-    const spinalDecompContext = getSpinalDecompression(message);
-    const trainMaxCalcContext = getTrainingMaxCalculator(message);
-    const antiAgeLongContext = getAntiAgingLongevityProtocol(message);
+    const diabetesTrainContext = getDiabetesTrainingGuide(topicQuery);
+    const trainLogOptContext = getTrainingLogOptimal(topicQuery);
+    const musclMemMechContext = getMuscleMemoryMechanisms(topicQuery);
+    const overreachDetContext = getOverreachingDetection(topicQuery);
+    const cnsRecovContext = getCNSRecoveryProtocol(topicQuery);
+    const mindMusclNeuroContext = getMindMuscleNeuroscience(topicQuery);
+    const handGripStrContext = getHandGripStrength(topicQuery);
+    const spinalDecompContext = getSpinalDecompression(topicQuery);
+    const trainMaxCalcContext = getTrainingMaxCalculator(topicQuery);
+    const antiAgeLongContext = getAntiAgingLongevityProtocol(topicQuery);
 
     // ─── Block 951-960 calls ──────
-    const walkPadIncContext = getWalkingPadInclineGuide(message);
-    const stairMasterContext = getStairMasterGuide(message);
-    const rowMachineSciContext = getRowingMachineScience(message);
-    const jumpRopeSciContext = getJumpRopeScience(message);
-    const boxJumpTechContext = getBoxJumpTechnique(message);
-    const burpeeGuideContext = getBurpeeCompleteGuide(message);
-    const battleRopeContext = getBattleRopeTraining(message);
-    const cyclingIndContext = getCyclingIndoorGuide(message);
-    const ellipticalContext = getEllipticalTrainerGuide(message);
-    const sledPushContext = getSledPushPullTraining(message);
+    const walkPadIncContext = getWalkingPadInclineGuide(topicQuery);
+    const stairMasterContext = getStairMasterGuide(topicQuery);
+    const rowMachineSciContext = getRowingMachineScience(topicQuery);
+    const jumpRopeSciContext = getJumpRopeScience(topicQuery);
+    const boxJumpTechContext = getBoxJumpTechnique(topicQuery);
+    const burpeeGuideContext = getBurpeeCompleteGuide(topicQuery);
+    const battleRopeContext = getBattleRopeTraining(topicQuery);
+    const cyclingIndContext = getCyclingIndoorGuide(topicQuery);
+    const ellipticalContext = getEllipticalTrainerGuide(topicQuery);
+    const sledPushContext = getSledPushPullTraining(topicQuery);
 
     // ─── Block 961-970 calls ──────
-    const trxSuspContext = getTRXSuspensionComplete(message);
-    const probMicroContext = getProbioticsMicrobiome(message);
-    const tbarBioContext = getTBarRowBiomechanics(message);
-    const electroSweatContext = getElectrolyteSweatingScience(message);
-    const bulgSplitMCContext = getBulgarianSplitMasterClass(message);
-    const betaAlanineSciContext = getBetaAlanineScience(message);
-    const trapFullContext = getTrapeziusFullDevelopment(message);
-    const sleepGHContext = getSleepGrowthHormoneLink(message);
-    const latPullMasterContext = getLatPulldownMasterGuide(message);
-    const periodNattyContext = getPeriodizationNattyScience(message);
+    const trxSuspContext = getTRXSuspensionComplete(topicQuery);
+    const probMicroContext = getProbioticsMicrobiome(topicQuery);
+    const tbarBioContext = getTBarRowBiomechanics(topicQuery);
+    const electroSweatContext = getElectrolyteSweatingScience(topicQuery);
+    const bulgSplitMCContext = getBulgarianSplitMasterClass(topicQuery);
+    const betaAlanineSciContext = getBetaAlanineScience(topicQuery);
+    const trapFullContext = getTrapeziusFullDevelopment(topicQuery);
+    const sleepGHContext = getSleepGrowthHormoneLink(topicQuery);
+    const latPullMasterContext = getLatPulldownMasterGuide(topicQuery);
+    const periodNattyContext = getPeriodizationNattyScience(topicQuery);
 
     // ─── Block 971-980 calls ──────
-    const gluteBridgeVsHTContext = getGluteBridgeVsHipThrust(message);
-    const vitCSportsSciContext = getVitaminCSportsScience(message);
-    const legPressFootContext = getLegPressFootPlacement(message);
-    const adaptInjuryContext = getAdaptiveInjuryTraining(message);
-    const crunchAbSciContext = getCrunchAbScienceGuide(message);
-    const omega63BalContext = getOmega6to3BalanceGuide(message);
-    const pullUpFullProgContext = getPullUpFullProgression(message);
-    const circadianTrContext = getCircadianTrainingScience(message);
-    const dbRowIncCompContext = getDBRowInclineComplete(message);
-    const carbWindowContext = getCarbWindowMythTruth(message);
+    const gluteBridgeVsHTContext = getGluteBridgeVsHipThrust(topicQuery);
+    const vitCSportsSciContext = getVitaminCSportsScience(topicQuery);
+    const legPressFootContext = getLegPressFootPlacement(topicQuery);
+    const adaptInjuryContext = getAdaptiveInjuryTraining(topicQuery);
+    const crunchAbSciContext = getCrunchAbScienceGuide(topicQuery);
+    const omega63BalContext = getOmega6to3BalanceGuide(topicQuery);
+    const pullUpFullProgContext = getPullUpFullProgression(topicQuery);
+    const circadianTrContext = getCircadianTrainingScience(topicQuery);
+    const dbRowIncCompContext = getDBRowInclineComplete(topicQuery);
+    const carbWindowContext = getCarbWindowMythTruth(topicQuery);
 
     // ─── Block 981-990 calls ──────
-    const valsalvaAdvContext = getValsalvaAdvancedMechanics(message);
-    const taurineComplContext = getTaurineCompleteSportsGuide(message);
-    const deltoid3HContext = getDeltoidThreeHeadTraining(message);
-    const insulinSensTrContext = getInsulinSensitivityTraining(message);
-    const sumoVsConvDeepContext = getSumoVsConventionalDeep(message);
-    const creatineMTContext = getCreatineMythsTruth(message);
-    const hamstringCompContext = getHamstringCompleteDev(message);
-    const calcVitDSynContext = getCalciumVitDSynergyGuide(message);
-    const frontVsBackSqContext = getFrontVsBackSquatAnalysis(message);
-    const preWoSuppSciContext = getPreWorkoutSuppScienceGuide(message);
+    const valsalvaAdvContext = getValsalvaAdvancedMechanics(topicQuery);
+    const taurineComplContext = getTaurineCompleteSportsGuide(topicQuery);
+    const deltoid3HContext = getDeltoidThreeHeadTraining(topicQuery);
+    const insulinSensTrContext = getInsulinSensitivityTraining(topicQuery);
+    const sumoVsConvDeepContext = getSumoVsConventionalDeep(topicQuery);
+    const creatineMTContext = getCreatineMythsTruth(topicQuery);
+    const hamstringCompContext = getHamstringCompleteDev(topicQuery);
+    const calcVitDSynContext = getCalciumVitDSynergyGuide(topicQuery);
+    const frontVsBackSqContext = getFrontVsBackSquatAnalysis(topicQuery);
+    const preWoSuppSciContext = getPreWorkoutSuppScienceGuide(topicQuery);
 
     // ─── Block 991-1000 calls ──────
-    const heatColdContext = getHeatColdTrainingAdaptations(message);
-    const zincTestImmContext = getZincTestImmuneComplete(message);
-    const benchSetupMContext = getBenchPressSetupMaster(message);
-    const reverseDietCompContext = getReverseDietCompleteGuide(message);
-    const cableFullBodyContext = getCableFullBodyExercises(message);
-    const glutamineWhenContext = getGlutamineWhenNeeded(message);
-    const bicepsSciCompContext = getBicepsScienceComplete(message);
-    const sleepRecov7Context = getSleepRecovery7Strategies(message);
-    const coreAntiMovContext = getCoreAntiMovementTraining(message);
-    const trainPhiloContext = getTrainingPhilosophy1000(message);
+    const heatColdContext = getHeatColdTrainingAdaptations(topicQuery);
+    const zincTestImmContext = getZincTestImmuneComplete(topicQuery);
+    const benchSetupMContext = getBenchPressSetupMaster(topicQuery);
+    const reverseDietCompContext = getReverseDietCompleteGuide(topicQuery);
+    const cableFullBodyContext = getCableFullBodyExercises(topicQuery);
+    const glutamineWhenContext = getGlutamineWhenNeeded(topicQuery);
+    const bicepsSciCompContext = getBicepsScienceComplete(topicQuery);
+    const sleepRecov7Context = getSleepRecovery7Strategies(topicQuery);
+    const coreAntiMovContext = getCoreAntiMovementTraining(topicQuery);
+    const trainPhiloContext = getTrainingPhilosophy1000(topicQuery);
 
     // ─── Block 1001-1010 calls ──────
-    const cardioVascHealthContext = getCardioVascularHealthTraining(message);
-    const collagenJointAdvContext = getCollagenJointAdvanced(message);
-    const triceps3HContext = getTricepsThreeHeadTraining(message);
-    const waterBalCalcContext = getWaterBalancePreciseCalc(message);
-    const squatDepthKneeContext = getSquatDepthKneeHealth(message);
-    const ironFemaleContext = getIronFemaleAthleteGuide(message);
-    const forearmGripCompContext = getForearmGripCompleteTraining(message);
-    const nutriPeriodContext = getNutritionPeriodizationPhases(message);
-    const deadliftErrorContext = getDeadliftErrorFixes(message);
-    const motivation3MContext = getMotivation3MonthsGuide(message);
+    const cardioVascHealthContext = getCardioVascularHealthTraining(topicQuery);
+    const collagenJointAdvContext = getCollagenJointAdvanced(topicQuery);
+    const triceps3HContext = getTricepsThreeHeadTraining(topicQuery);
+    const waterBalCalcContext = getWaterBalancePreciseCalc(topicQuery);
+    const squatDepthKneeContext = getSquatDepthKneeHealth(topicQuery);
+    const ironFemaleContext = getIronFemaleAthleteGuide(topicQuery);
+    const forearmGripCompContext = getForearmGripCompleteTraining(topicQuery);
+    const nutriPeriodContext = getNutritionPeriodizationPhases(topicQuery);
+    const deadliftErrorContext = getDeadliftErrorFixes(topicQuery);
+    const motivation3MContext = getMotivation3MonthsGuide(topicQuery);
 
     // ─── Block 1011-1020 calls ──────
-    const ohpStVsSeContext = getOHPStandingVsSeatedMastery(message);
-    const gluteMaxSciContext = getGluteusMaximusScientificDev(message);
-    const chestDevMCContext = getChestDevelopmentMasterclass(message);
-    const bVitAthComplContext = getBVitaminsAthleteComplete(message);
-    const flexVsMobContext = getFlexibilityVsMobilityGuide(message);
-    const plateauBreakAdvContext = getPlateauBreakthroughAdvanced(message);
-    const mealPrepMastContext = getMealPrepAthleteMastery(message);
-    const burnoutPrevContext = getTrainingBurnoutPrevention(message);
-    const backSquatBioContext = getBackSquatBiomechanicsMastery(message);
-    const proteinMythsContext = getProteinMythsScienceGuide(message);
+    const ohpStVsSeContext = getOHPStandingVsSeatedMastery(topicQuery);
+    const gluteMaxSciContext = getGluteusMaximusScientificDev(topicQuery);
+    const chestDevMCContext = getChestDevelopmentMasterclass(topicQuery);
+    const bVitAthComplContext = getBVitaminsAthleteComplete(topicQuery);
+    const flexVsMobContext = getFlexibilityVsMobilityGuide(topicQuery);
+    const plateauBreakAdvContext = getPlateauBreakthroughAdvanced(topicQuery);
+    const mealPrepMastContext = getMealPrepAthleteMastery(topicQuery);
+    const burnoutPrevContext = getTrainingBurnoutPrevention(topicQuery);
+    const backSquatBioContext = getBackSquatBiomechanicsMastery(topicQuery);
+    const proteinMythsContext = getProteinMythsScienceGuide(topicQuery);
 
     // ─── Block 1021-1030 calls ──────
-    const insulinResFixContext = getInsulinResistanceTrainingFix(message);
-    const latDevSciContext = getLatDevelopmentCompleteScience(message);
-    const preWoNutTimContext = getPreWorkoutNutritionTimingComplete(message);
-    const kneeRehabContext = getKneeRehabTrainingProtocol(message);
-    const dbVsBbComplContext = getDumbbellVsBarbellCompleteAnalysis(message);
-    const sleepArchAthContext = getSleepArchitectureAthleteGuide(message);
-    const abTrainSciContext = getAbdominalTrainingScienceComplete(message);
-    const postWoRecovContext = getPostWorkoutRecoveryProtocol(message);
-    const trainFreqOptContext = getTrainingFrequencyOptimizationScience(message);
-    const carbSrcAthRankContext = getCarbSourcesAthleteRanking(message);
+    const insulinResFixContext = getInsulinResistanceTrainingFix(topicQuery);
+    const latDevSciContext = getLatDevelopmentCompleteScience(topicQuery);
+    const preWoNutTimContext = getPreWorkoutNutritionTimingComplete(topicQuery);
+    const kneeRehabContext = getKneeRehabTrainingProtocol(topicQuery);
+    const dbVsBbComplContext = getDumbbellVsBarbellCompleteAnalysis(topicQuery);
+    const sleepArchAthContext = getSleepArchitectureAthleteGuide(topicQuery);
+    const abTrainSciContext = getAbdominalTrainingScienceComplete(topicQuery);
+    const postWoRecovContext = getPostWorkoutRecoveryProtocol(topicQuery);
+    const trainFreqOptContext = getTrainingFrequencyOptimizationScience(topicQuery);
+    const carbSrcAthRankContext = getCarbSourcesAthleteRanking(topicQuery);
 
     // ─── Block 1031-1040 calls ──────
-    const hipHingeMovContext = getHipHingeMovementMastery(message);
-    const magFormsAthContext = getMagnesiumFormsAthleteGuide(message);
-    const rowExCompContext = getRowingExercisesCompendium(message);
-    const fatLossPresMContext = getFatLossPreserveMuscleGuide(message);
-    const shoulderImpRecContext = getShoulderImpingementRecoveryTraining(message);
-    const creatineDeepContext = getCreatineDeepScienceComplete(message);
-    const splitSelGuideContext = getWorkoutSplitSelectionGuide(message);
-    const microNutTimContext = getMicronutrientTimingOptimization(message);
-    const hamInjPrevProtoContext = getHamstringInjuryPreventionProtocol(message);
-    const mentalPerfGymContext = getMentalPerformanceGymTraining(message);
+    const hipHingeMovContext = getHipHingeMovementMastery(topicQuery);
+    const magFormsAthContext = getMagnesiumFormsAthleteGuide(topicQuery);
+    const rowExCompContext = getRowingExercisesCompendium(topicQuery);
+    const fatLossPresMContext = getFatLossPreserveMuscleGuide(topicQuery);
+    const shoulderImpRecContext = getShoulderImpingementRecoveryTraining(topicQuery);
+    const creatineDeepContext = getCreatineDeepScienceComplete(topicQuery);
+    const splitSelGuideContext = getWorkoutSplitSelectionGuide(topicQuery);
+    const microNutTimContext = getMicronutrientTimingOptimization(topicQuery);
+    const hamInjPrevProtoContext = getHamstringInjuryPreventionProtocol(topicQuery);
+    const mentalPerfGymContext = getMentalPerformanceGymTraining(topicQuery);
 
     // ─── Block 1041-1050 calls ──────
-    const ankleStabProtoContext = getAnkleStabilityTrainingProtocol(message);
-    const vitDMasteryContext = getVitaminDAthleteCompleteMastery(message);
-    const trapBarMCContext = getTrapBarDeadliftMasterclass(message);
-    const ifTrainComplContext = getIntermittentFastingTrainingComplete(message);
-    const pecDevSciContext = getPectoralDevelopmentScience(message);
-    const zincImmPerfContext = getZincImmunityPerformanceGuide(message);
-    const splitSquatProgContext = getSplitSquatProgressionMastery(message);
-    const sleepHygProtoContext = getSleepHygieneAthleteProtocol(message);
-    const rotCuffPrehabContext = getRotatorCuffPrehabilitation(message);
-    const protDigAbsContext = getProteinDigestionAbsorptionScience(message);
+    const ankleStabProtoContext = getAnkleStabilityTrainingProtocol(topicQuery);
+    const vitDMasteryContext = getVitaminDAthleteCompleteMastery(topicQuery);
+    const trapBarMCContext = getTrapBarDeadliftMasterclass(topicQuery);
+    const ifTrainComplContext = getIntermittentFastingTrainingComplete(topicQuery);
+    const pecDevSciContext = getPectoralDevelopmentScience(topicQuery);
+    const zincImmPerfContext = getZincImmunityPerformanceGuide(topicQuery);
+    const splitSquatProgContext = getSplitSquatProgressionMastery(topicQuery);
+    const sleepHygProtoContext = getSleepHygieneAthleteProtocol(topicQuery);
+    const rotCuffPrehabContext = getRotatorCuffPrehabilitation(topicQuery);
+    const protDigAbsContext = getProteinDigestionAbsorptionScience(topicQuery);
 
     // ─── Block 1051-1060 calls ──────
-    const glycogenReplProtoContext = getGlycogenReplenishmentProtocol(message);
-    const dlGripStratContext = getDeadliftGripStrategyGuide(message);
-    const antiInflamDietContext = getAntiInflammatoryDietAthletes(message);
-    const quadDevMCContext = getQuadricepsDevelopmentMasterclass(message);
-    const electroSweatProtoContext = getElectrolyteSweatingProtocol(message);
-    const hipMobComplContext = getHipMobilityCompleteRoutine(message);
-    const preWoSuppSciAdvContext = getPreWorkoutSupplementScience(message);
-    const coreStabAntiMovContext = getCoreStabilityAntiMovement(message);
-    const calfTrainHyperContext = getCalfTrainingHypertrophyScience(message);
-    const betaAlaCarnoContext = getBetaAlanineCarnosineMastery(message);
+    const glycogenReplProtoContext = getGlycogenReplenishmentProtocol(topicQuery);
+    const dlGripStratContext = getDeadliftGripStrategyGuide(topicQuery);
+    const antiInflamDietContext = getAntiInflammatoryDietAthletes(topicQuery);
+    const quadDevMCContext = getQuadricepsDevelopmentMasterclass(topicQuery);
+    const electroSweatProtoContext = getElectrolyteSweatingProtocol(topicQuery);
+    const hipMobComplContext = getHipMobilityCompleteRoutine(topicQuery);
+    const preWoSuppSciAdvContext = getPreWorkoutSupplementScience(topicQuery);
+    const coreStabAntiMovContext = getCoreStabilityAntiMovement(topicQuery);
+    const calfTrainHyperContext = getCalfTrainingHypertrophyScience(topicQuery);
+    const betaAlaCarnoContext = getBetaAlanineCarnosineMastery(topicQuery);
 
     // ─── Block 1061-1070 calls ──────
-    const volLandmarksContext = getTrainingVolumeLandmarksGuide(message);
-    const omega3FOMContext = getOmega3FishOilCompleteMastery(message);
-    const gluteProgContext = getGluteTrainingCompleteProgramming(message);
-    const postureCorrContext = getPostureCorrectionTrainingGuide(message);
-    const creatineSafeContext = getCreatineKidneyLiverSafety(message);
-    const tendonLigContext = getTendonLigamentStrengthening(message);
-    const trainAroundPainContext = getTrainingAroundPainGuide(message);
-    const ironAbsAthContext = getIronAbsorptionAthleteGuide(message);
-    const chestPressVarContext = getChestPressVariationsComplete(message);
-    const recovModalRankContext = getRecoveryModalitiesRanking(message);
+    const volLandmarksContext = getTrainingVolumeLandmarksGuide(topicQuery);
+    const omega3FOMContext = getOmega3FishOilCompleteMastery(topicQuery);
+    const gluteProgContext = getGluteTrainingCompleteProgramming(topicQuery);
+    const postureCorrContext = getPostureCorrectionTrainingGuide(topicQuery);
+    const creatineSafeContext = getCreatineKidneyLiverSafety(topicQuery);
+    const tendonLigContext = getTendonLigamentStrengthening(topicQuery);
+    const trainAroundPainContext = getTrainingAroundPainGuide(topicQuery);
+    const ironAbsAthContext = getIronAbsorptionAthleteGuide(topicQuery);
+    const chestPressVarContext = getChestPressVariationsComplete(topicQuery);
+    const recovModalRankContext = getRecoveryModalitiesRanking(topicQuery);
 
     // ─── Block 1071-1080 calls ──────
-    const deloadSciContext = getDeloadWeekCompleteScience(message);
-    const vitB6AthGuideContext = getVitaminB6AthleteGuide(message);
-    const pullUpMCContext = getPullUpChinUpMasterclass(message);
-    const nutFatLossComplContext = getNutritionForFatLossComplete(message);
-    const shoulderPressVarGuideContext = getShoulderPressVariationsGuide(message);
-    const magGlycinateContext = getMagnesiumGlycinateAthleteUse(message);
-    const beginnerMCContext = getTrainingForBeginnersMasterclass(message);
-    const stressCortProtContext = getStressCortisolManagementProtocol(message);
-    const backDevPlanContext = getBackDevelopmentCompletePlan(message);
-    const hydrationPerfContext = getHydrationPerformanceScience(message);
+    const deloadSciContext = getDeloadWeekCompleteScience(topicQuery);
+    const vitB6AthGuideContext = getVitaminB6AthleteGuide(topicQuery);
+    const pullUpMCContext = getPullUpChinUpMasterclass(topicQuery);
+    const nutFatLossComplContext = getNutritionForFatLossComplete(topicQuery);
+    const shoulderPressVarGuideContext = getShoulderPressVariationsGuide(topicQuery);
+    const magGlycinateContext = getMagnesiumGlycinateAthleteUse(topicQuery);
+    const beginnerMCContext = getTrainingForBeginnersMasterclass(topicQuery);
+    const stressCortProtContext = getStressCortisolManagementProtocol(topicQuery);
+    const backDevPlanContext = getBackDevelopmentCompletePlan(topicQuery);
+    const hydrationPerfContext = getHydrationPerformanceScience(topicQuery);
 
     // ─── Block 1081-1090 calls ──────
-    const plateauPsychAdvContext = getTrainingPlateauPsychologyAdvanced(message);
-    const legDayComplContext = getLegDayCompleteProgramming(message);
-    const vitAAthlGuideContext = getVitaminAAthleteGuide(message);
-    const benchFormMastContext = getBenchPressFormMasterclass(message);
-    const protVeganGuideContext = getProteinVeganAthleteGuide(message);
-    const sleepApneaAthContext = getSleepApneaAthleteGuide(message);
-    const armDevComplContext = getArmDevelopmentComplete(message);
-    const calcBoneAthContext = getCalciumBoneAthleteGuide(message);
-    const cardioEndurSciContext = getCardioEnduranceScience(message);
-    const glutenFreeAthContext = getGlutenFreeAthleteGuide(message);
+    const plateauPsychAdvContext = getTrainingPlateauPsychologyAdvanced(topicQuery);
+    const legDayComplContext = getLegDayCompleteProgramming(topicQuery);
+    const vitAAthlGuideContext = getVitaminAAthleteGuide(topicQuery);
+    const benchFormMastContext = getBenchPressFormMasterclass(topicQuery);
+    const protVeganGuideContext = getProteinVeganAthleteGuide(topicQuery);
+    const sleepApneaAthContext = getSleepApneaAthleteGuide(topicQuery);
+    const armDevComplContext = getArmDevelopmentComplete(topicQuery);
+    const calcBoneAthContext = getCalciumBoneAthleteGuide(topicQuery);
+    const cardioEndurSciContext = getCardioEnduranceScience(topicQuery);
+    const glutenFreeAthContext = getGlutenFreeAthleteGuide(topicQuery);
 
     // ─── Block 1091-1100 calls ──────
-    const overtSignsProtoContext = getOvertrainingSignsProtocol(message);
-    const sodiumAthComplContext = getSodiumAthleteComplete(message);
-    const abWheelGuideContext = getAbWheelRolloutGuide(message);
-    const motivLongTermContext = getTrainingMotivationLongTerm(message);
-    const copperAthGuideContext = getCopperAthleteGuide(message);
-    const chinVsPullAdvContext = getChinUpVsPullUpAdvanced(message);
-    const postWoShakeSciContext = getPostWorkoutShakeScience(message);
-    const sleepPosnRecovContext = getSleepPositionRecovery(message);
-    const hipFlexReleaseContext = getHipFlexorReleaseComplete(message);
-    const trainInHeatAdvContext = getTrainingInHeatAdvanced(message);
+    const overtSignsProtoContext = getOvertrainingSignsProtocol(topicQuery);
+    const sodiumAthComplContext = getSodiumAthleteComplete(topicQuery);
+    const abWheelGuideContext = getAbWheelRolloutGuide(topicQuery);
+    const motivLongTermContext = getTrainingMotivationLongTerm(topicQuery);
+    const copperAthGuideContext = getCopperAthleteGuide(topicQuery);
+    const chinVsPullAdvContext = getChinUpVsPullUpAdvanced(topicQuery);
+    const postWoShakeSciContext = getPostWorkoutShakeScience(topicQuery);
+    const sleepPosnRecovContext = getSleepPositionRecovery(topicQuery);
+    const hipFlexReleaseContext = getHipFlexorReleaseComplete(topicQuery);
+    const trainInHeatAdvContext = getTrainingInHeatAdvanced(topicQuery);
 
     // ─── Block 1101-1110 calls ──────
-    const kneeWrapSlvContext = getKneeWrapSleeveGuide(message);
-    const muscAsymCorrContext = getMuscleAsymmetryCorrection(message);
-    const trainingAfter40Context = getTrainingAfter40Guide(message);
-    const vitCTimeSciContext = getVitaminCTimingScience(message);
-    const dbShouldPrMCContext = getDbShoulderPressMasterclass(message);
-    const digestStratAthContext = getDigestiveStrategyAthlete(message);
-    const rowMachineFormContext = getRowingMachineFormGuide(message);
-    const bloodFlowRstrContext = getBloodFlowRestrictionComplete(message);
-    const fitnessMindsetContext = getFitnessMindsetTraining(message);
-    const hamCurlVarGuideContext = getHamCurlVariationsGuide(message);
+    const kneeWrapSlvContext = getKneeWrapSleeveGuide(topicQuery);
+    const muscAsymCorrContext = getMuscleAsymmetryCorrection(topicQuery);
+    const trainingAfter40Context = getTrainingAfter40Guide(topicQuery);
+    const vitCTimeSciContext = getVitaminCTimingScience(topicQuery);
+    const dbShouldPrMCContext = getDbShoulderPressMasterclass(topicQuery);
+    const digestStratAthContext = getDigestiveStrategyAthlete(topicQuery);
+    const rowMachineFormContext = getRowingMachineFormGuide(topicQuery);
+    const bloodFlowRstrContext = getBloodFlowRestrictionComplete(topicQuery);
+    const fitnessMindsetContext = getFitnessMindsetTraining(topicQuery);
+    const hamCurlVarGuideContext = getHamCurlVariationsGuide(topicQuery);
 
     // ─── Block 1111-1120 calls ──────
-    const wristMobGuideContext = getWristMobilityGuide(message);
-    const diabetesType2TrContext = getDiabetesType2Training(message);
-    const legExtFormAdvContext = getLegExtensionFormAdvanced(message);
-    const probiotStrainContext = getProbioticStrainsAthlete(message);
-    const chestWorkoutFullContext = getChestWorkoutFullDesign(message);
-    const manganeseGuideContext = getManganeseAthleteGuide(message);
-    const deadliftSetupContext = getDeadliftSetupRitual(message);
-    const stressEatGuideContext = getStressEatingGuide(message);
-    const shoulderMobAdvContext = getShoulderMobilityAdvancedProtocol(message);
-    const trainingJetLagContext = getTrainingJetLagGuide(message);
+    const wristMobGuideContext = getWristMobilityGuide(topicQuery);
+    const diabetesType2TrContext = getDiabetesType2Training(topicQuery);
+    const legExtFormAdvContext = getLegExtensionFormAdvanced(topicQuery);
+    const probiotStrainContext = getProbioticStrainsAthlete(topicQuery);
+    const chestWorkoutFullContext = getChestWorkoutFullDesign(topicQuery);
+    const manganeseGuideContext = getManganeseAthleteGuide(topicQuery);
+    const deadliftSetupContext = getDeadliftSetupRitual(topicQuery);
+    const stressEatGuideContext = getStressEatingGuide(topicQuery);
+    const shoulderMobAdvContext = getShoulderMobilityAdvancedProtocol(topicQuery);
+    const trainingJetLagContext = getTrainingJetLagGuide(topicQuery);
 
     // ─── Block 1121-1130 calls ──────
-    const muscEndurSciContext = getMuscularEnduranceScience(message);
-    const trapezTrainAdvContext = getTrapezTrainingAdvanced(message);
-    const vitKBoneAthContext = getVitaminKBoneAthlete(message);
-    const inclineTreadmillContext = getInclineTreadmillWalking(message);
-    const proteinBreakfastContext = getProteinBreakfastImportance(message);
-    const ankleRehabProtContext = getAnkleRehabilitationProtocol(message);
-    const metabolicRateBoostContext = getMetabolicRateBoostGuide(message);
-    const landminePressAdvContext = getLandminePressAdvancedGuide(message);
-    const sleepMelatoninNatContext = getNaturalSleepMelatoninGuide(message);
-    const trainingDiaryComContext = getTrainingDiaryOptimization(message);
+    const muscEndurSciContext = getMuscularEnduranceScience(topicQuery);
+    const trapezTrainAdvContext = getTrapezTrainingAdvanced(topicQuery);
+    const vitKBoneAthContext = getVitaminKBoneAthlete(topicQuery);
+    const inclineTreadmillContext = getInclineTreadmillWalking(topicQuery);
+    const proteinBreakfastContext = getProteinBreakfastImportance(topicQuery);
+    const ankleRehabProtContext = getAnkleRehabilitationProtocol(topicQuery);
+    const metabolicRateBoostContext = getMetabolicRateBoostGuide(topicQuery);
+    const landminePressAdvContext = getLandminePressAdvancedGuide(topicQuery);
+    const sleepMelatoninNatContext = getNaturalSleepMelatoninGuide(topicQuery);
+    const trainingDiaryComContext = getTrainingDiaryOptimization(topicQuery);
 
     // ─── Block 1131-1140 calls ──────
-    const gripStrMasterContext = getGripStrengthMasterclass(message);
-    const electrolyteCompContext = getElectrolyteBalanceComplete(message);
-    const cableFlyAdvFormContext = getCableFlyAdvancedForm(message);
-    const coldWeatherAdvContext = getColdWeatherTrainingAdvanced(message);
-    const collagenSuppContext = getCollagenSupplementGuide(message);
-    const bulgSplitMasterContext = getBulgarianSplitSquatMaster(message);
-    const breathTechLiftContext = getBreathingTechniquesLifting(message);
-    const ironDefAdvContext = getIronDeficiencyAdvanced(message);
-    const chestDipAdvGContext = getChestDipAdvancedGuide(message);
-    const trainInsomniaContext = getTrainingWithInsomnia(message);
+    const gripStrMasterContext = getGripStrengthMasterclass(topicQuery);
+    const electrolyteCompContext = getElectrolyteBalanceComplete(topicQuery);
+    const cableFlyAdvFormContext = getCableFlyAdvancedForm(topicQuery);
+    const coldWeatherAdvContext = getColdWeatherTrainingAdvanced(topicQuery);
+    const collagenSuppContext = getCollagenSupplementGuide(topicQuery);
+    const bulgSplitMasterContext = getBulgarianSplitSquatMaster(topicQuery);
+    const breathTechLiftContext = getBreathingTechniquesLifting(topicQuery);
+    const ironDefAdvContext = getIronDeficiencyAdvanced(topicQuery);
+    const chestDipAdvGContext = getChestDipAdvancedGuide(topicQuery);
+    const trainInsomniaContext = getTrainingWithInsomnia(topicQuery);
 
     // ─── Block 1141-1150 calls ──────
-    const restPauseAdvMethContext = getRestPauseAdvancedMethod(message);
-    const vitECompleteContext = getVitaminECompleteGuide(message);
-    const seatedLegCurlContext = getSeatedLegCurlScience(message);
-    const shiftWorkGuideContext = getShiftWorkTrainingGuide(message);
-    const argCitNOContext = getArginineCitrullineNO(message);
-    const hexBarDLContext = getHexBarDeadliftGuide(message);
-    const antiInflamCompContext = getAntiInflamDietComplete(message);
-    const facePullMasterContext = getFacePullMasterclass(message);
-    const sleepHygCompContext = getSleepHygieneComplete(message);
-    const postureTrainContext = getPostureTrainingGuide(message);
+    const restPauseAdvMethContext = getRestPauseAdvancedMethod(topicQuery);
+    const vitECompleteContext = getVitaminECompleteGuide(topicQuery);
+    const seatedLegCurlContext = getSeatedLegCurlScience(topicQuery);
+    const shiftWorkGuideContext = getShiftWorkTrainingGuide(topicQuery);
+    const argCitNOContext = getArginineCitrullineNO(topicQuery);
+    const hexBarDLContext = getHexBarDeadliftGuide(topicQuery);
+    const antiInflamCompContext = getAntiInflamDietComplete(topicQuery);
+    const facePullMasterContext = getFacePullMasterclass(topicQuery);
+    const sleepHygCompContext = getSleepHygieneComplete(topicQuery);
+    const postureTrainContext = getPostureTrainingGuide(topicQuery);
 
     // ─── Block 1151-1160 calls ──────
-    const kbSwingAdvContext = getKettlebellSwingAdvanced(message);
-    const zincTestCompContext = getZincTestosteroneComplete(message);
-    const pecDeckSciContext = getPecDeckFlyScience(message);
-    const trainFastingContext = getTrainingDuringFasting(message);
-    const betaAlaTimingContext = getBetaAlanineTimingGuide(message);
-    const sumoVsConvSciContext = getSumoVsConventionalScience(message);
-    const gutMicroCompContext = getGutMicrobiomeComplete(message);
-    const latPullFormContext = getLatPulldownFormMaster(message);
-    const recoveryDayContext = getRecoveryDayProtocol(message);
-    const tallTrainContext = getTallPeopleTraining(message);
+    const kbSwingAdvContext = getKettlebellSwingAdvanced(topicQuery);
+    const zincTestCompContext = getZincTestosteroneComplete(topicQuery);
+    const pecDeckSciContext = getPecDeckFlyScience(topicQuery);
+    const trainFastingContext = getTrainingDuringFasting(topicQuery);
+    const betaAlaTimingContext = getBetaAlanineTimingGuide(topicQuery);
+    const sumoVsConvSciContext = getSumoVsConventionalScience(topicQuery);
+    const gutMicroCompContext = getGutMicrobiomeComplete(topicQuery);
+    const latPullFormContext = getLatPulldownFormMaster(topicQuery);
+    const recoveryDayContext = getRecoveryDayProtocol(topicQuery);
+    const tallTrainContext = getTallPeopleTraining(topicQuery);
 
     // ─── Block 1161-1170 calls ──────
-    const warmUpProtContext = getWarmUpProtocolComplete(message);
-    const seleniumAthContext = getSeleniumAthleteGuide(message);
-    const cableRowFormContext = getCableRowFormMaster(message);
-    const arthritisTrainContext = getTrainingWithArthritis(message);
-    const taurineCompContext = getTaurineCompleteGuide(message);
-    const hipThrustAdvMContext = getHipThrustAdvancedMaster(message);
-    const circadianTrainContext = getCircadianRhythmTraining(message);
-    const tricepLongHContext = getTricepLongHeadFocus(message);
-    const preWoMealSciContext = getPreWorkoutMealScience(message);
-    const womenTrainCompContext = getTrainingForWomenComplete(message);
+    const warmUpProtContext = getWarmUpProtocolComplete(topicQuery);
+    const seleniumAthContext = getSeleniumAthleteGuide(topicQuery);
+    const cableRowFormContext = getCableRowFormMaster(topicQuery);
+    const arthritisTrainContext = getTrainingWithArthritis(topicQuery);
+    const taurineCompContext = getTaurineCompleteGuide(topicQuery);
+    const hipThrustAdvMContext = getHipThrustAdvancedMaster(topicQuery);
+    const circadianTrainContext = getCircadianRhythmTraining(topicQuery);
+    const tricepLongHContext = getTricepLongHeadFocus(topicQuery);
+    const preWoMealSciContext = getPreWorkoutMealScience(topicQuery);
+    const womenTrainCompContext = getTrainingForWomenComplete(topicQuery);
 
     // ─── Block 1171-1180 calls ──────
-    const mechTensionSciContext = getMechanicalTensionScience(message);
-    const phosphoCreatineContext = getPhosphocreatineSystemGuide(message);
-    const detrainRetrainContext = getDetrainingRetrainingGuide(message);
-    const rhodiolaAdaptContext = getRhodiolaAdaptogenMaster(message);
-    const inclinePressAngContext = getInclinePressAngleMaster(message);
-    const nutriTimingMythContext = getNutrientTimingMyths(message);
-    const trainLongevityContext = getTrainingLongevityGuide(message);
-    const myofascialRelContext = getMyofascialReleaseGuide(message);
-    const tutMasterContext = getTimeUnderTensionMaster(message);
-    const periodBlockContext = getPeriodizationBlockGuide(message);
+    const mechTensionSciContext = getMechanicalTensionScience(topicQuery);
+    const phosphoCreatineContext = getPhosphocreatineSystemGuide(topicQuery);
+    const detrainRetrainContext = getDetrainingRetrainingGuide(topicQuery);
+    const rhodiolaAdaptContext = getRhodiolaAdaptogenMaster(topicQuery);
+    const inclinePressAngContext = getInclinePressAngleMaster(topicQuery);
+    const nutriTimingMythContext = getNutrientTimingMyths(topicQuery);
+    const trainLongevityContext = getTrainingLongevityGuide(topicQuery);
+    const myofascialRelContext = getMyofascialReleaseGuide(topicQuery);
+    const tutMasterContext = getTimeUnderTensionMaster(topicQuery);
+    const periodBlockContext = getPeriodizationBlockGuide(topicQuery);
 
     // ─── Block 1181-1190 calls ──────
-    const glycogenSuperContext = getGlycogenSupercompGuide(message);
-    const isometricHoldContext = getIsometricHoldScience(message);
-    const concentricPowContext = getConcentricPowerGuide(message);
-    const mindsetGrowthContext = getMindsetGrowthAthlete(message);
-    const trainMinimalContext = getTrainingMinimalismGuide(message);
-    const mpsGuideContext = getMuscleProteinSynthGuide(message);
-    const anabolicWinContext = getAnabolicWindowTruth(message);
-    const waterCutContext = getWaterCuttingGuide(message);
-    const sleepStagesContext = getSleepStagesAthleteGuide(message);
-    const reactiveTrainContext = getReactiveTrainingGuide(message);
+    const glycogenSuperContext = getGlycogenSupercompGuide(topicQuery);
+    const isometricHoldContext = getIsometricHoldScience(topicQuery);
+    const concentricPowContext = getConcentricPowerGuide(topicQuery);
+    const mindsetGrowthContext = getMindsetGrowthAthlete(topicQuery);
+    const trainMinimalContext = getTrainingMinimalismGuide(topicQuery);
+    const mpsGuideContext = getMuscleProteinSynthGuide(topicQuery);
+    const anabolicWinContext = getAnabolicWindowTruth(topicQuery);
+    const waterCutContext = getWaterCuttingGuide(topicQuery);
+    const sleepStagesContext = getSleepStagesAthleteGuide(topicQuery);
+    const reactiveTrainContext = getReactiveTrainingGuide(topicQuery);
 
     // ─── Block 1191-1200 calls ──────
-    const autoregTrainContext = getAutoregulationTraining(message);
-    const latRaiseBioContext = getLateralRaiseBiomech(message);
-    const hangLegRaiseContext = getHangingLegRaiseSci(message);
-    const resBandProgContext = getResistanceBandProgression(message);
-    const coreBreathContext = getCoreBreathingInteg(message);
-    const protAbsRateContext = getProteinAbsRateGuide(message);
-    const recovMetricsContext = getRecoveryMetricsTrack(message);
-    const volAutoregContext = getVolumeAutoregGuide(message);
-    const sleepNutriContext = getSleepNutritionLink(message);
-    const trainJournalContext = getTrainingJournalMaster(message);
+    const autoregTrainContext = getAutoregulationTraining(topicQuery);
+    const latRaiseBioContext = getLateralRaiseBiomech(topicQuery);
+    const hangLegRaiseContext = getHangingLegRaiseSci(topicQuery);
+    const resBandProgContext = getResistanceBandProgression(topicQuery);
+    const coreBreathContext = getCoreBreathingInteg(topicQuery);
+    const protAbsRateContext = getProteinAbsRateGuide(topicQuery);
+    const recovMetricsContext = getRecoveryMetricsTrack(topicQuery);
+    const volAutoregContext = getVolumeAutoregGuide(topicQuery);
+    const sleepNutriContext = getSleepNutritionLink(topicQuery);
+    const trainJournalContext = getTrainingJournalMaster(topicQuery);
 
     // ─── Block 1201-1210 calls ──────
-    const adductorTrainContext = getAdductorTrainingGuide(message);
-    const diabetesExContext = getDiabetesExerciseGuide(message);
-    const calfMobContext = getCalfMobilityGuide(message);
-    const fattyLiverExContext = getFattyLiverExercise(message);
-    const anemiaTrainContext = getTrainingWithAnemia(message);
-    const veganMealPrContext = getVeganMealPrepGuide(message);
-    const postPartumContext = getPostPartumReturnGuide(message);
-    const seniorBalContext = getSeniorBalanceGuide(message);
-    const antiGravContext = getAntiGravityTraining(message);
-    const hypertenExContext = getHypertensionExerciseGuide(message);
+    const adductorTrainContext = getAdductorTrainingGuide(topicQuery);
+    const diabetesExContext = getDiabetesExerciseGuide(topicQuery);
+    const calfMobContext = getCalfMobilityGuide(topicQuery);
+    const fattyLiverExContext = getFattyLiverExercise(topicQuery);
+    const anemiaTrainContext = getTrainingWithAnemia(topicQuery);
+    const veganMealPrContext = getVeganMealPrepGuide(topicQuery);
+    const postPartumContext = getPostPartumReturnGuide(topicQuery);
+    const seniorBalContext = getSeniorBalanceGuide(topicQuery);
+    const antiGravContext = getAntiGravityTraining(topicQuery);
+    const hypertenExContext = getHypertensionExerciseGuide(topicQuery);
 
     // ─── Block 1211-1220 calls ──────
-    const thyroidTrainContext = getThyroidTrainingGuide(message);
-    const hiitCardioSciContext = getHIITCardioScience(message);
-    const swimCrossContext = getSwimmingCrossTraining(message);
-    const crampPrevContext = getMuscleCrampPrevention(message);
-    const osteoporosisExContext = getOsteoporosisExercise(message);
-    const boneDensityTrainContext = getBoneDensityTraining(message);
-    const tabataProtoContext = getTabataProtocolGuide(message);
-    const tendinopathyContext = getTendinopathyRehab(message);
-    const asthmaExContext = getAsthmaExerciseGuide(message);
-    const scoliosisTrainContext = getScoliosisTrainingGuide(message);
+    const thyroidTrainContext = getThyroidTrainingGuide(topicQuery);
+    const hiitCardioSciContext = getHIITCardioScience(topicQuery);
+    const swimCrossContext = getSwimmingCrossTraining(topicQuery);
+    const crampPrevContext = getMuscleCrampPrevention(topicQuery);
+    const osteoporosisExContext = getOsteoporosisExercise(topicQuery);
+    const boneDensityTrainContext = getBoneDensityTraining(topicQuery);
+    const tabataProtoContext = getTabataProtocolGuide(topicQuery);
+    const tendinopathyContext = getTendinopathyRehab(topicQuery);
+    const asthmaExContext = getAsthmaExerciseGuide(topicQuery);
+    const scoliosisTrainContext = getScoliosisTrainingGuide(topicQuery);
 
     // ─── Block 1221-1230 calls ──────
-    const varicoseExContext = getVaricoseVeinExercise(message);
-    const pcosTrainContext = getPCOSTrainingGuide(message);
-    const epilepsyExContext = getEpilepsyExerciseGuide(message);
-    const ibsExContext = getIBSExerciseGuide(message);
-    const plantarFascContext = getPlantarFasciitisGuide(message);
-    const depressionExContext = getDepressionExerciseGuide(message);
-    const pregnancyExContext = getPregnancyExerciseGuide(message);
-    const migraineExContext = getMigraineExerciseGuide(message);
-    const fibromyalgiaContext = getFibromyalgiaExercise(message);
-    const anxietyExContext = getAnxietyExerciseGuide(message);
+    const varicoseExContext = getVaricoseVeinExercise(topicQuery);
+    const pcosTrainContext = getPCOSTrainingGuide(topicQuery);
+    const epilepsyExContext = getEpilepsyExerciseGuide(topicQuery);
+    const ibsExContext = getIBSExerciseGuide(topicQuery);
+    const plantarFascContext = getPlantarFasciitisGuide(topicQuery);
+    const depressionExContext = getDepressionExerciseGuide(topicQuery);
+    const pregnancyExContext = getPregnancyExerciseGuide(topicQuery);
+    const migraineExContext = getMigraineExerciseGuide(topicQuery);
+    const fibromyalgiaContext = getFibromyalgiaExercise(topicQuery);
+    const anxietyExContext = getAnxietyExerciseGuide(topicQuery);
 
     // ─── Block 1231-1240 calls ──────
-    const insomniaExContext = getInsomniaExerciseGuide(message);
-    const hashimotoContext = getHashimotoTrainingGuide(message);
-    const goutExContext = getGoutExerciseGuide(message);
-    const rheumatoidContext = getRheumatoidArthritisGuide(message);
-    const celiacAthContext = getCeliacAthleteGuide(message);
-    const hypoglycExContext = getHypoglycemiaExercise(message);
-    const kidneyExContext = getKidneyDiseaseExercise(message);
-    const lymphedemaContext = getLymphedemaExercise(message);
-    const carpalTunnelContext = getCarpalTunnelGuide(message);
-    const msExerciseContext = getMultipleSclerosisExercise(message);
+    const insomniaExContext = getInsomniaExerciseGuide(topicQuery);
+    const hashimotoContext = getHashimotoTrainingGuide(topicQuery);
+    const goutExContext = getGoutExerciseGuide(topicQuery);
+    const rheumatoidContext = getRheumatoidArthritisGuide(topicQuery);
+    const celiacAthContext = getCeliacAthleteGuide(topicQuery);
+    const hypoglycExContext = getHypoglycemiaExercise(topicQuery);
+    const kidneyExContext = getKidneyDiseaseExercise(topicQuery);
+    const lymphedemaContext = getLymphedemaExercise(topicQuery);
+    const carpalTunnelContext = getCarpalTunnelGuide(topicQuery);
+    const msExerciseContext = getMultipleSclerosisExercise(topicQuery);
 
     // ─── Block 1241-1250 calls ──────
-    const parkinsonExContext = getParkinsonExerciseGuide(message);
-    const strokeRehabContext = getStrokeRehabExercise(message);
-    const copdExContext = getCOPDExerciseGuide(message);
-    const heartFailureContext = getHeartFailureExercise(message);
-    const herniatedDiscContext = getHerniatedDiscExercise(message);
-    const frozenShoulderContext = getFrozenShoulderGuide(message);
-    const tmjExContext = getTMJExerciseGuide(message);
-    const sciaticaExContext = getSciaticaExerciseGuide(message);
-    const ehlersDanlosContext = getEhlersDanlosExercise(message);
-    const chronicFatigueContext = getChronicFatigueExercise(message);
+    const parkinsonExContext = getParkinsonExerciseGuide(topicQuery);
+    const strokeRehabContext = getStrokeRehabExercise(topicQuery);
+    const copdExContext = getCOPDExerciseGuide(topicQuery);
+    const heartFailureContext = getHeartFailureExercise(topicQuery);
+    const herniatedDiscContext = getHerniatedDiscExercise(topicQuery);
+    const frozenShoulderContext = getFrozenShoulderGuide(topicQuery);
+    const tmjExContext = getTMJExerciseGuide(topicQuery);
+    const sciaticaExContext = getSciaticaExerciseGuide(topicQuery);
+    const ehlersDanlosContext = getEhlersDanlosExercise(topicQuery);
+    const chronicFatigueContext = getChronicFatigueExercise(topicQuery);
 
     // ─── Block 1251-1260 calls ──────
-    const autismExContext = getAutismExerciseGuide(message);
-    const cerebralPalsyContext = getCerebralPalsyExercise(message);
-    const downSyndromeContext = getDownSyndromeExercise(message);
-    const blindTrainContext = getBlindVisualImpairedTraining(message);
-    const deafTrainContext = getDeafTrainingGuide(message);
-    const amputeeContext = getAmputeeTrainingGuide(message);
-    const wheelchairFitContext = getWheelchairFitnessGuide(message);
-    const postCancerContext = getPostCancerExerciseGuide(message);
-    const osteoarthritisContext = getOsteoarthritisExerciseGuide(message);
-    const crohnsColitisContext = getCrohnsColitisExercise(message);
+    const autismExContext = getAutismExerciseGuide(topicQuery);
+    const cerebralPalsyContext = getCerebralPalsyExercise(topicQuery);
+    const downSyndromeContext = getDownSyndromeExercise(topicQuery);
+    const blindTrainContext = getBlindVisualImpairedTraining(topicQuery);
+    const deafTrainContext = getDeafTrainingGuide(topicQuery);
+    const amputeeContext = getAmputeeTrainingGuide(topicQuery);
+    const wheelchairFitContext = getWheelchairFitnessGuide(topicQuery);
+    const postCancerContext = getPostCancerExerciseGuide(topicQuery);
+    const osteoarthritisContext = getOsteoarthritisExerciseGuide(topicQuery);
+    const crohnsColitisContext = getCrohnsColitisExercise(topicQuery);
 
     // ─── Block 1261-1270 calls ──────
-    const adhdExContext = getADHDExerciseGuide(message);
-    const lupusExContext = getLupusExerciseGuide(message);
-    const postCovidExContext = getPostCovidExerciseGuide(message);
-    const psoriasisExContext = getPsoriasisExerciseGuide(message);
-    const endometriosisContext = getEndometriosisExerciseGuide(message);
-    const menopauseExContext = getMenopauseExerciseGuide(message);
-    const hypothyroidExContext = getHypothyroidExerciseGuide(message);
-    const vertigoExContext = getVertigoExerciseGuide(message);
-    const sleepApneaExContext = getSleepApneaExerciseGuide(message);
-    const raynaudExContext = getRaynaudExerciseGuide(message);
+    const adhdExContext = getADHDExerciseGuide(topicQuery);
+    const lupusExContext = getLupusExerciseGuide(topicQuery);
+    const postCovidExContext = getPostCovidExerciseGuide(topicQuery);
+    const psoriasisExContext = getPsoriasisExerciseGuide(topicQuery);
+    const endometriosisContext = getEndometriosisExerciseGuide(topicQuery);
+    const menopauseExContext = getMenopauseExerciseGuide(topicQuery);
+    const hypothyroidExContext = getHypothyroidExerciseGuide(topicQuery);
+    const vertigoExContext = getVertigoExerciseGuide(topicQuery);
+    const sleepApneaExContext = getSleepApneaExerciseGuide(topicQuery);
+    const raynaudExContext = getRaynaudExerciseGuide(topicQuery);
 
     // ─── Block 1271-1280 calls ──────
-    const ptsdExContext = getPTSDExerciseGuide(message);
-    const bipolarExContext = getBipolarExerciseGuide(message);
-    const ocdExContext = getOCDExerciseGuide(message);
-    const schizophreniaContext = getSchizophreniaExerciseGuide(message);
-    const eatingDisorderContext = getEatingDisorderExerciseGuide(message);
-    const alzheimerContext = getAlzheimerExerciseGuide(message);
-    const addictionRecovContext = getAddictionRecoveryExercise(message);
-    const burnoutExContext = getBurnoutExerciseGuide(message);
-    const autoimmuneExContext = getAutoimmuneExerciseGuide(message);
-    const chronicPainContext = getChronicPainExerciseGuide(message);
+    const ptsdExContext = getPTSDExerciseGuide(topicQuery);
+    const bipolarExContext = getBipolarExerciseGuide(topicQuery);
+    const ocdExContext = getOCDExerciseGuide(topicQuery);
+    const schizophreniaContext = getSchizophreniaExerciseGuide(topicQuery);
+    const eatingDisorderContext = getEatingDisorderExerciseGuide(topicQuery);
+    const alzheimerContext = getAlzheimerExerciseGuide(topicQuery);
+    const addictionRecovContext = getAddictionRecoveryExercise(topicQuery);
+    const burnoutExContext = getBurnoutExerciseGuide(topicQuery);
+    const autoimmuneExContext = getAutoimmuneExerciseGuide(topicQuery);
+    const chronicPainContext = getChronicPainExerciseGuide(topicQuery);
 
     // ─── Block 1281-1290 calls ──────
-    const teenagerTrainContext = getTeenagerTrainingGuide(message);
-    const militaryFitContext = getMilitaryFitnessGuide(message);
-    const firefighterContext = getFirefighterFitnessGuide(message);
-    const nightShiftContext = getNightShiftTrainingGuide(message);
-    const officeWorkerContext = getOfficeWorkerFitnessGuide(message);
-    const driverFitContext = getDriverFitnessGuide(message);
-    const constructionContext = getConstructionWorkerFitness(message);
-    const postpartumExtContext = getPostpartumExtendedGuide(message);
-    const deskMobilityContext = getDeskJobMobilityGuide(message);
-    const freelancerContext = getFreelancerFitnessGuide(message);
+    const teenagerTrainContext = getTeenagerTrainingGuide(topicQuery);
+    const militaryFitContext = getMilitaryFitnessGuide(topicQuery);
+    const firefighterContext = getFirefighterFitnessGuide(topicQuery);
+    const nightShiftContext = getNightShiftTrainingGuide(topicQuery);
+    const officeWorkerContext = getOfficeWorkerFitnessGuide(topicQuery);
+    const driverFitContext = getDriverFitnessGuide(topicQuery);
+    const constructionContext = getConstructionWorkerFitness(topicQuery);
+    const postpartumExtContext = getPostpartumExtendedGuide(topicQuery);
+    const deskMobilityContext = getDeskJobMobilityGuide(topicQuery);
+    const freelancerContext = getFreelancerFitnessGuide(topicQuery);
 
     // ─── Block 1291-1300 calls ──────
-    const basketballContext = getBasketballTrainingGuide(message);
-    const soccerContext = getSoccerTrainingGuide(message);
-    const hockeyContext = getHockeyTrainingGuide(message);
-    const boxingContext = getBoxingTrainingGuide(message);
-    const wrestlingContext = getWrestlingTrainingGuide(message);
-    const tennisContext = getTennisTrainingGuide(message);
-    const volleyballContext = getVolleyballTrainingGuide(message);
-    const cyclingPowerContext = getCyclingPowerTraining(message);
-    const skiingContext = getSkiingTrainingGuide(message);
-    const climbingContext = getClimbingTrainingGuide(message);
+    const basketballContext = getBasketballTrainingGuide(topicQuery);
+    const soccerContext = getSoccerTrainingGuide(topicQuery);
+    const hockeyContext = getHockeyTrainingGuide(topicQuery);
+    const boxingContext = getBoxingTrainingGuide(topicQuery);
+    const wrestlingContext = getWrestlingTrainingGuide(topicQuery);
+    const tennisContext = getTennisTrainingGuide(topicQuery);
+    const volleyballContext = getVolleyballTrainingGuide(topicQuery);
+    const cyclingPowerContext = getCyclingPowerTraining(topicQuery);
+    const skiingContext = getSkiingTrainingGuide(topicQuery);
+    const climbingContext = getClimbingTrainingGuide(topicQuery);
 
     // ─── Block 1301-1310 calls ──────
-    const ruPowerliftContext = getRussianPowerliftingGuide(message);
-    const strongmanContext = getStrongmanTrainingGuide(message);
-    const weightliftingContext = getWeightliftingGuide(message);
-    const armwrestlingContext = getArmwrestlingGuide(message);
-    const crossfitContext = getCrossFitGuide(message);
-    const functTrainSciContext = getFunctionalTrainingScience(message);
-    const girevoyContext = getGirevoyGuide(message);
-    const streetWorkoutContext = getStreetWorkoutGuide(message);
-    const triathlonContext = getTriathlonTrainingGuide(message);
-    const mmaContext = getMMATrainingGuide(message);
+    const ruPowerliftContext = getRussianPowerliftingGuide(topicQuery);
+    const strongmanContext = getStrongmanTrainingGuide(topicQuery);
+    const weightliftingContext = getWeightliftingGuide(topicQuery);
+    const armwrestlingContext = getArmwrestlingGuide(topicQuery);
+    const crossfitContext = getCrossFitGuide(topicQuery);
+    const functTrainSciContext = getFunctionalTrainingScience(topicQuery);
+    const girevoyContext = getGirevoyGuide(topicQuery);
+    const streetWorkoutContext = getStreetWorkoutGuide(topicQuery);
+    const triathlonContext = getTriathlonTrainingGuide(topicQuery);
+    const mmaContext = getMMATrainingGuide(topicQuery);
 
     // ─── Block 1311-1320 calls ──────
-    const marathonContext = getMarathonRunningGuide(message);
-    const swimCompContext = getSwimmingCompetitiveGuide(message);
-    const gymnasticsContext = getGymnasticsTrainingGuide(message);
-    const fencingContext = getFencingTrainingGuide(message);
-    const rowingSportContext = getRowingSportGuide(message);
-    const archeryContext = getArcheryTrainingGuide(message);
-    const badmintonContext = getBadmintonTrainingGuide(message);
-    const tableTennisContext = getTableTennisTrainingGuide(message);
-    const figureSkatingContext = getFigureSkatingGuide(message);
-    const samboContext = getSamboTrainingGuide(message);
+    const marathonContext = getMarathonRunningGuide(topicQuery);
+    const swimCompContext = getSwimmingCompetitiveGuide(topicQuery);
+    const gymnasticsContext = getGymnasticsTrainingGuide(topicQuery);
+    const fencingContext = getFencingTrainingGuide(topicQuery);
+    const rowingSportContext = getRowingSportGuide(topicQuery);
+    const archeryContext = getArcheryTrainingGuide(topicQuery);
+    const badmintonContext = getBadmintonTrainingGuide(topicQuery);
+    const tableTennisContext = getTableTennisTrainingGuide(topicQuery);
+    const figureSkatingContext = getFigureSkatingGuide(topicQuery);
+    const samboContext = getSamboTrainingGuide(topicQuery);
 
     // ─── Block 1321-1330 calls ──────
-    const judoContext = getJudoTrainingGuide(message);
-    const karateContext = getKarateTrainingGuide(message);
-    const taekwondoContext = getTaekwondoTrainingGuide(message);
-    const rugbyContext = getRugbyTrainingGuide(message);
-    const handballContext = getHandballTrainingGuide(message);
-    const waterPoloContext = getWaterPoloTrainingGuide(message);
-    const xcSkiContext = getCrossCountrySkiingGuide(message);
-    const biathlonContext = getBiathlonTrainingGuide(message);
-    const speedSkatingContext = getSpeedSkatingGuide(message);
-    const curlingContext = getCurlingTrainingGuide(message);
+    const judoContext = getJudoTrainingGuide(topicQuery);
+    const karateContext = getKarateTrainingGuide(topicQuery);
+    const taekwondoContext = getTaekwondoTrainingGuide(topicQuery);
+    const rugbyContext = getRugbyTrainingGuide(topicQuery);
+    const handballContext = getHandballTrainingGuide(topicQuery);
+    const waterPoloContext = getWaterPoloTrainingGuide(topicQuery);
+    const xcSkiContext = getCrossCountrySkiingGuide(topicQuery);
+    const biathlonContext = getBiathlonTrainingGuide(topicQuery);
+    const speedSkatingContext = getSpeedSkatingGuide(topicQuery);
+    const curlingContext = getCurlingTrainingGuide(topicQuery);
 
     // ─── Block 1331-1340 calls ──────
-    const golfContext = getGolfTrainingGuide(message);
-    const surfingContext = getSurfingTrainingGuide(message);
-    const alpineSkiContext = getAlpineSkiingGuide(message);
-    const snowboardContext = getSnowboardTrainingGuide(message);
-    const equestrianContext = getEquestrianTrainingGuide(message);
-    const danceSportContext = getDancesportTrainingGuide(message);
-    const parkourContext = getParkourTrainingGuide(message);
-    const amFootballContext = getAmericanFootballGuide(message);
-    const baseballContext = getBaseballTrainingGuide(message);
-    const cricketContext = getCricketTrainingGuide(message);
+    const golfContext = getGolfTrainingGuide(topicQuery);
+    const surfingContext = getSurfingTrainingGuide(topicQuery);
+    const alpineSkiContext = getAlpineSkiingGuide(topicQuery);
+    const snowboardContext = getSnowboardTrainingGuide(topicQuery);
+    const equestrianContext = getEquestrianTrainingGuide(topicQuery);
+    const danceSportContext = getDancesportTrainingGuide(topicQuery);
+    const parkourContext = getParkourTrainingGuide(topicQuery);
+    const amFootballContext = getAmericanFootballGuide(topicQuery);
+    const baseballContext = getBaseballTrainingGuide(topicQuery);
+    const cricketContext = getCricketTrainingGuide(topicQuery);
 
     // ─── Block 1341-1350 calls ──────
-    const lacrosseContext = getLacrosseTrainingGuide(message);
-    const fieldHockeyContext = getFieldHockeyGuide(message);
-    const beachVolleyContext = getBeachVolleyballGuide(message);
-    const skateboardContext = getSkateboardingGuide(message);
-    const bmxContext = getBMXTrainingGuide(message);
-    const divingContext = getDivingTrainingGuide(message);
-    const sailingContext = getSailingFitnessGuide(message);
-    const poloContext = getPoloTrainingGuide(message);
-    const wlAccessoriesContext = getWLAccessoriesGuide(message);
-    const advPeriodContext = getAdvancedPeriodizationGuide(message);
+    const lacrosseContext = getLacrosseTrainingGuide(topicQuery);
+    const fieldHockeyContext = getFieldHockeyGuide(topicQuery);
+    const beachVolleyContext = getBeachVolleyballGuide(topicQuery);
+    const skateboardContext = getSkateboardingGuide(topicQuery);
+    const bmxContext = getBMXTrainingGuide(topicQuery);
+    const divingContext = getDivingTrainingGuide(topicQuery);
+    const sailingContext = getSailingFitnessGuide(topicQuery);
+    const poloContext = getPoloTrainingGuide(topicQuery);
+    const wlAccessoriesContext = getWLAccessoriesGuide(topicQuery);
+    const advPeriodContext = getAdvancedPeriodizationGuide(topicQuery);
 
     // ─── Block 1351-1360 calls ──────
-    const chestAnatomyContext = getChestAnatomyDeepGuide(message);
-    const backAnatomyContext = getBackAnatomyDeepGuide(message);
-    const shoulderAnatomyContext = getShoulderAnatomyDeepGuide(message);
-    const armAnatomyContext = getArmAnatomyDeepGuide(message);
-    const legAnatomyContext = getLegAnatomyDeepGuide(message);
-    const gluteAnatomyContext = getGluteAnatomyDeepGuide(message);
-    const coreAnatomyContext = getCoreAnatomyDeepGuide(message);
-    const neckAnatomyContext = getNeckAnatomyGuide(message);
-    const forearmAnatomyContext = getForearmAnatomyDeepGuide(message);
-    const calfAnatomyContext = getCalfAnatomyDeepGuide(message);
+    const chestAnatomyContext = getChestAnatomyDeepGuide(topicQuery);
+    const backAnatomyContext = getBackAnatomyDeepGuide(topicQuery);
+    const shoulderAnatomyContext = getShoulderAnatomyDeepGuide(topicQuery);
+    const armAnatomyContext = getArmAnatomyDeepGuide(topicQuery);
+    const legAnatomyContext = getLegAnatomyDeepGuide(topicQuery);
+    const gluteAnatomyContext = getGluteAnatomyDeepGuide(topicQuery);
+    const coreAnatomyContext = getCoreAnatomyDeepGuide(topicQuery);
+    const neckAnatomyContext = getNeckAnatomyGuide(topicQuery);
+    const forearmAnatomyContext = getForearmAnatomyDeepGuide(topicQuery);
+    const calfAnatomyContext = getCalfAnatomyDeepGuide(topicQuery);
 
     // ─── Block 1361-1370 calls ──────
-    const trainPsychContext = getTrainingPsychologyDeep(message);
-    const goalNutTimContext = getGoalNutritionTimingGuide(message);
-    const ruFitCultureContext = getRussianFitnessCulture(message);
-    const warmupSciAdvContext = getWarmupScienceAdvanced(message);
-    const recoverySciAdvContext = getRecoveryScienceAdvanced(message);
-    const sleepArchAdvContext = getSleepArchitectureAthletes(message);
-    const stressMgmtAthContext = getStressManagementAthletes(message);
-    const bodyRecompSciContext = getBodyRecompScience(message);
-    const naturalHormContext = getNaturalHormoneOptimization(message);
-    const jointLongevContext = getJointHealthLongevity(message);
+    const trainPsychContext = getTrainingPsychologyDeep(topicQuery);
+    const goalNutTimContext = getGoalNutritionTimingGuide(topicQuery);
+    const ruFitCultureContext = getRussianFitnessCulture(topicQuery);
+    const warmupSciAdvContext = getWarmupScienceAdvanced(topicQuery);
+    const recoverySciAdvContext = getRecoveryScienceAdvanced(topicQuery);
+    const sleepArchAdvContext = getSleepArchitectureAthletes(topicQuery);
+    const stressMgmtAthContext = getStressManagementAthletes(topicQuery);
+    const bodyRecompSciContext = getBodyRecompScience(topicQuery);
+    const naturalHormContext = getNaturalHormoneOptimization(topicQuery);
+    const jointLongevContext = getJointHealthLongevity(topicQuery);
 
     // ─── Block 1371-1380 calls ──────
-    const flexMobDeepContext = getFlexibilityMobilityDeepScience(message);
-    const seniorsTrainContext = getTrainingForSeniorsGuide(message);
-    const youthAthleteContext = getYouthAthleteTraining(message);
-    const pregnancyFitContext = getPregnancyPostpartumFitness(message);
-    const deloadSciComplContext = getDeloadScienceComplete(message);
-    const overtrainDiagContext = getOvertrainingDiagnostics(message);
-    const mmcSciContext = getMindMuscleConnectionScience(message);
-    const tempoTrainContext = getTempoTrainingGuide(message);
-    const isometricSciContext = getIsometricTrainingScience(message);
-    const eccentricGuideContext = getEccentricTrainingGuide(message);
+    const flexMobDeepContext = getFlexibilityMobilityDeepScience(topicQuery);
+    const seniorsTrainContext = getTrainingForSeniorsGuide(topicQuery);
+    const youthAthleteContext = getYouthAthleteTraining(topicQuery);
+    const pregnancyFitContext = getPregnancyPostpartumFitness(topicQuery);
+    const deloadSciComplContext = getDeloadScienceComplete(topicQuery);
+    const overtrainDiagContext = getOvertrainingDiagnostics(topicQuery);
+    const mmcSciContext = getMindMuscleConnectionScience(topicQuery);
+    const tempoTrainContext = getTempoTrainingGuide(topicQuery);
+    const isometricSciContext = getIsometricTrainingScience(topicQuery);
+    const eccentricGuideContext = getEccentricTrainingGuide(topicQuery);
 
     // ─── Block 1381-1390 calls ──────
-    const bfrTrainContext = getBloodFlowRestrictionTraining(message);
-    const clusterSetContext = getClusterSetTraining(message);
-    const dropSetSciContext = getDropSetScience(message);
-    const supersetSciContext = getSupersetTrainingScience(message);
-    const giantSetContext = getGiantSetTraining(message);
-    const restPauseSciContext = getRestPauseTrainingScience(message);
-    const mechDropSetContext = getMechanicalDropSetGuide(message);
-    const myoRepContext = getMyoRepTrainingGuide(message);
-    const preExhaustSciContext = getPreExhaustionScience(message);
-    const partialRepsSciContext = getPartialRepsScience(message);
+    const bfrTrainContext = getBloodFlowRestrictionTraining(topicQuery);
+    const clusterSetContext = getClusterSetTraining(topicQuery);
+    const dropSetSciContext = getDropSetScience(topicQuery);
+    const supersetSciContext = getSupersetTrainingScience(topicQuery);
+    const giantSetContext = getGiantSetTraining(topicQuery);
+    const restPauseSciContext = getRestPauseTrainingScience(topicQuery);
+    const mechDropSetContext = getMechanicalDropSetGuide(topicQuery);
+    const myoRepContext = getMyoRepTrainingGuide(topicQuery);
+    const preExhaustSciContext = getPreExhaustionScience(topicQuery);
+    const partialRepsSciContext = getPartialRepsScience(topicQuery);
 
     // ─── Block 1391-1400 calls ──────
-    const reverseDietSciContext = getReverseDietingScience(message);
-    const carbCyclingAdvContext = getCarbCyclingAdvanced(message);
-    const ifTrainingContext = getIntermittentFastingTraining(message);
-    const gutHealthAthContext = getGutHealthAthletes(message);
-    const antiInflamNutContext = getAntiInflammatoryNutritionAdvanced(message);
-    const micronutrientAthContext = getMicronutrientAthleteGuide(message);
-    const caffeinePerfContext = getCaffeinePerformanceScience(message);
-    const creatineMonoContext = getCreatineMonohydratScience(message);
-    const betaAlanineDeepContext = getBetaAlanineDeepScience(message);
-    const citrullineArgContext = getCitrullineArginineSupplement(message);
+    const reverseDietSciContext = getReverseDietingScience(topicQuery);
+    const carbCyclingAdvContext = getCarbCyclingAdvanced(topicQuery);
+    const ifTrainingContext = getIntermittentFastingTraining(topicQuery);
+    const gutHealthAthContext = getGutHealthAthletes(topicQuery);
+    const antiInflamNutContext = getAntiInflammatoryNutritionAdvanced(topicQuery);
+    const micronutrientAthContext = getMicronutrientAthleteGuide(topicQuery);
+    const caffeinePerfContext = getCaffeinePerformanceScience(topicQuery);
+    const creatineMonoContext = getCreatineMonohydratScience(topicQuery);
+    const betaAlanineDeepContext = getBetaAlanineDeepScience(topicQuery);
+    const citrullineArgContext = getCitrullineArginineSupplement(topicQuery);
 
     // ─── Block 1401-1410 calls ──────
-    const linearProgContext = getLinearProgressionGuide(message);
-    const dupContext = getDailyUndulatingPeriodization(message);
-    const blockPerContext = getBlockPeriodizationGuide(message);
-    const conjugateMethodContext = getConjugateMethodGuide(message);
-    const w531Context = get531ProgramGuide(message);
-    const ssGuideContext = getStartingStrengthGuide(message);
-    const pplSplitContext = getPPLSplitGuide(message);
-    const ulSplitContext = getUpperLowerSplitGuide(message);
-    const fbVsSplitContext = getFullBodyVsSplitScience(message);
-    const autoregRPEContext = getAutoregulationRPEScience(message);
+    const linearProgContext = getLinearProgressionGuide(topicQuery);
+    const dupContext = getDailyUndulatingPeriodization(topicQuery);
+    const blockPerContext = getBlockPeriodizationGuide(topicQuery);
+    const conjugateMethodContext = getConjugateMethodGuide(topicQuery);
+    const w531Context = get531ProgramGuide(topicQuery);
+    const ssGuideContext = getStartingStrengthGuide(topicQuery);
+    const pplSplitContext = getPPLSplitGuide(topicQuery);
+    const ulSplitContext = getUpperLowerSplitGuide(topicQuery);
+    const fbVsSplitContext = getFullBodyVsSplitScience(topicQuery);
+    const autoregRPEContext = getAutoregulationRPEScience(topicQuery);
 
     // ─── Block 1411-1420 calls ──────
-    const shoulderRehabContext = getShoulderRehabProtocol(message);
-    const kneeRehabProtoContext = getKneeRehabProtocol(message);
-    const lowBackRehabContext = getLowBackRehabScience(message);
-    const elbowTendContext = getElbowTendinopathyGuide(message);
-    const rotatorCuffProtoContext = getRotatorCuffProtocol(message);
-    const ankleMobContext = getAnkleMobilityProtocol(message);
-    const hipMobContext = getHipMobilityProtocol(message);
-    const thoracicMobContext = getThoracicMobilityGuide(message);
-    const wristMobContext = getWristMobilityStrength(message);
-    const posturalCorrContext = getPosturalCorrectionGuide(message);
+    const shoulderRehabContext = getShoulderRehabProtocol(topicQuery);
+    const kneeRehabProtoContext = getKneeRehabProtocol(topicQuery);
+    const lowBackRehabContext = getLowBackRehabScience(topicQuery);
+    const elbowTendContext = getElbowTendinopathyGuide(topicQuery);
+    const rotatorCuffProtoContext = getRotatorCuffProtocol(topicQuery);
+    const ankleMobContext = getAnkleMobilityProtocol(topicQuery);
+    const hipMobContext = getHipMobilityProtocol(topicQuery);
+    const thoracicMobContext = getThoracicMobilityGuide(topicQuery);
+    const wristMobContext = getWristMobilityStrength(topicQuery);
+    const posturalCorrContext = getPosturalCorrectionGuide(topicQuery);
 
     // ─── Block 1421-1430 calls ──────
-    const sqBiomechContext = getSquatBiomechanicsDeep(message);
-    const dlBiomechContext = getDeadliftBiomechanicsDeep(message);
-    const bpBiomechContext = getBenchPressBiomechanicsDeep(message);
-    const ohpBiomechContext = getOverheadPressBiomechanics(message);
-    const pullUpBiomechContext = getPullUpBiomechanicsGuide(message);
-    const rowBiomechContext = getRowBiomechanicsGuide(message);
-    const lungeBiomechContext = getLungePatternBiomechanics(message);
-    const hingePattContext = getHingePatternScience(message);
-    const carryLoadContext = getCarryLoadedMovement(message);
-    const plyoSciContext = getPlyometricTrainingScience(message);
+    const sqBiomechContext = getSquatBiomechanicsDeep(topicQuery);
+    const dlBiomechContext = getDeadliftBiomechanicsDeep(topicQuery);
+    const bpBiomechContext = getBenchPressBiomechanicsDeep(topicQuery);
+    const ohpBiomechContext = getOverheadPressBiomechanics(topicQuery);
+    const pullUpBiomechContext = getPullUpBiomechanicsGuide(topicQuery);
+    const rowBiomechContext = getRowBiomechanicsGuide(topicQuery);
+    const lungeBiomechContext = getLungePatternBiomechanics(topicQuery);
+    const hingePattContext = getHingePatternScience(topicQuery);
+    const carryLoadContext = getCarryLoadedMovement(topicQuery);
+    const plyoSciContext = getPlyometricTrainingScience(topicQuery);
 
     // ─── Block 1431-1440 calls ──────
-    const proteinTimingDistContext = getProteinTimingDistribution(message);
-    const preWoNutrContext = getPreWorkoutNutritionScience(message);
-    const postWoNutrContext = getPostWorkoutNutritionScience(message);
-    const hydrationElContext = getHydrationElectrolyteScience(message);
-    const fatLossNutrContext = getFatLossNutritionStrategy(message);
-    const muscleGainNutrContext = getMuscleGainNutritionPlan(message);
-    const veganAthAdvContext = getVegetarianAthleteNutritionAdv(message);
-    const alcoholFitDeepContext = getAlcoholFitnessImpactDeep(message);
-    const foodAllergyContext = getFoodAllergyTraining(message);
-    const mealPrepAthContext = getMealPrepAthleteGuide(message);
+    const proteinTimingDistContext = getProteinTimingDistribution(topicQuery);
+    const preWoNutrContext = getPreWorkoutNutritionScience(topicQuery);
+    const postWoNutrContext = getPostWorkoutNutritionScience(topicQuery);
+    const hydrationElContext = getHydrationElectrolyteScience(topicQuery);
+    const fatLossNutrContext = getFatLossNutritionStrategy(topicQuery);
+    const muscleGainNutrContext = getMuscleGainNutritionPlan(topicQuery);
+    const veganAthAdvContext = getVegetarianAthleteNutritionAdv(topicQuery);
+    const alcoholFitDeepContext = getAlcoholFitnessImpactDeep(topicQuery);
+    const foodAllergyContext = getFoodAllergyTraining(topicQuery);
+    const mealPrepAthContext = getMealPrepAthleteGuide(topicQuery);
 
     // ─── Block 1441-1450 calls ──────
-    const motivSciDeepContext = getMotivationScienceDeep(message);
-    const habitFormContext = getHabitFormationFitness(message);
-    const vizMentalContext = getVisualizationMentalRehearsal(message);
-    const smartGoalFitContext = getGoalSettingSMARTFitness(message);
-    const plateauPsychFitContext = getFitnessPlateauPsychology(message);
-    const compMentalContext = getCompetitionMentalPrep(message);
-    const partnerDynContext = getTrainingPartnerDynamics(message);
-    const gymAnxContext = getGymAnxietyOvercome(message);
-    const bodyImageContext = getBodyImageDisorder(message);
-    const selfTalkContext = getSelfTalkPerformance(message);
+    const motivSciDeepContext = getMotivationScienceDeep(topicQuery);
+    const habitFormContext = getHabitFormationFitness(topicQuery);
+    const vizMentalContext = getVisualizationMentalRehearsal(topicQuery);
+    const smartGoalFitContext = getGoalSettingSMARTFitness(topicQuery);
+    const plateauPsychFitContext = getFitnessPlateauPsychology(topicQuery);
+    const compMentalContext = getCompetitionMentalPrep(topicQuery);
+    const partnerDynContext = getTrainingPartnerDynamics(topicQuery);
+    const gymAnxContext = getGymAnxietyOvercome(topicQuery);
+    const bodyImageContext = getBodyImageDisorder(topicQuery);
+    const selfTalkContext = getSelfTalkPerformance(topicQuery);
 
     // ─── Block 1451-1460 calls ──────
-    const plCompGuideContext = getPowerliftingCompGuide(message);
-    const olyLiftContext = getWeightliftingOlyGuide(message);
-    const strongmanDeepContext = getStrongmanTrainingDeep(message);
-    const crossfitSciContext = getCrossFitTrainingScience(message);
-    const calisthProgAdvContext = getCalisthenicsProgressionsAdv(message);
-    const kettlebellSciContext = getKettlebellTrainingScience(message);
-    const swimLiftContext = getSwimmingForLifters(message);
-    const runLiftContext = getRunningForLifters(message);
-    const boxFitContext = getBoxingFitnessGuide(message);
-    const yogaAthDeepContext = getYogaForAthletesDeep(message);
+    const plCompGuideContext = getPowerliftingCompGuide(topicQuery);
+    const olyLiftContext = getWeightliftingOlyGuide(topicQuery);
+    const strongmanDeepContext = getStrongmanTrainingDeep(topicQuery);
+    const crossfitSciContext = getCrossFitTrainingScience(topicQuery);
+    const calisthProgAdvContext = getCalisthenicsProgressionsAdv(topicQuery);
+    const kettlebellSciContext = getKettlebellTrainingScience(topicQuery);
+    const swimLiftContext = getSwimmingForLifters(topicQuery);
+    const runLiftContext = getRunningForLifters(topicQuery);
+    const boxFitContext = getBoxingFitnessGuide(topicQuery);
+    const yogaAthDeepContext = getYogaForAthletesDeep(topicQuery);
 
     // ─── Block 1461-1470 calls ──────
-    const sleepStagesRecContext = getSleepStagesRecovery(message);
-    const hrvMonContext = getHRVTrainingMonitor(message);
-    const breathworkPerfContext = getBreathworkPerformance(message);
-    const myofascialDeepContext = getFoamRollingMyofascial(message);
-    const cryoSciContext = getCryotherapyScience(message);
-    const saunaAdaptContext = getSaunaHeatAdaptation(message);
-    const deloadPerContext = getDeloadPeriodization(message);
-    const overtrainRecContext = getOvertrainingRecognition(message);
-    const jetLagAdaptContext = getJetLagTrainingAdapt(message);
-    const chronoFitContext = getChronobiologyFitness(message);
+    const sleepStagesRecContext = getSleepStagesRecovery(topicQuery);
+    const hrvMonContext = getHRVTrainingMonitor(topicQuery);
+    const breathworkPerfContext = getBreathworkPerformance(topicQuery);
+    const myofascialDeepContext = getFoamRollingMyofascial(topicQuery);
+    const cryoSciContext = getCryotherapyScience(topicQuery);
+    const saunaAdaptContext = getSaunaHeatAdaptation(topicQuery);
+    const deloadPerContext = getDeloadPeriodization(topicQuery);
+    const overtrainRecContext = getOvertrainingRecognition(topicQuery);
+    const jetLagAdaptContext = getJetLagTrainingAdapt(topicQuery);
+    const chronoFitContext = getChronobiologyFitness(topicQuery);
 
     // ─── Block 1471-1480 calls ──────
-    const mastersAthContext = getMastersAthleteGuide(message);
-    const teenLiftContext = getTeenLiftingGuide(message);
-    const prenatalFitContext = getPrenatalFitnessGuide(message);
-    const postnatalRetContext = getPostnatalReturnGuide(message);
-    const diabT2FitContext = getDiabetesT2FitnessGuide(message);
-    const cardioHyperContext = getCardioHypertensionGuide(message);
-    const asthmaCardioContext = getAsthmaCardioGuide(message);
-    const osteoarthContext = getOsteoarthritisTrainGuide(message);
-    const spinalHealthContext = getSpinalHealthTrainGuide(message);
-    const beginOver50Context = getBeginnersOver50Guide(message);
+    const mastersAthContext = getMastersAthleteGuide(topicQuery);
+    const teenLiftContext = getTeenLiftingGuide(topicQuery);
+    const prenatalFitContext = getPrenatalFitnessGuide(topicQuery);
+    const postnatalRetContext = getPostnatalReturnGuide(topicQuery);
+    const diabT2FitContext = getDiabetesT2FitnessGuide(topicQuery);
+    const cardioHyperContext = getCardioHypertensionGuide(topicQuery);
+    const asthmaCardioContext = getAsthmaCardioGuide(topicQuery);
+    const osteoarthContext = getOsteoarthritisTrainGuide(topicQuery);
+    const spinalHealthContext = getSpinalHealthTrainGuide(topicQuery);
+    const beginOver50Context = getBeginnersOver50Guide(topicQuery);
 
     // ─── Block 1481-1490 calls ──────
-    const creatineMonoDeepContext = getCreatineMonohydrateDeep(message);
-    const carnosineBetaContext = getCarnosineBetaStrategy(message);
-    const caffStratContext = getCaffeineStrategyGuide(message);
-    const wheyVsCasContext = getWheyVsCaseinGuide(message);
-    const eaaSupContext = getEAASupplementGuide(message);
-    const vitDSunContext = getVitDSunlightGuide(message);
-    const fishOilDosContext = getFishOilDosingGuide(message);
-    const magGlycContext = getMagGlycinateGuide(message);
-    const zincImmContext = getZincImmuneGuide(message);
-    const preWorkStackContext = getPreWorkoutStackGuide(message);
+    const creatineMonoDeepContext = getCreatineMonohydrateDeep(topicQuery);
+    const carnosineBetaContext = getCarnosineBetaStrategy(topicQuery);
+    const caffStratContext = getCaffeineStrategyGuide(topicQuery);
+    const wheyVsCasContext = getWheyVsCaseinGuide(topicQuery);
+    const eaaSupContext = getEAASupplementGuide(topicQuery);
+    const vitDSunContext = getVitDSunlightGuide(topicQuery);
+    const fishOilDosContext = getFishOilDosingGuide(topicQuery);
+    const magGlycContext = getMagGlycinateGuide(topicQuery);
+    const zincImmContext = getZincImmuneGuide(topicQuery);
+    const preWorkStackContext = getPreWorkoutStackGuide(topicQuery);
 
     // ─── Block 1491-1500 calls ──────
-    const linearPerPlanContext = getLinearPerPlan(message);
-    const dupProgContext = getDUPProgramming(message);
-    const blockPerSciContext = getBlockPerScience(message);
-    const westsideContext = getWestsideBarbellGuide(message);
-    const rpeAutoregContext = getRPEAutoregGuide(message);
-    const vbtSciContext = getVBTScience(message);
-    const clusterSetSciContext = getClusterSetScience(message);
-    const restPauseProtoContext = getRestPauseProtocol(message);
-    const dropSetMethodsContext = getDropSetMethods(message);
-    const gvtProgContext = getGVTProgram(message);
+    const linearPerPlanContext = getLinearPerPlan(topicQuery);
+    const dupProgContext = getDUPProgramming(topicQuery);
+    const blockPerSciContext = getBlockPerScience(topicQuery);
+    const westsideContext = getWestsideBarbellGuide(topicQuery);
+    const rpeAutoregContext = getRPEAutoregGuide(topicQuery);
+    const vbtSciContext = getVBTScience(topicQuery);
+    const clusterSetSciContext = getClusterSetScience(topicQuery);
+    const restPauseProtoContext = getRestPauseProtocol(topicQuery);
+    const dropSetMethodsContext = getDropSetMethods(topicQuery);
+    const gvtProgContext = getGVTProgram(topicQuery);
     // ─── Block 1501-1510 calls ──────
-    const sportNutrRussiaContext = getSportNutritionRussia(message);
-    const russianFedGuideContext = getRussianFederationGuide(message);
-    const fprsGuideContext = getFPRSPowerliftingGuide(message);
-    const fbrGuideContext = getFBRBodybuildingGuide(message);
-    const rfsFootballContext = getRFSFootballFitness(message);
-    const russianStrengthContext = getRussianStrengthSports(message);
-    const moscowGymContext = getMoscowGymCulture(message);
-    const russianSupplContext = getRussianSupplementMarket(message);
-    const seasonalTrainRussiaContext = getTrainingSeasonalRussia(message);
-    const nutritionTimingAdvContext = getSportsNutritionTimingAdv(message);
+    const sportNutrRussiaContext = getSportNutritionRussia(topicQuery);
+    const russianFedGuideContext = getRussianFederationGuide(topicQuery);
+    const fprsGuideContext = getFPRSPowerliftingGuide(topicQuery);
+    const fbrGuideContext = getFBRBodybuildingGuide(topicQuery);
+    const rfsFootballContext = getRFSFootballFitness(topicQuery);
+    const russianStrengthContext = getRussianStrengthSports(topicQuery);
+    const moscowGymContext = getMoscowGymCulture(topicQuery);
+    const russianSupplContext = getRussianSupplementMarket(topicQuery);
+    const seasonalTrainRussiaContext = getTrainingSeasonalRussia(topicQuery);
+    const nutritionTimingAdvContext = getSportsNutritionTimingAdv(topicQuery);
     // ─── Block 1511-1520 calls ──────
-    const sportPsychContext = getSportPsychologyGuide(message);
-    const mentalToughAdvContext = getMentalToughnessTraining(message);
-    const visualizationContext = getVisualizationTechniques(message);
-    const flowStateContext = getFlowStateTraining(message);
-    const compAnxietyContext = getCompetitionAnxietyGuide(message);
-    const selfTalkAdvContext = getSelfTalkStrategies(message);
-    const goalSettingContext = getGoalSettingMastery(message);
-    const burnoutPrevDeepContext = getBurnoutPrevention(message);
-    const motivationPsychContext = getMotivationPsychGuide(message);
-    const mindfulnessAthlContext = getMindfulnessForAthletes(message);
+    const sportPsychContext = getSportPsychologyGuide(topicQuery);
+    const mentalToughAdvContext = getMentalToughnessTraining(topicQuery);
+    const visualizationContext = getVisualizationTechniques(topicQuery);
+    const flowStateContext = getFlowStateTraining(topicQuery);
+    const compAnxietyContext = getCompetitionAnxietyGuide(topicQuery);
+    const selfTalkAdvContext = getSelfTalkStrategies(topicQuery);
+    const goalSettingContext = getGoalSettingMastery(topicQuery);
+    const burnoutPrevDeepContext = getBurnoutPrevention(topicQuery);
+    const motivationPsychContext = getMotivationPsychGuide(topicQuery);
+    const mindfulnessAthlContext = getMindfulnessForAthletes(topicQuery);
     // ─── Block 1521-1530 calls ──────
-    const biomechPrincContext = getBiomechanicsPrinciples(message);
-    const jointMechContext = getJointMechanicsGuide(message);
-    const muscleAnatDeepContext = getMuscleAnatomyDeep(message);
-    const leverageContext = getLeverAgeAdvantage(message);
-    const spineBiomechContext = getSpineBiomechanics(message);
-    const hipMechContext = getHipMechanicsGuide(message);
-    const shoulderComplexContext = getShoulderComplexGuide(message);
-    const kneeBiomechContext = getKneeBiomechanics(message);
-    const gaitCycleContext = getGaitCycleAnalysis(message);
-    const forceVelCurveContext = getForceVelocityCurve(message);
+    const biomechPrincContext = getBiomechanicsPrinciples(topicQuery);
+    const jointMechContext = getJointMechanicsGuide(topicQuery);
+    const muscleAnatDeepContext = getMuscleAnatomyDeep(topicQuery);
+    const leverageContext = getLeverAgeAdvantage(topicQuery);
+    const spineBiomechContext = getSpineBiomechanics(topicQuery);
+    const hipMechContext = getHipMechanicsGuide(topicQuery);
+    const shoulderComplexContext = getShoulderComplexGuide(topicQuery);
+    const kneeBiomechContext = getKneeBiomechanics(topicQuery);
+    const gaitCycleContext = getGaitCycleAnalysis(topicQuery);
+    const forceVelCurveContext = getForceVelocityCurve(topicQuery);
     // ─── Block 1531-1540 calls ──────
-    const proteinSynthSciContext = getProteinSynthesisScience(message);
-    const carbMetabContext = getCarbohydrateMetabolism(message);
-    const fatMetabSportContext = getFatMetabolismSport(message);
-    const micronutrAthlContext = getMicronutrientsAthletes(message);
-    const gutHealthAthlDeepContext = getGutHealthAthletesDeep(message);
-    const antiInflamDietAdvContext = getAntiInflammationDiet(message);
-    const hydrationSciAdvContext = getHydrationScienceAdv(message);
-    const alcoholFitnessAdvContext = getAlcoholAndFitness(message);
-    const veganAthlContext = getVeganAthleteNutrition(message);
-    const ifSportContext = getIntermittentFastingSport(message);
+    const proteinSynthSciContext = getProteinSynthesisScience(topicQuery);
+    const carbMetabContext = getCarbohydrateMetabolism(topicQuery);
+    const fatMetabSportContext = getFatMetabolismSport(topicQuery);
+    const micronutrAthlContext = getMicronutrientsAthletes(topicQuery);
+    const gutHealthAthlDeepContext = getGutHealthAthletesDeep(topicQuery);
+    const antiInflamDietAdvContext = getAntiInflammationDiet(topicQuery);
+    const hydrationSciAdvContext = getHydrationScienceAdv(topicQuery);
+    const alcoholFitnessAdvContext = getAlcoholAndFitness(topicQuery);
+    const veganAthlContext = getVeganAthleteNutrition(topicQuery);
+    const ifSportContext = getIntermittentFastingSport(topicQuery);
 
     // ─── Block 1541-1550 calls ──────
-    const activeRecovProtoContext = getActiveRecoveryProtocol(message);
-    const massageTherapyContext = getMassageTherapyGuide(message);
-    const immersionTherapyContext = getImmersionTherapyGuide(message);
-    const emsElectricalContext = getElectricalStimGuide(message);
-    const redLightTherapyContext = getRedLightTherapyGuide(message);
-    const sleepOptDeepContext = getSleepOptimizationDeep(message);
-    const napStrategyContext = getNapStrategyGuide(message);
-    const circadianOptContext = getCircadianTrainingOpt(message);
-    const stressManAthlContext = getAthleteStressMgmt(message);
-    const parasympTrainContext = getParasympatheticTraining(message);
+    const activeRecovProtoContext = getActiveRecoveryProtocol(topicQuery);
+    const massageTherapyContext = getMassageTherapyGuide(topicQuery);
+    const immersionTherapyContext = getImmersionTherapyGuide(topicQuery);
+    const emsElectricalContext = getElectricalStimGuide(topicQuery);
+    const redLightTherapyContext = getRedLightTherapyGuide(topicQuery);
+    const sleepOptDeepContext = getSleepOptimizationDeep(topicQuery);
+    const napStrategyContext = getNapStrategyGuide(topicQuery);
+    const circadianOptContext = getCircadianTrainingOpt(topicQuery);
+    const stressManAthlContext = getAthleteStressMgmt(topicQuery);
+    const parasympTrainContext = getParasympatheticTraining(topicQuery);
 
     // ─── Block 1551-1560 calls ──────
-    const kinematicAnalysisContext = getKinematicAnalysis(message);
-    const elasticEnergyContext = getElasticEnergySystem(message);
-    const stretchShortenAdvContext = getStretchShorteningAdvanced(message);
-    const tendonElastContext = getTendonElasticity(message);
-    const muscleArchContext = getMuscleArchitecture(message);
-    const fascialTrainContext = getFascialTraining(message);
-    const plyoProgramContext = getPlyometricsProgramming(message);
-    const speedStrengthDevContext = getSpeedStrengthDevelopment(message);
-    const movScreenContext = getMovementScreening(message);
-    const forceVeloContext = getForceVeloProfile(message);
+    const kinematicAnalysisContext = getKinematicAnalysis(topicQuery);
+    const elasticEnergyContext = getElasticEnergySystem(topicQuery);
+    const stretchShortenAdvContext = getStretchShorteningAdvanced(topicQuery);
+    const tendonElastContext = getTendonElasticity(topicQuery);
+    const muscleArchContext = getMuscleArchitecture(topicQuery);
+    const fascialTrainContext = getFascialTraining(topicQuery);
+    const plyoProgramContext = getPlyometricsProgramming(topicQuery);
+    const speedStrengthDevContext = getSpeedStrengthDevelopment(topicQuery);
+    const movScreenContext = getMovementScreening(topicQuery);
+    const forceVeloContext = getForceVeloProfile(topicQuery);
 
     // ─── Block 1561-1570 calls ──────
-    const refeedDayContext = getRefeedDayProtocol(message);
-    const dietBreakContext = getDietBreakProtocol(message);
-    const nitrateContext = getNitrateFoodSport(message);
-    const hmbSuppContext = getHMBSupplement(message);
-    const omega3AdvContext = getOmega3AthleteAdv(message);
-    const vitDSportContext = getVitaminDSport(message);
-    const zincSportContext = getZincSportPerf(message);
-    const electrolyteCplxContext = getElectrolyteComplex(message);
-    const sportsDrinkContext = getSportsDrinkStrategy(message);
-    const energyGelContext = getEnergyGelStrategy(message);
+    const refeedDayContext = getRefeedDayProtocol(topicQuery);
+    const dietBreakContext = getDietBreakProtocol(topicQuery);
+    const nitrateContext = getNitrateFoodSport(topicQuery);
+    const hmbSuppContext = getHMBSupplement(topicQuery);
+    const omega3AdvContext = getOmega3AthleteAdv(topicQuery);
+    const vitDSportContext = getVitaminDSport(topicQuery);
+    const zincSportContext = getZincSportPerf(topicQuery);
+    const electrolyteCplxContext = getElectrolyteComplex(topicQuery);
+    const sportsDrinkContext = getSportsDrinkStrategy(topicQuery);
+    const energyGelContext = getEnergyGelStrategy(topicQuery);
 
     // ─── Block 1571-1580 calls ──────
-    const mesocycleDesignContext = getMesocycleDesign(message);
-    const macrocyclePlanContext = getMacrocyclePlanning(message);
-    const microcycleOptContext = getMicrocycleOptimizer(message);
-    const peakingProtoContext = getPeakingProtocol(message);
-    const deloadTaperContext = getDeloadTaper(message);
-    const supercompContext = getSupercompensation(message);
-    const blockDesignContext = getTrainingBlockDesign(message);
-    const strHyperBalContext = getStrengthHypertrophyBalance(message);
-    const accessoryProgContext = getAccessoryProgramming(message);
-    const formulasCalcContext = getFormulasCalculations(message);
+    const mesocycleDesignContext = getMesocycleDesign(topicQuery);
+    const macrocyclePlanContext = getMacrocyclePlanning(topicQuery);
+    const microcycleOptContext = getMicrocycleOptimizer(topicQuery);
+    const peakingProtoContext = getPeakingProtocol(topicQuery);
+    const deloadTaperContext = getDeloadTaper(topicQuery);
+    const supercompContext = getSupercompensation(topicQuery);
+    const blockDesignContext = getTrainingBlockDesign(topicQuery);
+    const strHyperBalContext = getStrengthHypertrophyBalance(topicQuery);
+    const accessoryProgContext = getAccessoryProgramming(topicQuery);
+    const formulasCalcContext = getFormulasCalculations(topicQuery);
 
     // ─── Block 1581-1590 calls ──────
-    const chokingPrevContext = getChokingPrevention(message);
-    const zonePerformAdvContext = getZonePerformanceAdv(message);
-    const focusConcContext = getFocusConcentration(message);
-    const prePerformRouteContext = getPrePerformanceRoutine(message);
-    const confBuildContext = getConfidenceBuilding(message);
-    const innerGameContext = getInnerGameConcept(message);
-    const sportIdContext = getSportIdentityBalance(message);
-    const groupDynContext = getGroupDynamicsSport(message);
-    const motivAdvContext = getMotivationAdvanced(message);
-    const resilienceContext = getResilienceSport(message);
+    const chokingPrevContext = getChokingPrevention(topicQuery);
+    const zonePerformAdvContext = getZonePerformanceAdv(topicQuery);
+    const focusConcContext = getFocusConcentration(topicQuery);
+    const prePerformRouteContext = getPrePerformanceRoutine(topicQuery);
+    const confBuildContext = getConfidenceBuilding(topicQuery);
+    const innerGameContext = getInnerGameConcept(topicQuery);
+    const sportIdContext = getSportIdentityBalance(topicQuery);
+    const groupDynContext = getGroupDynamicsSport(topicQuery);
+    const motivAdvContext = getMotivationAdvanced(topicQuery);
+    const resilienceContext = getResilienceSport(topicQuery);
 
     // ─── Block 1591-1600 calls ──────
-    const menstrualCycleContext = getMenstrualCycleTraining(message);
-    const femaleHormonesContext = getFemaleHormonesFitness(message);
-    const femaleStrengthAdvContext = getFemaleStrengthAdvantage(message);
-    const femaleBodyCompContext = getFemaleBodyComposition(message);
-    const redsSyndromeContext = getREDSSyndrome(message);
-    const femaleNutritionContext = getFemaleNutritionSpec(message);
-    const cycleBasedTrainContext = getCycleBasedTraining(message);
-    const femaleIronContext = getFemaleIronProtocol(message);
-    const menopauseFitContext = getMenopauseFitness(message);
-    const postpartumFitContext = getPostpartumFitnessGuide(message);
+    const menstrualCycleContext = getMenstrualCycleTraining(topicQuery);
+    const femaleHormonesContext = getFemaleHormonesFitness(topicQuery);
+    const femaleStrengthAdvContext = getFemaleStrengthAdvantage(topicQuery);
+    const femaleBodyCompContext = getFemaleBodyComposition(topicQuery);
+    const redsSyndromeContext = getREDSSyndrome(topicQuery);
+    const femaleNutritionContext = getFemaleNutritionSpec(topicQuery);
+    const cycleBasedTrainContext = getCycleBasedTraining(topicQuery);
+    const femaleIronContext = getFemaleIronProtocol(topicQuery);
+    const menopauseFitContext = getMenopauseFitness(topicQuery);
+    const postpartumFitContext = getPostpartumFitnessGuide(topicQuery);
 
     // ─── Block 1601-1610 calls ──────
-    const kbSeniorStrengthContext = getSeniorStrengthTraining(message);
-    const boneHealthContext = getBoneHealthTraining(message);
-    const balanceFallContext = getBalanceFallPrevention(message);
-    const longevityExerContext = getLongevityExercise(message);
-    const jointLongevityContext = getJointHealthLongevityAdvanced(message);
-    const sleepPerfContext = getSleepAndPerformance(message);
-    const stressMgmtFitContext = getStressManagementFitness(message);
-    const kbCardioVascHealthContext = getCardiovasularHealth(message);
-    const metabolicHealthContext = getMetabolicHealthTraining(message);
-    const kbAntiAgingContext = getAntiAgingProtocols(message);
+    const kbSeniorStrengthContext = getSeniorStrengthTraining(topicQuery);
+    const boneHealthContext = getBoneHealthTraining(topicQuery);
+    const balanceFallContext = getBalanceFallPrevention(topicQuery);
+    const longevityExerContext = getLongevityExercise(topicQuery);
+    const jointLongevityContext = getJointHealthLongevityAdvanced(topicQuery);
+    const sleepPerfContext = getSleepAndPerformance(topicQuery);
+    const stressMgmtFitContext = getStressManagementFitness(topicQuery);
+    const kbCardioVascHealthContext = getCardiovasularHealth(topicQuery);
+    const metabolicHealthContext = getMetabolicHealthTraining(topicQuery);
+    const kbAntiAgingContext = getAntiAgingProtocols(topicQuery);
 
     // ─── Block 1611-1620 calls ──────
-    const functionalTrainContext = getFunctionalTrainingBasics(message);
-    const kbThoracicMobContext = getThoracicMobility(message);
-    const kbHipMobContext = getHipMobility(message);
-    const shoulderMobContext = getShoulderMobility(message);
-    const kbAnkleMobContext = getAnkleMobility(message);
-    const myofascialProtContext = getMyofascialReleaseProtocol(message);
-    const coreStabilityContext = getCoreStabilityProtocol(message);
-    const breathingPerfContext = getBreathingForPerformance(message);
-    const movScreenSelfContext = getMovementScreeningSelfTest(message);
+    const functionalTrainContext = getFunctionalTrainingBasics(topicQuery);
+    const kbThoracicMobContext = getThoracicMobility(topicQuery);
+    const kbHipMobContext = getHipMobility(topicQuery);
+    const shoulderMobContext = getShoulderMobility(topicQuery);
+    const kbAnkleMobContext = getAnkleMobility(topicQuery);
+    const myofascialProtContext = getMyofascialReleaseProtocol(topicQuery);
+    const coreStabilityContext = getCoreStabilityProtocol(topicQuery);
+    const breathingPerfContext = getBreathingForPerformance(topicQuery);
+    const movScreenSelfContext = getMovementScreeningSelfTest(topicQuery);
 
     // ─── Block 1621-1630 calls ──────
-    const geneticsMuscleContext = getGeneticsAndMuscleType(message);
-    const geneticBuildContext = getGeneticMuscleBuilding(message);
-    const bodyTypeTrainContext = getBodyTypeTraining(message);
-    const individualRecovContext = getIndividualRecovery(message);
-    const trainingAgeAdaptContext = getTrainingAgeAdaptation(message);
-    const responseToTrainContext = getResponseToTraining(message);
-    const anthropometryContext = getAnthropometryExercises(message);
-    const kbHormonalOptContext = getHormonalOptimization(message);
-    const geneticTestFitContext = getGeneticTestingFitness(message);
-    const personalizedNutrContext = getPersonalizedNutrition(message);
+    const geneticsMuscleContext = getGeneticsAndMuscleType(topicQuery);
+    const geneticBuildContext = getGeneticMuscleBuilding(topicQuery);
+    const bodyTypeTrainContext = getBodyTypeTraining(topicQuery);
+    const individualRecovContext = getIndividualRecovery(topicQuery);
+    const trainingAgeAdaptContext = getTrainingAgeAdaptation(topicQuery);
+    const responseToTrainContext = getResponseToTraining(topicQuery);
+    const anthropometryContext = getAnthropometryExercises(topicQuery);
+    const kbHormonalOptContext = getHormonalOptimization(topicQuery);
+    const geneticTestFitContext = getGeneticTestingFitness(topicQuery);
+    const personalizedNutrContext = getPersonalizedNutrition(topicQuery);
 
     // ─── Block 1631-1640 calls ──────
-    const crossfitFundContext = getCrossfitFundamentals(message);
-    const hybridTrainContext = getHybridTraining(message);
-    const olympicLiftContext = getOlympicLifting(message);
-    const metconDesignContext = getMetconDesign(message);
-    const gymnasticStrengthContext = getGymnasticsStrength(message);
-    const kettlebellTrainContext = getKettlebellTraining(message);
-    const kbCompetitionPrepContext = getCompetitionPrep(message);
-    const hiitProtocolsContext = getHIITProtocols(message);
-    const workCapacityContext = getWorkCapacityBuilding(message);
+    const crossfitFundContext = getCrossfitFundamentals(topicQuery);
+    const hybridTrainContext = getHybridTraining(topicQuery);
+    const olympicLiftContext = getOlympicLifting(topicQuery);
+    const metconDesignContext = getMetconDesign(topicQuery);
+    const gymnasticStrengthContext = getGymnasticsStrength(topicQuery);
+    const kettlebellTrainContext = getKettlebellTraining(topicQuery);
+    const kbCompetitionPrepContext = getCompetitionPrep(topicQuery);
+    const hiitProtocolsContext = getHIITProtocols(topicQuery);
+    const workCapacityContext = getWorkCapacityBuilding(topicQuery);
 
     // ─── Block 1641-1650 calls ──────
-    const nutrientTimingAdvContext = getNutrientTiming(message);
-    const reverseDietingContext = getReversDieting(message);
-    const carbCyclingAdvContext2 = getCarbCycling(message);
-    const gutHealthFitContext = getGutHealthFitness(message);
-    const suppStackGuideContext = getSupplementStackGuide(message);
-    const alcoholFitNewContext = getAlcoholAndFitness(message);
-    const waterElectrolytesContext = getWaterAndElectrolytes(message);
-    const mealPrepStratContext = getMealPrepStrategies(message);
-    const refeedCheatContext = getRefeedAndCheatMeals(message);
-    const plantBasedAthContext = getPlantBasedAthletes(message);
+    const nutrientTimingAdvContext = getNutrientTiming(topicQuery);
+    const reverseDietingContext = getReversDieting(topicQuery);
+    const carbCyclingAdvContext2 = getCarbCycling(topicQuery);
+    const gutHealthFitContext = getGutHealthFitness(topicQuery);
+    const suppStackGuideContext = getSupplementStackGuide(topicQuery);
+    const alcoholFitNewContext = getAlcoholAndFitness(topicQuery);
+    const waterElectrolytesContext = getWaterAndElectrolytes(topicQuery);
+    const mealPrepStratContext = getMealPrepStrategies(topicQuery);
+    const refeedCheatContext = getRefeedAndCheatMeals(topicQuery);
+    const plantBasedAthContext = getPlantBasedAthletes(topicQuery);
 
     // ─── Block 1651-1660 calls ──────
-    const coldExposureContext = getColdExposureProtocol(message);
-    const saunaHeatContext = getSaunaAndHeatTherapy(message);
-    const sunlightCircadianContext = getSunlightAndCircadianRhythm(message);
-    const breathworkBiohackContext = getBreathworkBiohacking(message);
-    const neuroplasticityContext = getNeuroplasticityFitness(message);
-    const mindfulnessPerfContext = getMindfulnessPerformance(message);
-    const bloodworkAthContext = getBloodworkForAthletes(message);
-    const trackerOptContext = getTrackerOptimization(message);
-    const longevitySuppContext = getLongevitySupplements(message);
+    const coldExposureContext = getColdExposureProtocol(topicQuery);
+    const saunaHeatContext = getSaunaAndHeatTherapy(topicQuery);
+    const sunlightCircadianContext = getSunlightAndCircadianRhythm(topicQuery);
+    const breathworkBiohackContext = getBreathworkBiohacking(topicQuery);
+    const neuroplasticityContext = getNeuroplasticityFitness(topicQuery);
+    const mindfulnessPerfContext = getMindfulnessPerformance(topicQuery);
+    const bloodworkAthContext = getBloodworkForAthletes(topicQuery);
+    const trackerOptContext = getTrackerOptimization(topicQuery);
+    const longevitySuppContext = getLongevitySupplements(topicQuery);
 
     // ─── Block 1661-1670 calls ──────
-    const kneeInjuryPrevContext = getKneeInjuryPrevention(message);
-    const shoulderInjuryPrevContext = getShoulderInjuryPrevention(message);
-    const lowBackPainTrainContext = getLowBackPainTraining(message);
-    const kbTendinopathyContext = getTendinopathyManagement(message);
-    const returnToSportContext = getReturnToSport(message);
-    const kbPosturalCorrContext = getPosturalCorrection(message);
-    const prehabContext = getPrehabilitation(message);
-    const kbOveruseInjuryContext = getOveruseInjuryGuide(message);
-    const sportsFirstAidContext = getSportsFirstAid(message);
+    const kneeInjuryPrevContext = getKneeInjuryPrevention(topicQuery);
+    const shoulderInjuryPrevContext = getShoulderInjuryPrevention(topicQuery);
+    const lowBackPainTrainContext = getLowBackPainTraining(topicQuery);
+    const kbTendinopathyContext = getTendinopathyManagement(topicQuery);
+    const returnToSportContext = getReturnToSport(topicQuery);
+    const kbPosturalCorrContext = getPosturalCorrection(topicQuery);
+    const prehabContext = getPrehabilitation(topicQuery);
+    const kbOveruseInjuryContext = getOveruseInjuryGuide(topicQuery);
+    const sportsFirstAidContext = getSportsFirstAid(topicQuery);
 
     // ─── Block 1671-1680 calls ──────
-    const soccerCondContext = getSoccerConditioning(message);
-    const basketballTrainContext = getBasketballTraining(message);
-    const swimmingDrylandContext = getSwimmingDryland(message);
-    const runningStrengthContext = getRunningStrengthWork(message);
-    const martialArtsCondContext = getMartialArtsConditioning(message);
-    const tennisCondContext = getTennisConditioning(message);
-    const climbingStrengthContext = getClimbingStrength(message);
-    const cyclingPerfContext = getCyclingPerformance(message);
-    const yogaAthNewContext = getYogaForAthletes(message);
+    const soccerCondContext = getSoccerConditioning(topicQuery);
+    const basketballTrainContext = getBasketballTraining(topicQuery);
+    const swimmingDrylandContext = getSwimmingDryland(topicQuery);
+    const runningStrengthContext = getRunningStrengthWork(topicQuery);
+    const martialArtsCondContext = getMartialArtsConditioning(topicQuery);
+    const tennisCondContext = getTennisConditioning(topicQuery);
+    const climbingStrengthContext = getClimbingStrength(topicQuery);
+    const cyclingPerfContext = getCyclingPerformance(topicQuery);
+    const yogaAthNewContext = getYogaForAthletes(topicQuery);
 
     // ─── Block 1681-1690 calls ──────
-    const kbSleepArchContext = getSleepArchitectureAthletes(message);
-    const activeRecovMethodsContext = getActiveRecoveryMethods(message);
-    const deloadVariantsContext = getDeloadVariants(message);
-    const nutritionRecovContext = getNutritionForRecovery(message);
-    const kbMindBodyContext = getMindBodyConnection(message);
-    const suppRecovContext = getSupplementsForRecovery(message);
-    const visualizationSportContext = getVisualizationSports(message);
-    const thermoregContext = getThermoregulationAthletes(message);
-    const altitudeContext = getAltitudeTraining(message);
-    const energySystemsContext = getEnergySystemsTraining(message);
+    const kbSleepArchContext = getSleepArchitectureAthletes(topicQuery);
+    const activeRecovMethodsContext = getActiveRecoveryMethods(topicQuery);
+    const deloadVariantsContext = getDeloadVariants(topicQuery);
+    const nutritionRecovContext = getNutritionForRecovery(topicQuery);
+    const kbMindBodyContext = getMindBodyConnection(topicQuery);
+    const suppRecovContext = getSupplementsForRecovery(topicQuery);
+    const visualizationSportContext = getVisualizationSports(topicQuery);
+    const thermoregContext = getThermoregulationAthletes(topicQuery);
+    const altitudeContext = getAltitudeTraining(topicQuery);
+    const energySystemsContext = getEnergySystemsTraining(topicQuery);
 
     // ─── Block 1691-1700 calls ──────
-    const plyometricContext = getPlyometricTraining(message);
-    const isometricContext = getIsometricTraining(message);
-    const kbBfrContext = getBFRTraining(message);
-    const kbGripStrengthContext = getGripStrengthTraining(message);
-    const coreTrainContext = getCoreTrainingScience(message);
-    const breathingMechContext = getBreathingMechanics(message);
-    const hormonalRespContext = getHormonalResponseTraining(message);
-    const musclesFiberContext = getMusclesFiberTypes(message);
-    const kbDehydrationContext = getDehydrationPerformance(message);
-    const functionalPatternsContext = getFunctionalMovementPatterns(message);
+    const plyometricContext = getPlyometricTraining(topicQuery);
+    const isometricContext = getIsometricTraining(topicQuery);
+    const kbBfrContext = getBFRTraining(topicQuery);
+    const kbGripStrengthContext = getGripStrengthTraining(topicQuery);
+    const coreTrainContext = getCoreTrainingScience(topicQuery);
+    const breathingMechContext = getBreathingMechanics(topicQuery);
+    const hormonalRespContext = getHormonalResponseTraining(topicQuery);
+    const musclesFiberContext = getMusclesFiberTypes(topicQuery);
+    const kbDehydrationContext = getDehydrationPerformance(topicQuery);
+    const functionalPatternsContext = getFunctionalMovementPatterns(topicQuery);
 
     // ─── Block 1711-1720 calls ──────
-    const kbCarbCyclingContext = getCarbCycling(message);
-    const tendonTrainContext = getTendonLigamentTraining(message);
-    const mentalVizContext = getMentalVisualization(message);
-    const circadianContext = getCircadianTraining(message);
-    const popularProgsContext = getPopularPrograms(message);
-    const hypertrophyMechContext = getHypertrophyMechanisms(message);
-    const kbSupercompContext = getSupercompensation(message);
-    const agingTrainContext = getAgingAndTraining(message);
-    const blockPeriodContext = getBlockPeriodization(message);
-    const kbHeatColdContext = getTrainingInHeat(message);
+    const kbCarbCyclingContext = getCarbCycling(topicQuery);
+    const tendonTrainContext = getTendonLigamentTraining(topicQuery);
+    const mentalVizContext = getMentalVisualization(topicQuery);
+    const circadianContext = getCircadianTraining(topicQuery);
+    const popularProgsContext = getPopularPrograms(topicQuery);
+    const hypertrophyMechContext = getHypertrophyMechanisms(topicQuery);
+    const kbSupercompContext = getSupercompensation(topicQuery);
+    const agingTrainContext = getAgingAndTraining(topicQuery);
+    const blockPeriodContext = getBlockPeriodization(topicQuery);
+    const kbHeatColdContext = getTrainingInHeat(topicQuery);
 
     // ─── Block 1721-1730 calls ──────
-    const creatineContext = getCreatineGuide(message);
-    const sleepGrowthContext = getSleepAndMuscleGrowth(message);
-    const deloadGuideContext = getDeloadWeek(message);
-    const proteinTimingGuideContext = getProteinTiming(message);
-    const kbDropSetSciContext = getDropSetScience(message);
-    const bandsContext = getResistanceBands(message);
-    const gutHealthGuideContext = getGutHealthAndPerformance(message);
-    const fatLossTrainContext = getTrainingForFatLoss(message);
-    const postureContext = getPostureCorrection(message);
-    const mindsetPlateauContext = getMindsetAndPlateaus(message);
+    const creatineContext = getCreatineGuide(topicQuery);
+    const sleepGrowthContext = getSleepAndMuscleGrowth(topicQuery);
+    const deloadGuideContext = getDeloadWeek(topicQuery);
+    const proteinTimingGuideContext = getProteinTiming(topicQuery);
+    const kbDropSetSciContext = getDropSetScience(topicQuery);
+    const bandsContext = getResistanceBands(topicQuery);
+    const gutHealthGuideContext = getGutHealthAndPerformance(topicQuery);
+    const fatLossTrainContext = getTrainingForFatLoss(topicQuery);
+    const postureContext = getPostureCorrection(topicQuery);
+    const mindsetPlateauContext = getMindsetAndPlateaus(topicQuery);
 
     // ─── Block 1731-1740 calls ──────
-    const tutContext = getTimeUnderTension(message);
-    const journalContext = getTrainingJournal(message);
-    const mealPrepKbContext = getMealPrep(message);
-    const caffeineContext = getCaffeineAndPerformance(message);
-    const partnerContext = getTrainingPartner(message);
-    const etiquetteKbContext = getGymEtiquette(message);
-    const plateauBreakContext = getPlateauBreaking(message);
-    const homeGymKbContext = getHomeGymSetup(message);
-    const warmupProtContext = getWarmupProtocol(message);
-    const cooldownProtContext = getCooldownProtocol(message);
+    const tutContext = getTimeUnderTension(topicQuery);
+    const journalContext = getTrainingJournal(topicQuery);
+    const mealPrepKbContext = getMealPrep(topicQuery);
+    const caffeineContext = getCaffeineAndPerformance(topicQuery);
+    const partnerContext = getTrainingPartner(topicQuery);
+    const etiquetteKbContext = getGymEtiquette(topicQuery);
+    const plateauBreakContext = getPlateauBreaking(topicQuery);
+    const homeGymKbContext = getHomeGymSetup(topicQuery);
+    const warmupProtContext = getWarmupProtocol(topicQuery);
+    const cooldownProtContext = getCooldownProtocol(topicQuery);
 
     // ─── Block 1741-1750 calls ──────
-    const motivationSciContext = getMotivationScience(message);
-    const injuryPrevContext = getInjuryPrevention(message);
-    const sportNutrBasicsContext = getSportNutritionBasics(message);
-    const bodyRecompContext = getBodyRecomposition(message);
-    const suppBeginnersContext = getSupplementsForBeginners(message);
-    const busyTrainContext = getTrainingForBusyPeople(message);
-    const commonMistakesContext = getCommonMistakes(message);
-    const alcoholTrainContext = getAlcoholAndTraining(message);
-    const flexMobilityContext = getFlexibilityVsMobility(message);
-    const progressTrackContext = getProgressTracking(message);
+    const motivationSciContext = getMotivationScience(topicQuery);
+    const injuryPrevContext = getInjuryPrevention(topicQuery);
+    const sportNutrBasicsContext = getSportNutritionBasics(topicQuery);
+    const bodyRecompContext = getBodyRecomposition(topicQuery);
+    const suppBeginnersContext = getSupplementsForBeginners(topicQuery);
+    const busyTrainContext = getTrainingForBusyPeople(topicQuery);
+    const commonMistakesContext = getCommonMistakes(topicQuery);
+    const alcoholTrainContext = getAlcoholAndTraining(topicQuery);
+    const flexMobilityContext = getFlexibilityVsMobility(topicQuery);
+    const progressTrackContext = getProgressTracking(topicQuery);
 
     // ─── Block 1751-1760 calls ──────
-    const restPauseAdvContext = getRestPauseSets(message);
-    const clusterSetsAdvContext = getClusterSetsAdv(message);
-    const mechDropSetAdvContext = getMechanicalDropSetsAdv(message);
-    const giantSetsContext = getGiantSets(message);
-    const bfrDetailContext = getBloodFlowRestriction(message);
-    const eccentricAdvContext = getEccentricTrainingAdv(message);
-    const isoHoldsContext = getIsometricHolds(message);
-    const tempoTrainAdvContext = getTempoTrainingAdv(message);
-    const unilateralAdvContext = getUnilateralTrainingAdv(message);
-    const conjugateAdvContext = getConjugateMethodAdv(message);
+    const restPauseAdvContext = getRestPauseSets(topicQuery);
+    const clusterSetsAdvContext = getClusterSetsAdv(topicQuery);
+    const mechDropSetAdvContext = getMechanicalDropSetsAdv(topicQuery);
+    const giantSetsContext = getGiantSets(topicQuery);
+    const bfrDetailContext = getBloodFlowRestriction(topicQuery);
+    const eccentricAdvContext = getEccentricTrainingAdv(topicQuery);
+    const isoHoldsContext = getIsometricHolds(topicQuery);
+    const tempoTrainAdvContext = getTempoTrainingAdv(topicQuery);
+    const unilateralAdvContext = getUnilateralTrainingAdv(topicQuery);
+    const conjugateAdvContext = getConjugateMethodAdv(topicQuery);
 
     // ─── Block 1761-1770 calls ──────
-    const stressCortisolAdvContext = getStressAndCortisol(message);
-    const digestiveContext = getDigestiveHealth(message);
-    const jointHealthDetContext = getJointHealth(message);
-    const sleepOptContext = getSleepOptimization(message);
-    const mindsetGrowthAdvContext = getMindsetGrowth(message);
-    const compPrepDetContext = getCompetitionPreparation(message);
-    const trainingSickContext = getTrainingWhileSick(message);
-    const postInjuryAdvContext = getPostInjuryReturnAdv(message);
-    const burnoutPrevAdvContext = getBurnoutPreventionAdv(message);
-    const socialFitnessContext = getSocialFitness(message);
+    const stressCortisolAdvContext = getStressAndCortisol(topicQuery);
+    const digestiveContext = getDigestiveHealth(topicQuery);
+    const jointHealthDetContext = getJointHealth(topicQuery);
+    const sleepOptContext = getSleepOptimization(topicQuery);
+    const mindsetGrowthAdvContext = getMindsetGrowth(topicQuery);
+    const compPrepDetContext = getCompetitionPreparation(topicQuery);
+    const trainingSickContext = getTrainingWhileSick(topicQuery);
+    const postInjuryAdvContext = getPostInjuryReturnAdv(topicQuery);
+    const burnoutPrevAdvContext = getBurnoutPreventionAdv(topicQuery);
+    const socialFitnessContext = getSocialFitness(topicQuery);
 
     // ─── Block 1701-1710 calls ──────
-    const squatBioContext = getSquatBiomechanics(message);
-    const deadliftMechContext = getDeadliftMechanics(message);
-    const preWorkoutNutrContext = getPreWorkoutNutrition(message);
-    const dupPeriodContext = getDUPPeriodization(message);
-    const kbShoulderHealthContext = getShoulderHealth(message);
-    const metabolicTrainContext = getMetabolicTraining(message);
-    const stretchingSciContext = getStretchingScience(message);
-    const trainingVolumeSciContext = getTrainingVolumeScience(message);
-    const goalSettingPsychContext = getGoalSettingPsychology(message);
-    const femaleTrainingContext = getFemaleTrainingSpecifics(message);
+    const squatBioContext = getSquatBiomechanics(topicQuery);
+    const deadliftMechContext = getDeadliftMechanics(topicQuery);
+    const preWorkoutNutrContext = getPreWorkoutNutrition(topicQuery);
+    const dupPeriodContext = getDUPPeriodization(topicQuery);
+    const kbShoulderHealthContext = getShoulderHealth(topicQuery);
+    const metabolicTrainContext = getMetabolicTraining(topicQuery);
+    const stretchingSciContext = getStretchingScience(topicQuery);
+    const trainingVolumeSciContext = getTrainingVolumeScience(topicQuery);
+    const goalSettingPsychContext = getGoalSettingPsychology(topicQuery);
+    const femaleTrainingContext = getFemaleTrainingSpecifics(topicQuery);
 
     logger.debug(`[AI+] streak: ${gamification.currentStreak}, PRs: ${gamification.newPRsThisWeek.length}, injuries: ${injuryZones.join(',') || 'none'}, recovery: ${recovery.score}, fatigue: ${fatigueData.status} (ACWR ${fatigueData.ratio}), plateaus: ${plateauStrategies.length}, memories: ${extractedMemories.length} new, muscleRecovery: ${muscleRecoveryStatuses.filter(s => !s.readyToTrain).length} recovering`);
 
