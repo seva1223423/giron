@@ -92,6 +92,9 @@ jest.mock('../db', () => ({
     },
     cardioSession: {
       create: jest.fn().mockResolvedValue({ id: 'cardio-new' }),
+      // The chat context reads the last fortnight of cardio for every message.
+      findMany: jest.fn().mockResolvedValue([]),
+      findFirst: jest.fn().mockResolvedValue(null),
     },
     aIMemory: {
       findMany: jest.fn().mockResolvedValue([]),

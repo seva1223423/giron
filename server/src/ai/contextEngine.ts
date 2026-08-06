@@ -89,6 +89,21 @@ export interface ChatContextData {
     quality?: number | null;
   }>;
 
+  /**
+   * Cardio from the last 14 days, newest first. Strength history has half a
+   * dozen blocks built on it; cardio had none — the only query that read
+   * CardioSession sat inside the watch-data block, which never runs for
+   * someone who logs their runs by hand.
+   */
+  recentCardio?: Array<{
+    type: string;
+    date: string;
+    durationMinutes: number;
+    distanceKm?: number | null;
+    caloriesBurned?: number | null;
+    avgHeartRate?: number | null;
+  }>;
+
   clientHour?: number;
 
   /**
@@ -149,6 +164,12 @@ export async function buildDynamicContext(data: ChatContextData): Promise<string
   // Core: always included regardless of intent
   const core = buildCoreStatsContext(data);
   if (core) blocks.push(core);
+
+  // Cardio is not intent-gated. It is short, it is empty for anyone who logs
+  // none, and gating it means one misclassified intent turns "сколько я
+  // пробежал" back into a question the coach cannot answer.
+  const cardio = buildCardioBlock(data);
+  if (cardio) blocks.push(cardio);
 
   // Start memory + watch-data fetches early — both run in parallel with the
   // intent-specific switch. Watch data is broadly relevant (sleep,
@@ -308,6 +329,76 @@ function buildLiveWorkoutBlock(data: ChatContextData): string {
     ...lines,
     'Отвечая про "сегодня", "сейчас", "сколько сделал" — бери числа отсюда, а не из истории.',
   ].join('\n');
+}
+
+/** running → бег. The model answers in Russian; the column stores English. */
+const CARDIO_TYPE_RU: Record<string, string> = {
+  running: 'бег',
+  cycling: 'велосипед',
+  swimming: 'плавание',
+  walking: 'ходьба',
+  hiit: 'HIIT',
+  elliptical: 'эллипс',
+  rowing: 'гребля',
+  other: 'кардио',
+};
+
+/**
+ * Cardio the person actually did.
+ *
+ * The only place CardioSession was ever read is the watch-data block, and that
+ * block returns early unless something came from a watch. So every manually
+ * logged run, ride and swim was invisible: asked "сколько я пробежал на этой
+ * неделе", the coach had nothing and had to guess or deflect.
+ *
+ * Two weeks, split into this week and last, because the useful question is
+ * almost always "больше или меньше, чем раньше".
+ */
+function buildCardioBlock(data: ChatContextData): string {
+  const sessions = data.recentCardio ?? [];
+  if (sessions.length === 0) return '';
+
+  // date is YYYY-MM-DD, so string comparison is the date comparison.
+  const weekStart = new Date(`${data.todayDate}T00:00:00.000Z`);
+  weekStart.setUTCDate(weekStart.getUTCDate() - 6);
+  const weekStartStr = weekStart.toISOString().split('T')[0];
+
+  const thisWeek = sessions.filter((s) => s.date >= weekStartStr);
+  const lastWeek = sessions.filter((s) => s.date < weekStartStr);
+
+  const sum = (list: typeof sessions) => ({
+    count: list.length,
+    minutes: list.reduce((n, s) => n + (s.durationMinutes || 0), 0),
+    km: Math.round(list.reduce((n, s) => n + (s.distanceKm || 0), 0) * 10) / 10,
+    kcal: list.reduce((n, s) => n + (s.caloriesBurned || 0), 0),
+  });
+
+  const now = sum(thisWeek);
+  const before = sum(lastWeek);
+
+  const lines: string[] = ['## 🏃 КАРДИО'];
+
+  const weekBits = [`${now.count} сессий`, `${now.minutes} мин`];
+  if (now.km > 0) weekBits.push(`${now.km} км`);
+  if (now.kcal > 0) weekBits.push(`${now.kcal} ккал`);
+  lines.push(`За 7 дней: ${weekBits.join(' · ')}`);
+
+  // Only compare when there is something to compare against — "0 против 0"
+  // reads as a reproach to someone who simply started this week.
+  if (before.count > 0) {
+    const delta = now.minutes - before.minutes;
+    const trend = delta > 0 ? `+${delta}` : `${delta}`;
+    lines.push(`Неделей раньше: ${before.count} сессий · ${before.minutes} мин (${trend} мин)`);
+  }
+
+  for (const s of sessions.slice(0, 4)) {
+    const bits = [`${s.durationMinutes} мин`];
+    if (s.distanceKm) bits.push(`${s.distanceKm} км`);
+    if (s.avgHeartRate) bits.push(`пульс ${s.avgHeartRate}`);
+    lines.push(`- ${s.date} ${CARDIO_TYPE_RU[s.type] ?? s.type}: ${bits.join(', ')}`);
+  }
+
+  return lines.join('\n');
 }
 
 function buildCoreStatsContext(data: ChatContextData): string {

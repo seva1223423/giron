@@ -247,7 +247,7 @@ npm test               # jest (client unit tests, 126 суитов, 5552 тес�
 # Сервер
 cd server
 npm run dev            # tsx watch src/index.ts (порт 3001)
-npm test               # jest (server integration tests, 106 суитов, 2817 тестов)
+npm test               # jest (server integration tests, 107 суитов, 2828 тестов)
                        # Новые суиты добавлены в rounds 2-18 (2026-04-28):
                        # retentionService, adminDigestService, cronHealth,
                        # aiMetrics, memCache, activityTracker

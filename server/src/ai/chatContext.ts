@@ -98,6 +98,20 @@ export interface PrimaryChatContextResult {
     createdBy: string | null;
   }>;
   sleepFromDb: SleepEntryLite[];
+  /**
+   * Cardio from the last 14 days. The app has a whole cardio tab, but the only
+   * query that ever touched CardioSession lived inside the watch-data block —
+   * which is skipped entirely unless something was synced from a watch. So a
+   * person logging runs by hand had a coach that could not see a single one.
+   */
+  recentCardio: Array<{
+    type: string;
+    date: string;
+    durationMinutes: number;
+    distanceKm: number | null;
+    caloriesBurned: number | null;
+    avgHeartRate: number | null;
+  }>;
   totalWorkoutsEver: number;
   firstWorkout: { completedAt: Date | null } | null;
   weekPlanExercisesRaw: Array<{ id: string; name: string }>;
@@ -126,6 +140,14 @@ export async function fetchPrimaryChatContext(
   const twoWeeksAgo = new Date();
   twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
 
+  // CardioSession.date is a plain YYYY-MM-DD string, so the cutoff is derived
+  // from the client's own today rather than server time — otherwise a user in
+  // UTC+5 asking at 02:00 would lose a day off the window. 13, not 14, so the
+  // span including today is two weeks.
+  const cardioWindowStart = new Date(`${todayDate}T00:00:00.000Z`);
+  cardioWindowStart.setUTCDate(cardioWindowStart.getUTCDate() - 13);
+  const cardioSince = cardioWindowStart.toISOString().split('T')[0];
+
   const cachedUser = aiUserContextCache.get(userId) as CachedAiUser | undefined;
   const userFetch: Promise<CachedAiUser | null> = cachedUser
     ? Promise.resolve(cachedUser)
@@ -146,6 +168,7 @@ export async function fetchPrimaryChatContext(
     recentMeasurements,
     userPrograms,
     sleepFromDb,
+    recentCardio,
     totalWorkoutsEver,
     firstWorkout,
     weekPlanExercisesRaw,
@@ -233,6 +256,15 @@ export async function fetchPrimaryChatContext(
           take: 14,
           select: { date: true, durationHours: true, quality: true },
         }),
+    prisma.cardioSession.findMany({
+      where: { userId, date: { gte: cardioSince } },
+      orderBy: { date: 'desc' },
+      take: 30,
+      select: {
+        type: true, date: true, durationMinutes: true,
+        distanceKm: true, caloriesBurned: true, avgHeartRate: true,
+      },
+    }),
     prisma.workout.count({ where: { userId, completedAt: { not: null } } }),
     prisma.workout.findFirst({
       where: { userId, completedAt: { not: null } },
@@ -281,6 +313,7 @@ export async function fetchPrimaryChatContext(
     recentMeasurements,
     userPrograms,
     sleepFromDb,
+    recentCardio,
     totalWorkoutsEver,
     firstWorkout,
     weekPlanExercisesRaw,

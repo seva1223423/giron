@@ -29,6 +29,7 @@ const mockWorkoutExercise = { findMany: jest.fn() };
 const mockMeal = { findMany: jest.fn() };
 const mockBodyMeasurement = { findMany: jest.fn() };
 const mockSleepEntry = { findMany: jest.fn() };
+const mockCardioSession = { findMany: jest.fn() };
 const mockExercise = { findMany: jest.fn() };
 
 jest.mock('../db', () => ({
@@ -42,6 +43,7 @@ jest.mock('../db', () => ({
     meal: mockMeal,
     bodyMeasurement: mockBodyMeasurement,
     sleepEntry: mockSleepEntry,
+    cardioSession: mockCardioSession,
     exercise: mockExercise,
   },
 }));
@@ -63,6 +65,7 @@ function resetAllMocks() {
     mockMeal.findMany,
     mockBodyMeasurement.findMany,
     mockSleepEntry.findMany,
+    mockCardioSession.findMany,
     mockExercise.findMany,
   ]) {
     m.mockReset();
@@ -82,6 +85,7 @@ function resetAllMocks() {
   mockMeal.findMany.mockResolvedValue([]);
   mockBodyMeasurement.findMany.mockResolvedValue([]);
   mockSleepEntry.findMany.mockResolvedValue([]);
+  mockCardioSession.findMany.mockResolvedValue([]);
   mockExercise.findMany.mockResolvedValue([]);
 }
 
@@ -185,7 +189,7 @@ describe('fetchPrimaryChatContext — short-circuit branches', () => {
 });
 
 describe('fetchPrimaryChatContext — return shape', () => {
-  test('returns all 16 named fields + cache flag + durationMs', async () => {
+  test('returns all 18 named fields + cache flag + durationMs', async () => {
     const result = await fetchPrimaryChatContext({
       userId: 'u1',
       todayDate: '2026-05-22',
@@ -197,12 +201,14 @@ describe('fetchPrimaryChatContext — return shape', () => {
       'history',
       'activeProgram',
       'recentWorkouts',
+      'liveWorkout',
       'bodyWeightHistory',
       'allCompletedExerciseSets',
       'todayMeals',
       'recentMeasurements',
       'userPrograms',
       'sleepFromDb',
+      'recentCardio',
       'totalWorkoutsEver',
       'firstWorkout',
       'weekPlanExercisesRaw',
