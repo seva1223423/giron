@@ -828,10 +828,37 @@ router.post('/exercises/custom', authenticate, async (req: AuthRequest, res: Res
 
 router.delete('/exercises/custom/:id', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    // updateMany-style scoping: the where clause carries the owner, so another
-    // user's id simply matches nothing rather than deleting their row.
+    const id = String(req.params.id);
+    // Ownership first, so the usage counts below cannot be used to probe
+    // whether somebody else's exercise exists.
+    const owned = await prisma.exercise.findFirst({
+      where: { id, userId: req.userId! },
+      select: { id: true },
+    });
+    if (!owned) return res.status(404).json({ error: 'Упражнение не найдено' });
+
+    // WorkoutExercise and RoutineExercise reference Exercise with no onDelete
+    // rule, so deleting one that has been trained raised a foreign-key error
+    // and this route answered 500. The client swallowed that, dropped the row
+    // locally, and the next sync pulled it straight back from the server — the
+    // exercise came back every time it was deleted.
+    //
+    // Deleting it for real is not the fix either: past sessions would lose the
+    // name of what was actually done, which is the data loss custom-exercise
+    // syncing exists to prevent. So it is refused, with a reason.
+    const [inWorkouts, inRoutines] = await Promise.all([
+      prisma.workoutExercise.count({ where: { exerciseId: id } }),
+      prisma.routineExercise.count({ where: { exerciseId: id } }),
+    ]);
+    if (inWorkouts + inRoutines > 0) {
+      return res.status(409).json({
+        error: 'Упражнение уже использовано в тренировках — удалить его нельзя, иначе история потеряет название',
+        code: 'EXERCISE_IN_USE',
+      });
+    }
+
     const { count } = await prisma.exercise.deleteMany({
-      where: { id: String(req.params.id), userId: req.userId! },
+      where: { id, userId: req.userId! },
     });
     if (count === 0) return res.status(404).json({ error: 'Упражнение не найдено' });
     res.json({ ok: true });

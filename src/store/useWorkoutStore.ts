@@ -6,6 +6,7 @@ import { Workout, WorkoutExercise, WorkoutSet, Program, Exercise, Routine } from
 import { workoutService } from '../services';
 import { userService } from '../services/userService';
 import { estimateOneRepMax } from '../utils/oneRepMax';
+import { toast } from '../components/app-modal/toast';
 
 interface ActiveWorkout {
   workout: Workout;
@@ -299,9 +300,22 @@ export const useWorkoutStore = create<WorkoutStore>()(
       deleteCustomExercise: (id) => {
         // The request lives outside the updater: zustand may run an updater
         // more than once, and firing a DELETE twice is not free.
+        const removed = get().customExercises.find((e) => e.id === id);
         set((s) => ({ customExercises: s.customExercises.filter((e) => e.id !== id) }));
         // Server copy goes too, or the next sync brings it straight back.
-        workoutService.deleteCustomExercise(id).catch(() => {});
+        // And when the server refuses — the exercise is in somebody's history,
+        // so its name has to survive — the row comes back here immediately
+        // with a reason, instead of vanishing and reappearing on the next
+        // sync with no explanation.
+        workoutService.deleteCustomExercise(id).catch((err) => {
+          if (!removed) return;
+          set((s) => (s.customExercises.some((e) => e.id === id)
+            ? s
+            : { customExercises: [removed, ...s.customExercises] }));
+          toast.error(err?.response?.data?.code === 'EXERCISE_IN_USE'
+            ? 'Упражнение уже в истории тренировок — удалить нельзя'
+            : 'Не удалось удалить упражнение');
+        });
       },
 
       // A saved template is a Routine that never made it to the server. The

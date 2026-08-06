@@ -20,6 +20,7 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
 const mockGet = jest.fn();
 const mockCreate = jest.fn();
 const mockDelete = jest.fn();
+const mockToastError = jest.fn((..._a: unknown[]) => undefined);
 jest.mock('../services/workoutService', () => ({
   workoutService: {
     getCustomExercises: (...a: unknown[]) => mockGet(...a),
@@ -28,6 +29,10 @@ jest.mock('../services/workoutService', () => ({
     getRoutines: jest.fn(() => Promise.resolve([])),
     createRoutine: jest.fn(),
   },
+}));
+
+jest.mock('../components/app-modal/toast', () => ({
+  toast: { error: (...a: unknown[]) => mockToastError(...a), success: jest.fn(), warn: jest.fn(), info: jest.fn() },
 }));
 
 import { useWorkoutStore } from '../store/useWorkoutStore';
@@ -55,6 +60,7 @@ beforeEach(() => {
   mockGet.mockReset();
   mockCreate.mockReset();
   mockDelete.mockReset();
+  mockToastError.mockReset();
   useWorkoutStore.setState({ customExercises: [] } as any);
 });
 
@@ -195,5 +201,46 @@ describe('deleteCustomExercise', () => {
     useWorkoutStore.getState().deleteCustomExercise('clx0000000000000000000000');
 
     expect(mockDelete).toHaveBeenCalledTimes(1);
+  });
+
+  test('an exercise the server refuses to delete comes back', async () => {
+    // WorkoutExercise references Exercise with no onDelete rule, so deleting
+    // one that has been trained fails on the server. The row used to vanish
+    // locally anyway and reappear on the next sync — the exercise came back
+    // every single time it was deleted, with nothing said about why.
+    mockDelete.mockRejectedValue({ response: { data: { code: 'EXERCISE_IN_USE' } } });
+    useWorkoutStore.setState({ customExercises: [remote()] } as any);
+
+    useWorkoutStore.getState().deleteCustomExercise('clx0000000000000000000000');
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(useWorkoutStore.getState().customExercises).toHaveLength(1);
+    expect(mockToastError).toHaveBeenCalledWith(expect.stringContaining('истории'));
+  });
+
+  test('a plain failure also puts it back, with a plainer message', async () => {
+    mockDelete.mockRejectedValue(new Error('offline'));
+    useWorkoutStore.setState({ customExercises: [remote()] } as any);
+
+    useWorkoutStore.getState().deleteCustomExercise('clx0000000000000000000000');
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(useWorkoutStore.getState().customExercises).toHaveLength(1);
+    expect(mockToastError).toHaveBeenCalledWith('Не удалось удалить упражнение');
+  });
+
+  test('does not duplicate the row if a sync already restored it', async () => {
+    mockDelete.mockRejectedValue(new Error('offline'));
+    useWorkoutStore.setState({ customExercises: [remote()] } as any);
+
+    useWorkoutStore.getState().deleteCustomExercise('clx0000000000000000000000');
+    // A sync lands before the rejection is handled and puts the row back.
+    useWorkoutStore.setState({ customExercises: [remote()] } as any);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(useWorkoutStore.getState().customExercises).toHaveLength(1);
   });
 });

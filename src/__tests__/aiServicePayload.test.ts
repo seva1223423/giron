@@ -22,7 +22,9 @@ jest.mock('../utils/secureStorage', () => ({
 
 jest.mock('../utils/errorReporter', () => ({ reportError: jest.fn() }));
 
-const mockPost = jest.fn(() => Promise.resolve({ data: { message: 'ok', actions: [] } }));
+// Typed rest args so the mock accepts the spread in the module mock above —
+// a bare jest.fn() infers a zero-arg signature and TS rejects `...a`.
+const mockPost = jest.fn((..._a: unknown[]) => Promise.resolve({ data: { message: 'ok', actions: [] } }));
 
 import { aiService } from '../services/aiService';
 
