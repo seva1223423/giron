@@ -168,6 +168,9 @@ import { executeCommand, tryHandleCommand } from '../screens/ai/useAIChatCommand
 
 beforeEach(() => {
   jest.clearAllMocks();
+  // addSession is async and its rejection is now handled, so the mock has to
+  // be a promise — a bare jest.fn() returns undefined and .then would throw.
+  mockAddCardio.mockResolvedValue(undefined);
   mockActiveWorkout = null;
   mockWorkoutHistory = [];
   mockPrograms = [];
@@ -471,5 +474,52 @@ describe('tryHandleCommand — integration regression pins', () => {
     tryHandleCommand('замени приседания на жимом штанги');
     expect(mockReplaceExercise).toHaveBeenCalledWith(0,
       expect.objectContaining({ id: 'bench-press' }));
+  });
+});
+
+// ═════════════════════ log_cardio — the toast must tell the truth ═════════
+
+describe('log_cardio', () => {
+  it('records the session and says so', async () => {
+    executeCommand({ type: 'log_cardio', kind: 'run', minutes: 30, km: 5 } as any);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(mockAddCardio).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'running', durationMinutes: 30, distanceKm: 5 }),
+    );
+    expect(mockToastSuccess).toHaveBeenCalledWith(expect.stringContaining('Бег'));
+  });
+
+  it('a refused session does not get a success toast', async () => {
+    // addSession keeps a local copy when the network is down but rethrows when
+    // the server refuses the data. That rejection used to go nowhere and the
+    // success toast fired anyway — the person was told "Бег: 5 км" for a
+    // session that existed neither on the phone nor on the server.
+    mockAddCardio.mockRejectedValueOnce(new Error('400'));
+    executeCommand({ type: 'log_cardio', kind: 'run', minutes: 30, km: 5 } as any);
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(mockToastSuccess).not.toHaveBeenCalled();
+    expect(mockToastError).toHaveBeenCalledWith(expect.stringContaining('не записалось'));
+  });
+
+  it('estimates minutes from distance when only distance was said', async () => {
+    executeCommand({ type: 'log_cardio', kind: 'run', minutes: undefined, km: 5 } as any);
+    await Promise.resolve();
+
+    // 5 km at 6 min/km — a made-up pace, but a session with zero minutes
+    // would be worse than an approximate one.
+    expect(mockAddCardio.mock.calls[0][0].durationMinutes).toBe(30);
+  });
+
+  it('walking gets the slower pace', async () => {
+    executeCommand({ type: 'log_cardio', kind: 'walk', minutes: undefined, km: 5 } as any);
+    await Promise.resolve();
+
+    expect(mockAddCardio.mock.calls[0][0].type).toBe('walking');
+    expect(mockAddCardio.mock.calls[0][0].durationMinutes).toBe(60);
   });
 });

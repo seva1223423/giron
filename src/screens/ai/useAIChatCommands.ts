@@ -331,17 +331,23 @@ function handleLogCardio(
       : km != null
         ? Math.round(km * (kind === 'walk' ? 12 : 6))
         : 30;
+  const parts: string[] = [];
+  if (km != null) parts.push(`${km} км`);
+  if (minutes != null) parts.push(`${minutes} мин`);
+  const label = kind === 'run' ? 'Бег' : kind === 'walk' ? 'Ходьба' : 'Кардио';
+
+  // addSession swallows a network failure into a local row, but rethrows when
+  // the server refuses the data. That rejection used to go nowhere: the toast
+  // fired regardless, so the person was told "Бег: 5 км" for a session that
+  // exists neither here nor on the server.
   cs.addSession({
     type: kind === 'walk' ? 'walking' : kind === 'run' ? 'running' : 'other',
     date: today,
     durationMinutes: fallbackMinutes,
     distanceKm: km,
-  });
-  const parts: string[] = [];
-  if (km != null) parts.push(`${km} км`);
-  if (minutes != null) parts.push(`${minutes} мин`);
-  const label = kind === 'run' ? 'Бег' : kind === 'walk' ? 'Ходьба' : 'Кардио';
-  toast.success(`${label}: ${parts.join(', ') || `${fallbackMinutes} мин`}`);
+  })
+    .then(() => toast.success(`${label}: ${parts.join(', ') || `${fallbackMinutes} мин`}`))
+    .catch(() => toast.error('Кардио не записалось — сервер не принял'));
 }
 
 const MEASUREMENT_LABELS: Record<MeasurementField, string> = {

@@ -43,6 +43,7 @@ export const AddCardioScreen: React.FC<{ navigation: any; route: any }> = ({ nav
   const [heartRate, setHeartRate] = useState('');
   const [notes, setNotes] = useState('');
   const [date, setDate] = useState(todayDate());
+  const [saving, setSaving] = useState(false);
 
   const selected = CARDIO_TYPES.find((t) => t.type === selectedType)!;
 
@@ -55,7 +56,12 @@ export const AddCardioScreen: React.FC<{ navigation: any; route: any }> = ({ nav
     haptic.light();
   };
 
-  const handleSave = () => {
+  // addSession keeps a local copy when the network is down, but rethrows when
+  // the server refuses the data. That rejection used to go nowhere: the screen
+  // closed on the same tick as the call, so a refused session looked saved and
+  // was gone. Waiting for it costs a moment and tells the truth.
+  const handleSave = async () => {
+    if (saving) return; // an awaited save makes a double tap two sessions
     const min = parseInt(duration.replace(',', '.'), 10);
     if (!min || min <= 0) {
       Alert.alert('Ошибка', 'Укажи продолжительность');
@@ -65,15 +71,22 @@ export const AddCardioScreen: React.FC<{ navigation: any; route: any }> = ({ nav
       const n = parser(s);
       return Number.isFinite(n) ? n : undefined;
     };
-    addSession({
-      type: selectedType,
-      date,
-      durationMinutes: min,
-      distanceKm: distance ? toFinite(distance, (v) => parseFloat(v.replace(',', '.'))) : undefined,
-      caloriesBurned: calories ? toFinite(calories, (v) => parseInt(v.replace(',', '.'), 10)) : undefined,
-      avgHeartRate: heartRate ? toFinite(heartRate, (v) => parseInt(v.replace(',', '.'), 10)) : undefined,
-      notes: notes.trim() || undefined,
-    });
+    setSaving(true);
+    try {
+      await addSession({
+        type: selectedType,
+        date,
+        durationMinutes: min,
+        distanceKm: distance ? toFinite(distance, (v) => parseFloat(v.replace(',', '.'))) : undefined,
+        caloriesBurned: calories ? toFinite(calories, (v) => parseInt(v.replace(',', '.'), 10)) : undefined,
+        avgHeartRate: heartRate ? toFinite(heartRate, (v) => parseInt(v.replace(',', '.'), 10)) : undefined,
+        notes: notes.trim() || undefined,
+      });
+    } catch {
+      setSaving(false);
+      Alert.alert('Не сохранилось', 'Сервер не принял запись. Проверь цифры и попробуй ещё раз.');
+      return;
+    }
     haptic.success();
     navigation.goBack();
   };
@@ -191,7 +204,7 @@ export const AddCardioScreen: React.FC<{ navigation: any; route: any }> = ({ nav
         numberOfLines={3}
       />
 
-      <Button title="Сохранить" onPress={handleSave} fullWidth size="lg" style={{ marginTop: spacing.xl }} />
+      <Button title="Сохранить" onPress={handleSave} disabled={saving} fullWidth size="lg" style={{ marginTop: spacing.xl }} />
     </ScrollView>
   );
 };
