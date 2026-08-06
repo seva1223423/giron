@@ -242,7 +242,7 @@ server/
 # Клиент
 npm start              # expo start
 npm run android        # expo start --android
-npm test               # jest (client unit tests, 127 суитов, 5568 тестов)
+npm test               # jest (client unit tests, 128 суитов, 5583 теста)
 
 # Сервер
 cd server

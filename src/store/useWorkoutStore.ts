@@ -7,6 +7,7 @@ import { workoutService } from '../services';
 import { userService } from '../services/userService';
 import { estimateOneRepMax } from '../utils/oneRepMax';
 import { toast } from '../components/app-modal/toast';
+import { annotatePRs } from '../utils/prAnnotate';
 
 interface ActiveWorkout {
   workout: Workout;
@@ -1015,7 +1016,14 @@ export const useWorkoutStore = create<WorkoutStore>()(
             const merged = [...history, ...localOnly].sort((a, b) =>
               new Date(b.completedAt || b.startedAt || 0).getTime() - new Date(a.completedAt || a.startedAt || 0).getTime()
             );
-            set({ workoutHistory: merged, isLoadingHistory: false });
+            // isPR is a client-only field — WorkoutSet has no such column, so
+            // every workout replaced by the server's copy above arrives with
+            // its record badges stripped. The history card's PR count and the
+            // calendar's total both read that flag, and both dropped to zero on
+            // the first refresh after a session. Recomputed from the history
+            // itself, which also fixes a stored flag going stale when an old
+            // set is corrected downward.
+            set({ workoutHistory: annotatePRs(merged), isLoadingHistory: false });
           } else {
             set({ isLoadingHistory: false });
           }
