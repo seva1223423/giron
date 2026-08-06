@@ -3816,6 +3816,23 @@ for (const [, keywords] of KEYWORD_MAPPINGS) {
   for (const k of keywords) getKeywordIDF(k);
 }
 
+/**
+ * The person's own calendar day, shifted back by `days`.
+ *
+ * SleepEntry.date and CardioSession.date are stamped with the CLIENT's local
+ * date, so any query that compares against them has to use the client's clock.
+ * Server UTC is a day behind for everyone east of Greenwich during their small
+ * hours — which is exactly when someone asks how they slept.
+ */
+export function clientDayShift(clientDate: string | undefined, days: number): string {
+  const base = clientDate && /^\d{4}-\d{2}-\d{2}$/.test(clientDate)
+    ? clientDate
+    : new Date().toISOString().slice(0, 10);
+  if (days === 0) return base;
+  return new Date(new Date(`${base}T00:00:00.000Z`).getTime() - days * 86400_000)
+    .toISOString().slice(0, 10);
+}
+
 /** Longer than this and a message is treated as carrying its own topic. */
 const FOLLOW_UP_MAX_CHARS = 50;
 /** Enough of the previous question to keep its keywords, not its essay. */
@@ -5920,8 +5937,11 @@ export async function executeTool(
     const { days } = parsed.data;
     const safeDays = [1, 7, 30].includes(Number(days)) ? Number(days) : 1;
     const since = new Date(Date.now() - safeDays * 86400_000);
-    const todayDate = new Date().toISOString().slice(0, 10);
-    const dateNDaysAgo = (n: number) => new Date(Date.now() - n * 86400_000).toISOString().slice(0, 10);
+    // At 01:00 in Moscow this used to report "активность сегодня 0 мин" to
+    // somebody who had just got back from a run, and count the previous day's
+    // session instead: UTC was still on yesterday's date.
+    const todayDate = clientDayShift(clientDate, 0);
+    const dateNDaysAgo = (n: number) => clientDayShift(clientDate, n);
 
     const [cardioRows, sleepRows, sampleRows] = await Promise.all([
       prisma.cardioSession.findMany({
@@ -5982,7 +6002,11 @@ export async function executeTool(
     const { date } = parsed.data;
     let target = date;
     if (!target || target === 'yesterday') {
-      target = new Date(Date.now() - 86400_000).toISOString().slice(0, 10);
+      // The person's yesterday, not the server's. Asked "как я спал" at 01:00
+      // in Moscow, UTC was still on the previous day and subtracting another
+      // 24 hours landed two nights back — the coach answered about the wrong
+      // night at exactly the hour someone asks about sleep.
+      target = clientDayShift(clientDate, 1);
     }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(target)) {
       return { resultText: 'Некорректная дата. Используй формат YYYY-MM-DD или "yesterday".', actionDescription: '' };
@@ -6020,7 +6044,10 @@ export async function executeTool(
     const now = Date.now();
     const thirtyDaysAgo = new Date(now - 30 * 86400_000);
     const sevenDaysAgo = new Date(now - 7 * 86400_000);
-    const yesterdayDate = new Date(now - 86400_000).toISOString().slice(0, 10);
+    // Same clock problem as get_sleep_breakdown: last night is the person's
+    // last night. Readiness is mostly a sleep score, so getting this wrong
+    // scored them on a night they had already been scored for.
+    const yesterdayDate = clientDayShift(clientDate, 1);
 
     const [hrvSamples, rhrSamples, sleepLast, cardio7d] = await Promise.all([
       prisma.healthSample.findMany({

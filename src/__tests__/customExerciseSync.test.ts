@@ -115,6 +115,49 @@ describe('syncCustomExercises', () => {
     expect(mockCreate).toHaveBeenCalledTimes(1);
   });
 
+  test('a refused push does not delete the exercise', async () => {
+    // The store used to assign the server's list wholesale once the loop
+    // ended. One 400 broke the loop, and everything behind it — never even
+    // attempted — was dropped: the person watched an exercise they had just
+    // created disappear from their own phone.
+    mockGet.mockResolvedValue([]);
+    mockCreate.mockRejectedValue(new Error('400'));
+    useWorkoutStore.setState({
+      customExercises: [local(), local({ id: 'custom-2', name: 'Б' })],
+    } as any);
+
+    await useWorkoutStore.getState().syncCustomExercises();
+
+    const names = useWorkoutStore.getState().customExercises.map((e) => e.name);
+    expect(names).toContain('Тяга к поясу в наклоне');
+    expect(names).toContain('Б');
+  });
+
+  test('keeps the ones behind a refusal alongside the ones already synced', async () => {
+    mockGet.mockResolvedValue([remote({ id: 'clx-server', name: 'Уже на сервере' })]);
+    mockCreate.mockRejectedValue(new Error('400'));
+    useWorkoutStore.setState({
+      customExercises: [local({ name: 'Только тут' })],
+    } as any);
+
+    await useWorkoutStore.getState().syncCustomExercises();
+
+    const names = useWorkoutStore.getState().customExercises.map((e) => e.name);
+    expect(names).toEqual(expect.arrayContaining(['Только тут', 'Уже на сервере']));
+  });
+
+  test('a successful push leaves no duplicate behind', async () => {
+    // The local row and the server row share a name; keeping both would show
+    // the exercise twice in every picker.
+    mockGet.mockResolvedValue([]);
+    mockCreate.mockResolvedValue(remote());
+    useWorkoutStore.setState({ customExercises: [local()] } as any);
+
+    await useWorkoutStore.getState().syncCustomExercises();
+
+    expect(useWorkoutStore.getState().customExercises).toHaveLength(1);
+  });
+
   test('fills in the fields the server insists on', async () => {
     mockGet.mockResolvedValue([]);
     mockCreate.mockResolvedValue(remote());

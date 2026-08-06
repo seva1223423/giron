@@ -284,8 +284,16 @@ export const useWorkoutStore = create<WorkoutStore>()(
             break; // server refused or dropped — leave the rest local
           }
         }
-        // The server's copy is authoritative once it exists.
-        set({ customExercises: remote });
+        // The server's copy is authoritative once it exists — but only for the
+        // rows it actually confirmed. Assigning `remote` wholesale deleted
+        // every exercise whose push had just failed: one 400 on the first of
+        // them broke the loop, and the ones behind it were never attempted and
+        // then dropped from the store. The person watched an exercise they had
+        // created disappear. Anything the server has not confirmed stays put,
+        // the way an unsynced template and an unsynced cardio session do.
+        const confirmed = new Set(remote.map((e) => e.name));
+        const stillLocal = get().customExercises.filter((e) => !confirmed.has(e.name));
+        set({ customExercises: [...stillLocal, ...remote] });
       },
 
       deleteCustomExercise: (id) => {
