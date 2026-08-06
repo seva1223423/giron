@@ -8088,29 +8088,12 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       (avgSleepHours !== null && avgSleepHours < 6.5) ||
       (avgSleepQuality !== null && avgSleepQuality < 2.5);
 
-    // Build cardio context from client-sent sessions
-    let cardioContext = '';
-    if (cardioSessions && cardioSessions.length > 0) {
-      const TYPE_LABELS: Record<string, string> = {
-        running: 'Бег', cycling: 'Велосипед', walking: 'Ходьба', swimming: 'Плавание',
-        hiit: 'HIIT', elliptical: 'Эллипс', rowing: 'Гребля', other: 'Другое',
-      };
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      const weekCardio = cardioSessions.filter((s) => new Date(s.date) >= weekAgo);
-      const totalMin = weekCardio.reduce((s, c) => s + c.durationMinutes, 0);
-      const totalKm = weekCardio.reduce((s, c) => s + (c.distanceKm ?? 0), 0);
-      const totalCal = weekCardio.reduce((s, c) => s + (c.caloriesBurned ?? 0), 0);
-      cardioContext = `\n## КАРДИО (последние 7 дней)\n`;
-      cardioContext += `Сессий: ${weekCardio.length}, суммарно: ${totalMin} мин${totalKm > 0 ? `, ${totalKm.toFixed(1)} км` : ''}${totalCal > 0 ? `, ${totalCal} ккал` : ''}\n`;
-      weekCardio.slice(0, 5).forEach((s) => {
-        cardioContext += `- ${new Date(s.date).toLocaleDateString('ru-RU')}: ${TYPE_LABELS[s.type] || sanitizeForPrompt(s.type, 40)}, ${s.durationMinutes} мин`;
-        if (s.distanceKm) cardioContext += `, ${s.distanceKm} км`;
-        if (s.caloriesBurned) cardioContext += `, ${s.caloriesBurned} ккал`;
-        if (s.avgHeartRate) cardioContext += `, пульс ${s.avgHeartRate}`;
-        cardioContext += '\n';
-      });
-    }
+    // Cardio moved to buildCardioBlock in ai/contextEngine.ts. It used to be
+    // built here from the client's payload, which carries one week — so the
+    // "больше или меньше, чем неделю назад" question could not be answered.
+    // Two cardio blocks in one prompt would be worse than either alone, so
+    // there is one, and it reads the fortnight from the database.
+    const cardioContext = '';
 
     // Build sleep context from client-sent entries
     let sleepContext = '';
@@ -8340,8 +8323,11 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     if (recentSleepEntries.length === 0) {
       noDataMarkers.push('Сон: пусто (никогда не записывал)');
     }
-    if (!cardioSessions || cardioSessions.length === 0) {
-      noDataMarkers.push('Кардио: пусто (никогда не записывал)');
+    // Both sources: the database holds the fortnight, the client's payload can
+    // still hold a session logged offline that has not synced yet. "Никогда"
+    // would be a claim neither of them supports — both are windowed.
+    if ((!cardioSessions || cardioSessions.length === 0) && recentCardio.length === 0) {
+      noDataMarkers.push('Кардио: за последние 2 недели ничего не записано');
     }
     if (Object.keys(lifetimePRs).length === 0) {
       noDataMarkers.push('Личные рекорды (PR): пусто (нет завершённых тренировок с весами)');
