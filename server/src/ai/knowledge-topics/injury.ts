@@ -69,11 +69,30 @@ export function predictInjuryRisks(
 ): string {
   const risks: string[] = [];
 
-  // Risk 1: High ACWR ratio
+  // Risk 1: High ACWR ratio. fatigueStatus — это словесная форма того же
+  // расчёта; раньше она приходила сюда и не использовалась, так что модель
+  // видела голое «ACWR > 1.5» и пересказывала аббревиатуру пользователю.
+  const statusWord = fatigueStatus ? ` (${fatigueStatus})` : '';
   if (fatigueRatio > 1.5) {
-    risks.push('🔴 ACWR > 1.5 — резкий скачок нагрузки, высокий риск травмы. Рекомендуй снизить объём.');
+    risks.push(`🔴 ACWR > 1.5${statusWord} — резкий скачок нагрузки, высокий риск травмы. Рекомендуй снизить объём.`);
   } else if (fatigueRatio > 1.3) {
-    risks.push('🟡 ACWR 1.3-1.5 — зона риска. Не увеличивай нагрузку дальше.');
+    risks.push(`🟡 ACWR 1.3-1.5${statusWord} — зона риска. Не увеличивай нагрузку дальше.`);
+  }
+
+  // Risk 1b: упражнения, где прогрессия уже сорвалась. Это самый прямой
+  // предвестник травмы из всех данных здесь — человек продолжает добавлять
+  // вес там, где тело перестало отвечать. overloadData приходил в функцию и
+  // не использовался вообще.
+  const stalled = overloadData.filter((o) => o.status === 'plateau' || o.status === 'regressing');
+  if (stalled.length > 0) {
+    const regressing = stalled.filter((o) => o.status === 'regressing').map((o) => o.exercise);
+    const plateaued = stalled.filter((o) => o.status === 'plateau').map((o) => o.exercise);
+    if (regressing.length > 0) {
+      risks.push(`🔴 Веса падают: ${regressing.join(', ')} — это не лень, а недовосстановление. Продолжать давить здесь опаснее всего.`);
+    }
+    if (plateaued.length >= 2) {
+      risks.push(`🟡 Плато сразу в нескольких движениях: ${plateaued.join(', ')} — признак общей перегрузки, а не проблемы с техникой.`);
+    }
   }
 
   // Risk 2: Training recovering muscles

@@ -198,6 +198,12 @@ ${lines.join('\n')}`;
 export function shouldSummarizeSession(messageCount: number, intent: string): string {
   if (messageCount < 10) return '';
 
+  // Резюме уместно в разговоре, а не посреди дела. Раньше intent приходил
+  // сюда и не использовался: человек между подходами писал "записал 100 на 8"
+  // и получал предложение подвести итоги беседы.
+  const busyIntents = ['data_logging', 'workout_modify', 'program_creation'];
+  if (busyIntents.includes(intent)) return '';
+
   if (messageCount % 10 === 0) {
     return `\n\n## 📝 РЕЗЮМЕ СЕССИИ
 Длинный диалог (${messageCount} сообщений). При следующем удобном моменте предложи краткое резюме:
@@ -230,9 +236,32 @@ export function buildAthleteRoadmap(
 
   const remaining = next ? next.workouts - totalWorkouts : 0;
 
+  // Уровень и цель раньше приходили сюда и не использовались — этап считался
+  // только по числу тренировок. Две вещи, которые от них зависят:
+  //
+  // Заявленный уровень может не совпадать со стажем. Человек с 40 тренировками,
+  // назвавший себя продвинутым, обычно перепрыгивает через линейную прогрессию
+  // и упирается в плато; об этом стоит сказать, а не молча согласиться.
+  const claimed = (fitnessLevel || '').toLowerCase();
+  const claimsAhead =
+    (claimed === 'advanced' && totalWorkouts < 300) ||
+    (claimed === 'intermediate' && totalWorkouts < 100);
+  const levelLine = claimsAhead
+    ? `\nПо стажу ты пока на этапе «${current.name}», хотя уровень указан выше. Это нормально, но программы более высокого этапа брать рано — линейная прогрессия ещё не исчерпана.`
+    : '';
+
+  // Следующий этап значит разное в зависимости от того, ради чего всё это.
+  const goalLine = {
+    STRENGTH: 'На силу следующий этап — это переход от линейной прогрессии к недельным циклам.',
+    MUSCLE_GAIN: 'На массу следующий этап — это рост недельного объёма на мышечную группу, а не только рабочих весов.',
+    WEIGHT_LOSS: 'На похудении следующий этап — удержать силовые при снижающемся весе. Это и есть показатель, что уходит жир, а не мышцы.',
+    ENDURANCE: 'На выносливость следующий этап — рост объёма при том же пульсе.',
+  }[String(goal || '')] || '';
+
   return `\n\n## 🗺️ ТВОЙ ПУТЬ СПОРТСМЕНА
 Сейчас: **${current.name}** — ${current.description}
-${next ? `Следующий этап: ${next.name} через ~${remaining} тренировок` : '✅ Элита достигнута!'}
+${next ? `Следующий этап: ${next.name} через ~${remaining} тренировок` : '✅ Элита достигнута!'}${levelLine}
+${goalLine}
 Ты с нами ${Math.round(weeksSinceStart / 4)} месяцев. Прогресс не линеен, но он есть.`;
 }
 export function getRussianSportsMoment(message: string): string {

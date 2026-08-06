@@ -277,7 +277,18 @@ export function explainConfidence(
   if (workoutCount < 5) issues.push(`Мало данных (${workoutCount} тренировок) — советы станут точнее после 10+ тренировок.`);
   else if (workoutCount < 10) issues.push(`Данных пока недостаточно (${workoutCount}/10 тренировок для надёжного анализа).`);
 
-  if (!profileComplete) issues.push('Профиль не заполнен полностью — заполнение улучшит персонализацию.');
+  // dataCompleteness — доля заполненных полей профиля (0..1). Приходила сюда
+  // и не использовалась, хотя весь блок именно про то, насколько можно верить
+  // советам: «профиль не заполнен» одинаково звучало и при одном пропущенном
+  // поле, и при пустом профиле.
+  if (!profileComplete) {
+    const pct = Math.round(Math.min(1, Math.max(0, dataCompleteness)) * 100);
+    issues.push(
+      pct <= 34
+        ? `Профиль почти пустой (${pct}%) — пол, рост, вес и цель неизвестны. Считать калории и нагрузку не по чему: спрашивай, а не предполагай.`
+        : `Профиль заполнен на ${pct}% — заполнение оставшегося улучшит персонализацию.`,
+    );
+  }
 
   if (issues.length === 0) return '';
 
@@ -293,6 +304,12 @@ export function getMentalPerformanceBoost(
   const preWorkout = /иду|пойду|собираюсь|сейчас трен|готовлюсь/i.test(message);
 
   if (!struggling && !preWorkout) return '';
+
+  // "Устал" в записи подхода — это факт о подходе, а не просьба о поддержке.
+  // Раньше intent приходил сюда и не использовался, так что "устал, но добил
+  // 100 на 8" получало в ответ мотивационную вставку про правило двух минут.
+  const doingSomething = ['data_logging', 'workout_modify', 'program_creation', 'technique_question'];
+  if (doingSomething.includes(intent)) return '';
 
   if (struggling) {
     const strategies = [

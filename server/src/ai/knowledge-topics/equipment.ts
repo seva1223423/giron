@@ -148,9 +148,18 @@ export function estimateBodyComposition(
     }
   }
 
+  // Формула Дойренберга считает от BMI, а BMI не отличает мышцы от жира.
+  // У тренирующегося человека она завышает процент — и без этой оговорки
+  // модель говорила «у тебя лишний вес» тому, кто ходит в зал четыре раза в
+  // неделю. Число тренировок за месяц приходило сюда и не использовалось.
+  const trainsRegularly = totalWorkoutsLast30Days >= 8;
+  const bmiCaveat = trainsRegularly
+    ? `\n⚠️ Тренировок за 30 дней: ${totalWorkoutsLast30Days}. Формула считает от BMI и не отличает мышцы от жира — у тренирующегося человека она завышает процент. Реальный, скорее всего, ниже. НЕ говори про «лишний вес» на основании этой цифры.`
+    : '';
+
   return `\n\n## 📐 СОСТАВ ТЕЛА (оценка)
 BMI: ${bmi.toFixed(1)} | Примерный % жира: ~${estimatedBF}% (${category})
-Вес: ${user.weightKg} кг, Рост: ${user.heightCm} см${trendNote}
+Вес: ${user.weightKg} кг, Рост: ${user.heightCm} см${trendNote}${bmiCaveat}
 ⚠️ Это грубая оценка по BMI. Для точности рекомендуй калиперометрию или биоимпедансометрию.
 → Используй при обсуждении целей по составу тела.`;
 }
@@ -187,9 +196,20 @@ export function estimateTrainingAge(
     adviceStyle = 'Общайся как с коллегой. Обсуждай тонкости (RIR vs RPE, accommodating resistance, velocity-based training). Предлагай продвинутые методики.';
   }
 
+  // Стаж в годах и стаж по нагрузке — разные вещи. Человек, который «занимается
+  // пять лет» по 2 тонны за тренировку, к продвинутым методикам не готов, и
+  // говорить с ним как с ветераном значит давать советы не по адресу. Средний
+  // объём раньше приходил сюда и не использовался ни в оценке, ни в тексте.
+  const volumeNote = avgVolume <= 0 ? '' :
+    (estimatedYears >= 3 && avgVolume < 3000)
+      ? `\nНо средний объём тренировки — ${Math.round(avgVolume)} кг, это уровень новичка. Стаж есть, наработанной базы под него нет: продвинутые схемы пока мимо, сначала объём.`
+      : (estimatedYears < 1 && avgVolume > 8000)
+        ? `\nПри этом средний объём — ${Math.round(avgVolume)} кг, что заметно выше новичкового. Терминологию можно не упрощать.`
+        : `\nСредний объём тренировки: ${Math.round(avgVolume)} кг.`;
+
   return `\n\n## 🎓 ТРЕНИРОВОЧНЫЙ ОПЫТ
 Оценка: ~${estimatedYears} ${estimatedYears === 1 ? 'год' : estimatedYears < 5 ? 'года' : 'лет'} (${tier})
-${adviceStyle}`;
+${adviceStyle}${volumeNote}`;
 }
 export function estimateGoalTimeline(
   userGoal: string | null,

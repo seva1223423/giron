@@ -143,7 +143,17 @@ export function buildMilestoneRoadmap(totalWorkoutsEver: number, goal: string | 
     liftGoals.push(`Присед: ${squatBest}кг → ${next}кг`);
   }
 
-  return `\n\n🗺 Ваша дорожная карта прогресса:\n${milestones.join('\n')}${liftGoals.length ? `\n\n**Ближайшие силовые цели:**\n${liftGoals.map(g => `• ${g}`).join('\n')}` : ''}`;
+  // Число тренировок — не цель, а средство, и для разных целей следующая
+  // отметка разная. Цель приходила в функцию и не использовалась: человеку
+  // на похудении предлагали «200 тренировок → продвинутый спортсмен».
+  const goalMilestone = {
+    WEIGHT_LOSS: 'На похудении считай не тренировки, а недели без срыва режима: 4 недели подряд — точка, после которой вес начинает идти стабильно.',
+    MUSCLE_GAIN: 'На массе следующая отметка — не количество тренировок, а +1 кг веса при тех же силовых или выше. Это и есть рост, а не отёк.',
+    STRENGTH: 'На силе отметки — это цифры на штанге: присед 1.5× своего веса, жим 1×, тяга 2×. Дальше уже разряды.',
+    ENDURANCE: 'На выносливость отметка — тот же темп при более низком пульсе. Проверяй раз в месяц по одному и тому же маршруту.',
+  }[String(goal || '')];
+
+  return `\n\n🗺 Ваша дорожная карта прогресса:\n${milestones.join('\n')}${goalMilestone ? `\n${goalMilestone}` : ''}${liftGoals.length ? `\n\n**Ближайшие силовые цели:**\n${liftGoals.map(g => `• ${g}`).join('\n')}` : ''}`;
 }
 export function getAICoachingMilestone(message: string, totalWorkoutsEver: number): string {
   const relevant = /iron coach|как ты работаешь|что ты умеешь|расскажи о себе|твои возможности/i.test(message);

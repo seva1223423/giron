@@ -415,11 +415,22 @@ export function validateResponse(content: string, userMessage: string): Validati
     return { valid: false, issues, shouldRegenerate: true };
   }
 
-  // 2. Ответ на неправильном языке (> 60% латиницы — скорее всего английский)
-  const latinChars = (content.match(/[a-zA-Z]/g) || []).length;
-  const cyrillicChars = (content.match(/[а-яА-ЯёЁ]/g) || []).length;
-  const totalChars = latinChars + cyrillicChars;
-  if (totalChars > 50 && latinChars / totalChars > 0.6) {
+  // 2. Ответ на неправильном языке (> 60% латиницы — скорее всего английский).
+  // "Неправильный" = не тот, на котором спросили. Раньше сравнения с вопросом
+  // не было вовсе: пользователь писал по-английски, получал верный английский
+  // ответ, и тот шёл на перегенерацию — лишний вызов модели, а потом ответ
+  // по-русски человеку, который спрашивал не по-русски.
+  const latinRatio = (text: string): number => {
+    const latin = (text.match(/[a-zA-Z]/g) || []).length;
+    const cyrillic = (text.match(/[а-яА-ЯёЁ]/g) || []).length;
+    const total = latin + cyrillic;
+    return total === 0 ? 0 : latin / total;
+  };
+  const contentLetters = (content.match(/[a-zA-Zа-яА-ЯёЁ]/g) || []).length;
+  // Короткий вопрос ("ok", "3x5") не говорит о языке ничего — тогда как раньше.
+  const askedInLatin = (userMessage.match(/[a-zA-Zа-яА-ЯёЁ]/g) || []).length >= 12
+    && latinRatio(userMessage) > 0.6;
+  if (contentLetters > 50 && latinRatio(content) > 0.6 && !askedInLatin) {
     issues.push('wrong_language');
     return { valid: false, issues, shouldRegenerate: true };
   }

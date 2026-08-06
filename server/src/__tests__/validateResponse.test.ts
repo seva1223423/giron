@@ -149,3 +149,43 @@ describe('validateResponse — bad start (no regenerate)', () => {
     expect(result.shouldRegenerate).toBe(false);
   });
 });
+
+describe('validateResponse — the language of the question decides', () => {
+  const englishAnswer =
+    'Sure, here is your program. Bench press 5x5, squats 5x5, deadlift 1x5. Train three times per week and add weight slowly.';
+
+  test('an English answer to an English question is fine', () => {
+    // This used to be flagged and regenerated: a correct answer thrown away,
+    // a second call to the model paid for, and a Russian reply handed to
+    // somebody who had not written in Russian.
+    const result = validateResponse(
+      englishAnswer,
+      'can you write me a four day training program for strength',
+    );
+    expect(result.issues).not.toContain('wrong_language');
+  });
+
+  test('an English answer to a Russian question is still wrong', () => {
+    const result = validateResponse(englishAnswer, 'составь программу на четыре дня');
+    expect(result.issues).toContain('wrong_language');
+    expect(result.shouldRegenerate).toBe(true);
+  });
+
+  test('a question too short to reveal a language keeps the old behaviour', () => {
+    // "ok" is not evidence the person speaks English.
+    const result = validateResponse(englishAnswer, 'ok');
+    expect(result.issues).toContain('wrong_language');
+  });
+
+  test('a question with no letters at all keeps the old behaviour', () => {
+    const result = validateResponse(englishAnswer, '5x5 100');
+    expect(result.issues).toContain('wrong_language');
+  });
+
+  test('a Russian answer is never flagged, whatever the question', () => {
+    const russian = 'Твоя программа: жим 5х5, присед 5х5, тяга 1х5. Три раза в неделю, вес добавляй понемногу.';
+    for (const q of ['составь программу', 'write me a program', '']) {
+      expect(validateResponse(russian, q).issues).not.toContain('wrong_language');
+    }
+  });
+});
