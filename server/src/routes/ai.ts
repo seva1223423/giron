@@ -2037,7 +2037,7 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, элитный персональн�
 - **log_meal** — записать приём пищи с КБЖУ
 - **log_water** — записать воду
 - **delete_meal** — удалить ошибочный приём пищи
-- **set_weekly_plan** — расписание тренировок по дням недели
+- **set_weekly_plan** — расписание тренировок по дням недели. Если программа задаёт подходы/повторы/отдых (5×5, отдых 180с) — передавай их в plan, иначе день запустится как 4×10
 - **delete_program** — удалить/деактивировать текущую программу
 - **adjust_all_weights** — массово изменить веса во всей программе (деload, прогрессия)
 - **log_cardio** — записать кардио сессию (бег, вело, плавание)
@@ -2538,7 +2538,7 @@ const AI_TOOLS: DeepSeekTool[] = [
     type: 'function',
     function: {
       name: 'set_weekly_plan',
-      description: 'Установить расписание тренировок на неделю. Используй когда составляешь программу и хочешь сразу распределить тренировки по дням недели. Укажи для каждого дня (0=Пн, 1=Вт, ... 6=Вс) название тренировки и список упражнений. Тренировочные дни должны чередоваться с днями отдыха.',
+      description: 'Установить расписание тренировок на неделю. Используй когда составляешь программу и хочешь сразу распределить тренировки по дням недели. Укажи для каждого дня (0=Пн, 1=Вт, ... 6=Вс) название тренировки и список упражнений. Если программа задаёт подходы/повторы/отдых (например 5×5, отдых 3 мин) — передай их в plan, иначе день запустится со стандартными 4×10. Тренировочные дни должны чередоваться с днями отдыха.',
       parameters: {
         type: 'object',
         properties: {
@@ -2554,6 +2554,20 @@ const AI_TOOLS: DeepSeekTool[] = [
                   type: 'array',
                   items: { type: 'string' },
                   description: 'Список названий упражнений на русском',
+                },
+                plan: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      name: { type: 'string', description: 'То же название, что в exerciseNames' },
+                      sets: { type: 'number', description: 'Подходов (1-10)' },
+                      reps: { type: 'number', description: 'Повторов в подходе (1-100)' },
+                      restSeconds: { type: 'number', description: 'Отдых между подходами, сек (0-600)' },
+                    },
+                    required: ['name'],
+                  },
+                  description: 'Как выполнять упражнения этого дня. Указывай, когда программа задаёт конкретные подходы/повторы/отдых.',
                 },
               },
               required: ['dayIndex', 'workoutName', 'exerciseNames'],
@@ -5659,6 +5673,15 @@ export async function executeTool(
         workoutName: z.string().min(1).max(200),
         emoji: z.string().max(10).optional(),
         exerciseNames: z.array(z.string().max(200)).max(50),
+        // How each exercise should be done. Without this the tool threw the
+        // programme's own numbers away: the coach said 5×5 with 3 minutes'
+        // rest, the plan stored bare names, and the day started as 4×10.
+        plan: z.array(z.object({
+          name: z.string().min(1).max(200),
+          sets: z.number().int().finite().min(1).max(10).optional(),
+          reps: z.number().int().finite().min(1).max(100).optional(),
+          restSeconds: z.number().int().finite().min(0).max(600).optional(),
+        })).max(50).optional(),
       })).max(7),
     });
     const parsed = setWeeklyPlanSchema.safeParse(toolInput);
@@ -5698,12 +5721,24 @@ export async function executeTool(
       const exResults = day.exerciseNames.map((n) => wpResolve(n));
       const exerciseNames = exResults.map((ex, i) => ex?.name ?? day.exerciseNames[i]);
       const exerciseIds = exResults.filter((ex): ex is { id: string; name: string } => ex !== null).map((ex) => ex.id);
+      // Keep config only for exercises the day actually lists; carry it under
+      // the same canonical name the exercises array ends up with, since the
+      // client keys plan entries by that string.
+      const dayNames = new Set(exerciseNames.map((n) => n.toLowerCase()));
+      const plan = (day.plan ?? [])
+        .map((p) => {
+          const resolved = wpResolve(p.name)?.name ?? p.name;
+          return { ...p, name: resolved };
+        })
+        .filter((p) => dayNames.has(p.name.toLowerCase()))
+        .filter((p) => p.sets !== undefined || p.reps !== undefined || p.restSeconds !== undefined);
       return {
         dayIndex: day.dayIndex,
         workoutName: day.workoutName,
         emoji: day.emoji || '🏋️',
         exerciseIds,
         exerciseNames,
+        ...(plan.length > 0 ? { plan } : {}),
       };
     });
 

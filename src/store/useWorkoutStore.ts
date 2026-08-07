@@ -66,12 +66,16 @@ function computeBestRMsFromHistory(
   return best;
 }
 
-/** How a planned exercise should actually be performed. */
+/** How a planned exercise should actually be performed. Every field beyond
+ *  the ref is optional: "отдых 4 минуты" alone is a real instruction, and
+ *  startPlannedDay falls back per-field (4×10, no rest) for whatever is
+ *  missing. exerciseId holds an id for manually-built plans and an exercise
+ *  NAME for coach-built ones — resolution accepts both. */
 export interface PlannedExercise {
   exerciseId: string;
-  sets: number;
-  reps: number;
-  restSeconds: number;
+  sets?: number;
+  reps?: number;
+  restSeconds?: number;
 }
 
 export interface WeekPlanEntry {

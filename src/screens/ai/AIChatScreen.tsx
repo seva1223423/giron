@@ -651,9 +651,22 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         }
         if (types.includes('set_weekly_plan')) {
           const planAction = actions.find((act) => act.type === 'set_weekly_plan');
-          const schedule = planAction?.data?.schedule as Array<{ dayIndex: number; workoutName: string; emoji: string; exerciseIds: string[]; exerciseNames?: string[] }> | undefined;
-          // Store exerciseNames (human-readable) so AI context shows names, not DB UUIDs
-          if (schedule) schedule.forEach((day) => setWeekPlanDay(day.dayIndex, { name: day.workoutName, emoji: day.emoji || '◎', exercises: day.exerciseNames ?? day.exerciseIds }));
+          const schedule = planAction?.data?.schedule as Array<{
+            dayIndex: number; workoutName: string; emoji: string;
+            exerciseIds: string[]; exerciseNames?: string[];
+            plan?: Array<{ name: string; sets?: number; reps?: number; restSeconds?: number }>;
+          }> | undefined;
+          // Store exerciseNames (human-readable) so AI context shows names, not
+          // DB UUIDs. The per-exercise config is keyed by the same name string
+          // — startPlannedDay resolves both through the same lookup.
+          if (schedule) schedule.forEach((day) => setWeekPlanDay(day.dayIndex, {
+            name: day.workoutName,
+            emoji: day.emoji || '◎',
+            exercises: day.exerciseNames ?? day.exerciseIds,
+            ...(day.plan?.length
+              ? { plan: day.plan.map((p) => ({ exerciseId: p.name, sets: p.sets, reps: p.reps, restSeconds: p.restSeconds })) }
+              : {}),
+          }));
         }
         if (types.includes('log_body_measurement')) {
           const measAction = actions.find((act) => act.type === 'log_body_measurement');
