@@ -96,3 +96,47 @@ describe('getTimeContext — output shape', () => {
     expect(getTimeContext(0)).toMatch(/ночь/);
   });
 });
+
+describe('the calendar table', () => {
+  // Tools take YYYY-MM-DD dates the model computes itself, and "в прошлый
+  // вторник" is one-off-by-one away from writing food onto the wrong day.
+  // The table turns that arithmetic into a lookup.
+
+  test('today is anchored to the client date, not the server clock', () => {
+    const ctx = getTimeContext(12, '2026-08-07');
+    expect(ctx).toContain('пт 2026-08-07 ← СЕГОДНЯ');
+  });
+
+  test('yesterday and the day before are labelled', () => {
+    const ctx = getTimeContext(12, '2026-08-07');
+    expect(ctx).toContain('чт 2026-08-06 (вчера)');
+    expect(ctx).toContain('ср 2026-08-05 (позавчера)');
+  });
+
+  test('covers seven days back and seven forward', () => {
+    const ctx = getTimeContext(12, '2026-08-07');
+    expect(ctx).toContain('пт 2026-07-31'); // a week ago
+    expect(ctx).toContain('пт 2026-08-14'); // a week ahead
+  });
+
+  test('weekdays are right across a month boundary', () => {
+    const ctx = getTimeContext(12, '2026-09-01');
+    expect(ctx).toContain('вт 2026-09-01 ← СЕГОДНЯ');
+    expect(ctx).toContain('пн 2026-08-31 (вчера)');
+  });
+
+  test('weekdays are right across a year boundary', () => {
+    const ctx = getTimeContext(12, '2027-01-01');
+    expect(ctx).toContain('пт 2027-01-01 ← СЕГОДНЯ');
+    expect(ctx).toContain('чт 2026-12-31 (вчера)');
+  });
+
+  test('the instruction says lookup, not arithmetic', () => {
+    expect(getTimeContext(12, '2026-08-07')).toMatch(/даты НЕ вычисляй/);
+  });
+
+  test('a malformed clientDate falls back to the server day without crashing', () => {
+    const ctx = getTimeContext(12, 'garbage');
+    expect(ctx).toContain('← СЕГОДНЯ');
+  });
+});

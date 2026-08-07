@@ -161,6 +161,19 @@ export async function buildDynamicContext(data: ChatContextData): Promise<string
   const live = buildLiveWorkoutBlock(data);
   if (live) blocks.push(live);
 
+  // Canonical numbers next — before every narrative block, so the first
+  // figures the model reads are the ones it is allowed to repeat.
+  const keyNumbers = buildKeyNumbersBlock(data);
+  if (keyNumbers) blocks.push(keyNumbers);
+
+  // Cross-signal findings go right after the numbers they are built from.
+  // Greeting is the one intent where opening with "твой вес идёт против цели"
+  // would be a scolding, not coaching.
+  if (data.intent !== 'greeting') {
+    const insights = buildInsightsBlock(data);
+    if (insights) blocks.push(insights);
+  }
+
   // Core: always included regardless of intent
   const core = buildCoreStatsContext(data);
   if (core) blocks.push(core);
@@ -399,6 +412,193 @@ function buildCardioBlock(data: ChatContextData): string {
   }
 
   return lines.join('\n');
+}
+
+/**
+ * Cross-signal reasoning, done deterministically.
+ *
+ * Each block below describes one domain; none of them can say "your sleep
+ * fell in the same week your volume did". A model COULD notice such pairings
+ * across a long prompt, but a small one usually does not. So the pairings
+ * that matter are computed here, with the numbers and the "почему" attached,
+ * and the model's job shrinks to explaining a finding rather than making one.
+ *
+ * Rules fire only when their own data exists, at most three findings surface,
+ * highest-priority first. Silence is the correct output for thin data.
+ */
+function buildInsightsBlock(data: ChatContextData): string {
+  const findings: Array<{ priority: number; text: string }> = [];
+
+  // Weight vs goal — the plainest possible contradiction in the data.
+  const weights = [...(data.bodyWeightHistory ?? [])]
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  if (weights.length >= 2 && data.user?.goal) {
+    const now = weights[0];
+    const cutoff = new Date(new Date(now.date).getTime() - 30 * 86_400_000);
+    const monthAgo = weights.find((w) => new Date(w.date) <= cutoff);
+    if (monthAgo) {
+      const delta = Math.round((now.weightKg - monthAgo.weightKg) * 10) / 10;
+      const eatenToday = data.todayMeals.reduce((s, m) => s + m.totalCalories, 0);
+      const overToday = data.nutritionTargets && eatenToday > data.nutritionTargets.calories;
+      if (data.user.goal === 'WEIGHT_LOSS' && delta > 0.5) {
+        findings.push({
+          priority: 10,
+          text: `Вес идёт ПРОТИВ цели: +${delta} кг за 30 дн при цели похудеть${overToday ? `, и сегодня уже ${Math.round(eatenToday)} ккал при цели ${data.nutritionTargets!.calories}` : ''}. Разговор о питании важнее разговора о тренировках.`,
+        });
+      } else if (data.user.goal === 'MUSCLE_GAIN' && delta < -0.5) {
+        findings.push({
+          priority: 10,
+          text: `Вес падает (${delta} кг за 30 дн) при цели набрать. Вероятно, недоедание — проверь калории и белок раньше, чем программу.`,
+        });
+      }
+    }
+  }
+
+  // Sleep short while training load is on.
+  const sleep = (data.sleepEntries ?? []).slice(0, 7);
+  const weekAgoMs = Date.now() - 7 * 86_400_000;
+  const workouts7d = data.recentWorkouts.filter(
+    (w) => w.completedAt && new Date(w.completedAt).getTime() >= weekAgoMs,
+  ).length;
+  const avgSleep = sleep.length >= 3
+    ? sleep.reduce((s, e) => s + e.durationHours, 0) / sleep.length
+    : null;
+  if (avgSleep !== null && avgSleep < 6.5 && workouts7d >= 3) {
+    findings.push({
+      priority: 8,
+      text: `Сон ${avgSleep.toFixed(1)} ч в среднем при ${workouts7d} тренировках за неделю — восстановление не успевает за нагрузкой. Прогресс упрётся в сон, а не в программу.`,
+    });
+  }
+
+  // Volume sliding in the same week sleep is short: fatigue, not laziness.
+  const done = data.recentWorkouts.filter((w) => w.completedAt);
+  if (done.length >= 3 && avgSleep !== null && avgSleep < 7) {
+    const vol = (w: (typeof done)[0]) => w.exercises.reduce(
+      (s, ex) => s + ex.sets.filter((st) => st.completed).reduce((v, st) => v + (st.weight ?? 0) * (st.reps ?? 0), 0),
+      0,
+    );
+    const lastVol = vol(done[0]);
+    const prev = done.slice(1, 4).map(vol).filter((v) => v > 0);
+    const prevAvg = prev.length ? prev.reduce((a, b) => a + b, 0) / prev.length : 0;
+    if (lastVol > 0 && prevAvg > 0 && lastVol < prevAvg * 0.8) {
+      findings.push({
+        priority: 6,
+        text: `Объём последней тренировки ${Math.round(lastVol)} кг против ~${Math.round(prevAvg)} кг в предыдущих — и это на фоне сна ${avgSleep.toFixed(1)} ч. Похоже на усталость, а не на лень: сначала сон, потом веса.`,
+      });
+    }
+  }
+
+  // Trained today but protein far behind, late in the day.
+  const trainedToday = data.recentWorkouts.some((w) => {
+    if (!w.completedAt) return false;
+    const d = new Date(w.completedAt).toISOString().split('T')[0];
+    return d === data.todayDate;
+  });
+  if (trainedToday && data.nutritionTargets && typeof data.clientHour === 'number' && data.clientHour >= 18) {
+    const protein = data.todayMeals.reduce((s, m) => s + m.totalProtein, 0);
+    if (protein < data.nutritionTargets.protein * 0.6) {
+      findings.push({
+        priority: 5,
+        text: `Сегодня была тренировка, а белка к вечеру ${Math.round(protein)} г из ${data.nutritionTargets.protein} — восстановлению не из чего строить. Предложи конкретный ужин, не общие слова.`,
+      });
+    }
+  }
+
+  if (findings.length === 0) return '';
+  const top = findings.sort((a, b) => b.priority - a.priority).slice(0, 3);
+  return [
+    '## СВЯЗКИ (выводы из пересечения данных — используй их в ответе)',
+    ...top.map((f) => `- ${f.text}`),
+  ].join('\n');
+}
+
+/**
+ * The numbers the model is allowed to say about this person, in one place.
+ *
+ * The prompt already forbids invented numbers, but the facts it may cite were
+ * scattered across half a dozen blocks — profile here, meals there, PRs in a
+ * tool result. A model hunting through a long prompt rounds, merges and
+ * misremembers. One compact canonical list gives every user-facing figure a
+ * single authoritative source, and the header says exactly that.
+ *
+ * Derived-only rule: nothing here that is not computed from data already in
+ * the context, so the block can never contradict the blocks below it.
+ */
+function buildKeyNumbersBlock(data: ChatContextData): string {
+  const lines: string[] = [];
+
+  // Weight now + 30-day delta
+  const weights = [...(data.bodyWeightHistory ?? [])]
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  if (weights.length > 0) {
+    const now = weights[0];
+    const monthCutoff = new Date(new Date(now.date).getTime() - 30 * 86_400_000);
+    const monthAgo = weights.find((w) => new Date(w.date) <= monthCutoff);
+    const delta = monthAgo ? Math.round((now.weightKg - monthAgo.weightKg) * 10) / 10 : null;
+    lines.push(`Вес: ${now.weightKg} кг${delta !== null ? ` (${delta > 0 ? '+' : ''}${delta} кг за 30 дн)` : ''}`);
+  } else if (data.user?.weightKg) {
+    lines.push(`Вес: ${data.user.weightKg} кг (из профиля, взвешиваний нет)`);
+  }
+
+  // Today's food vs target
+  if (data.todayMeals.length > 0 || data.nutritionTargets) {
+    const eaten = data.todayMeals.reduce(
+      (acc, m) => ({ cal: acc.cal + m.totalCalories, prot: acc.prot + m.totalProtein }),
+      { cal: 0, prot: 0 },
+    );
+    const t = data.nutritionTargets;
+    lines.push(`Сегодня съедено: ${Math.round(eaten.cal)} ккал${t ? ` из ${t.calories}` : ''} · белок ${Math.round(eaten.prot)} г${t ? ` из ${t.protein}` : ''}`);
+  }
+
+  // Last completed workout volume
+  const lastDone = data.recentWorkouts.find((w) => w.completedAt);
+  if (lastDone) {
+    const vol = lastDone.exercises.reduce(
+      (s, ex) => s + ex.sets.filter((st) => st.completed).reduce((v, st) => v + (st.weight ?? 0) * (st.reps ?? 0), 0),
+      0,
+    );
+    if (vol > 0) lines.push(`Объём последней тренировки: ${Math.round(vol)} кг (${lastDone.name})`);
+  }
+
+  // Top-3 lifetime PRs by estimated 1RM (Epley), warm-ups excluded
+  const best = new Map<string, number>();
+  for (const we of data.allCompletedExerciseSets ?? []) {
+    for (const s of we.sets ?? []) {
+      const w = s.weight ?? 0; const r = s.reps ?? 0;
+      if (w <= 0 || r <= 0 || (s as any).type === 'warmup') continue;
+      const e1rm = Math.round(w * (1 + r / 30));
+      const name = we.exercise?.name ?? '?';
+      if (e1rm > (best.get(name) ?? 0)) best.set(name, e1rm);
+    }
+  }
+  const top = [...best.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
+  if (top.length > 0) {
+    lines.push(`Рекорды (оценка 1ПМ): ${top.map(([n, v]) => `${n} ${v} кг`).join(' · ')}`);
+  }
+
+  // Average sleep over the last 7 entries
+  const sleep = (data.sleepEntries ?? []).slice(0, 7);
+  if (sleep.length >= 3) {
+    const avg = sleep.reduce((s, e) => s + e.durationHours, 0) / sleep.length;
+    lines.push(`Сон, среднее за ${sleep.length} ночей: ${avg.toFixed(1)} ч`);
+  }
+
+  // Cardio minutes over the last 7 days
+  const cardio7 = (data.recentCardio ?? []).filter((c) => {
+    const weekStart = new Date(`${data.todayDate}T00:00:00.000Z`);
+    weekStart.setUTCDate(weekStart.getUTCDate() - 6);
+    return c.date >= weekStart.toISOString().split('T')[0];
+  });
+  if (cardio7.length > 0) {
+    lines.push(`Кардио за 7 дн: ${cardio7.reduce((s, c) => s + c.durationMinutes, 0)} мин`);
+  }
+
+  if (lines.length === 0) return '';
+  return [
+    '## КЛЮЧЕВЫЕ ЧИСЛА (цитируй цифры о пользователе ТОЛЬКО отсюда)',
+    ...lines,
+    'Если нужного числа здесь нет — скажи, что данных нет, а не оценивай на глаз.',
+  ].join('\n');
 }
 
 function buildCoreStatsContext(data: ChatContextData): string {

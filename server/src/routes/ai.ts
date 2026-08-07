@@ -3637,6 +3637,53 @@ export function classifyIntent(message: string): UserIntent {
   return 'general';
 }
 
+/**
+ * A short reply that only makes sense as a continuation of the previous turn.
+ * "а вчера?", "и сколько?", "почему?" carry no topic of their own — the topic
+ * lives in the message before them.
+ */
+// NB: no \b here — JS word boundaries treat Cyrillic as non-word characters,
+// so /раньше\b/ never matches "а раньше". The lookahead does the same job.
+const FOLLOW_UP_RE = /^\s*(?:(?:а|и|ну|но|окей|ок)\s+)?(?:вчера|позавчера|сегодня|завтра|раньше|потом|дальше|ещё|еще|почему|зачем|сколько|когда|как|а если|что насчёт|насчёт|точно|правда)(?![а-яё])/i;
+
+export function isShortFollowUp(message: string): boolean {
+  const m = message.trim();
+  if (m.length === 0 || m.length > 40) return false;
+  return FOLLOW_UP_RE.test(m) || (m.endsWith('?') && m.length <= 25);
+}
+
+/** Intents whose topic a follow-up can safely continue. Write-intents are
+ *  excluded on purpose: inheriting data_logging would let "а вчера?" fire
+ *  logging tools with nothing to log. */
+const INHERITABLE: ReadonlySet<UserIntent> = new Set([
+  'nutrition_query', 'analytics_query', 'technique_question',
+] as UserIntent[]);
+
+/**
+ * Classification that can see one turn back.
+ *
+ * The classifier is per-message regex, so every follow-up — "а вчера?" after
+ * a nutrition question, "а почему?" after a technique answer — fell to
+ * `general`: wrong context blocks, wrong tuning, and an answer that ignored
+ * what the person was obviously still talking about.
+ *
+ * `inherited` matters to the caller: an inherited intent must NOT be cached.
+ * "а почему?" is a different question every time it is asked; caching its
+ * answer under the inherited intent would serve one topic's answer to
+ * another's question.
+ */
+export function classifyIntentWithContext(
+  message: string,
+  prevUserMessage?: string | null,
+): { intent: UserIntent; inherited: boolean } {
+  const own = classifyIntent(message);
+  if (own !== 'general') return { intent: own, inherited: false };
+  if (!prevUserMessage || !isShortFollowUp(message)) return { intent: own, inherited: false };
+  const prev = classifyIntent(prevUserMessage);
+  if (INHERITABLE.has(prev)) return { intent: prev, inherited: true };
+  return { intent: own, inherited: false };
+}
+
 // ─── Emotion Detection ──────────────────────────────────────────────────────
 
 type UserMood = 'frustrated' | 'excited' | 'anxious' | 'sad' | 'neutral' | 'curious' | 'fatigued' | 'demotivated';
@@ -3776,7 +3823,28 @@ export function getTimeContext(clientHour?: number, clientDate?: string): string
     timeHint = 'Поздно для тренировки. Фокус на восстановление и сон. Если пользователь не спит — мягко напомни что сон = рост мышц.';
   }
 
-  return `\n## ВРЕМЯ И ДАТА\nСейчас: ${dateStr}, ${dayName}, ${timeOfDay} (${hour}:${String(now.getMinutes()).padStart(2, '0')})\n${timeHint}`;
+  // A lookup calendar instead of mental arithmetic. Tools take YYYY-MM-DD
+  // dates the MODEL computes — and "в прошлый вторник" is exactly the kind of
+  // arithmetic a small model gets wrong by one day, which then writes a meal
+  // or a workout onto the wrong date. Two weeks of literal weekday→date pairs
+  // turn every relative date in that window into a lookup. UTC-noon anchoring
+  // sidesteps DST and server-timezone drift; the client's own date is the
+  // anchor when provided.
+  const anchor = clientDate && /^\d{4}-\d{2}-\d{2}$/.test(clientDate)
+    ? new Date(clientDate + 'T12:00:00.000Z')
+    : new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), 12));
+  const DAY_SHORT = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
+  const calRow = (offset: number): string => {
+    const d = new Date(anchor.getTime() + offset * 86400000);
+    const iso = d.toISOString().split('T')[0];
+    const label = offset === 0 ? ' ← СЕГОДНЯ' : offset === -1 ? ' (вчера)' : offset === 1 ? ' (завтра)' : offset === -2 ? ' (позавчера)' : '';
+    return `${DAY_SHORT[d.getUTCDay()]} ${iso}${label}`;
+  };
+  const past = Array.from({ length: 7 }, (_, i) => calRow(i - 7));
+  const future = Array.from({ length: 7 }, (_, i) => calRow(i + 1));
+  const calendar = [...past, calRow(0), ...future].join('\n');
+
+  return `\n## ВРЕМЯ И ДАТА\nСейчас: ${dateStr}, ${dayName}, ${timeOfDay} (${hour}:${String(now.getMinutes()).padStart(2, '0')})\n${timeHint}\n\n## КАЛЕНДАРЬ (даты НЕ вычисляй — бери отсюда)\n${calendar}\nЛюбое "вчера/позавчера/в прошлый вторник/в среду" переводи в YYYY-MM-DD только по этой таблице.`;
 }
 
 // ─── Profile Completeness Check ─────────────────────────────────────────────
@@ -8606,11 +8674,29 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     });
 
     // ─── Intent classification: tune AI parameters per message type ──────
-    const intent = classifyIntent(message);
+    // One indexed findFirst so "а вчера?" can continue the previous topic
+    // instead of falling to `general`. The user message is persisted later in
+    // this same request, so the latest stored user row IS the previous turn.
+    // try/catch, not .catch(): a mocked or broken client can throw
+    // synchronously, and follow-up awareness must never be able to take the
+    // chat down — it degrades to per-message classification.
+    let prevUserContent: string | null = null;
+    try {
+      const prevUserRow = await prisma.chatMessage.findFirst({
+        where: { userId, role: 'user' },
+        orderBy: { createdAt: 'desc' },
+        select: { content: true },
+      });
+      prevUserContent = prevUserRow?.content ?? null;
+    } catch { /* degrade: classify this message on its own */ }
+    const { intent, inherited: intentInherited } =
+      classifyIntentWithContext(message, prevUserContent);
     const intentConfig = INTENT_CONFIGS[intent];
 
     // ─── Block 28: Check cache for technique/general questions ──────
-    const cachedResponse = getCachedResponse(message, intent, userId);
+    // Never cache-hit on an inherited intent: "а почему?" is a different
+    // question each time; the cached answer belongs to one prior topic only.
+    const cachedResponse = intentInherited ? null : getCachedResponse(message, intent, userId);
     if (cachedResponse) {
       logger.debug(`[AI] Cache hit for intent=${intent}`);
       recordAIRequest({ cacheHit: true });
@@ -15109,7 +15195,9 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     }
 
     // Cache response for technique/general questions (no personal data in response)
-    if (performedActions.length === 0) {
+    // — except when the intent was inherited from the previous turn: the same
+    // short follow-up text will mean something else after a different topic.
+    if (performedActions.length === 0 && !intentInherited) {
       setCachedResponse(message, intent, aiContent, userId);
     }
 
