@@ -85,7 +85,7 @@ export const AdminGuard: React.FC<Props> = ({ children, requireVerified = false 
   if (!loaded) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color="#6366F1" size="large" />
+        <ActivityIndicator color="#D4B07A" size="large" />
       </View>
     );
   }
@@ -107,7 +107,7 @@ export const AdminGuard: React.FC<Props> = ({ children, requireVerified = false 
     // This guard just shows a blocking placeholder until Dashboard verifies
     return (
       <View style={styles.center}>
-        <ActivityIndicator color="#6366F1" />
+        <ActivityIndicator color="#D4B07A" />
         <Text style={styles.denySub}>Подтвердите личность на главной странице администратора.</Text>
       </View>
     );
@@ -136,7 +136,7 @@ export const AdminGuard: React.FC<Props> = ({ children, requireVerified = false 
             maxLength={6}
             secureTextEntry
             placeholder="••••••"
-            placeholderTextColor="#4B5563"
+            placeholderTextColor="#2A2A2F"
             autoFocus
             accessibilityLabel="6-значный PIN-код"
           />
@@ -223,7 +223,7 @@ export const AdminGuard: React.FC<Props> = ({ children, requireVerified = false 
           maxLength={6}
           secureTextEntry
           placeholder="••••••"
-          placeholderTextColor="#4B5563"
+          placeholderTextColor="#2A2A2F"
           autoFocus
           accessibilityLabel="6-значный PIN-код для разблокировки админ-панели"
           editable={!isLocked}
@@ -276,20 +276,20 @@ export const AdminGuard: React.FC<Props> = ({ children, requireVerified = false 
 };
 
 const styles = StyleSheet.create({
-  center: { flex: 1, backgroundColor: '#0F0F0F', justifyContent: 'center', alignItems: 'center', padding: 32 },
+  center: { flex: 1, backgroundColor: '#0E0E0F', justifyContent: 'center', alignItems: 'center', padding: 32 },
   deny: { fontSize: 48, marginBottom: 16 },
   denyTitle: { fontSize: 20, fontWeight: '700', color: '#FFFFFF', marginBottom: 8 },
-  denySub: { fontSize: 14, color: '#6B7280', textAlign: 'center', lineHeight: 20 },
+  denySub: { fontSize: 14, color: '#A8A49C', textAlign: 'center', lineHeight: 20 },
 
   pinContainer: {
-    flex: 1, backgroundColor: '#0F0F0F', justifyContent: 'center',
+    flex: 1, backgroundColor: '#0E0E0F', justifyContent: 'center',
     alignItems: 'center', padding: 32,
   },
   pinTitle: { fontSize: 22, fontWeight: '800', color: '#FFFFFF', marginBottom: 8 },
-  pinSub: { fontSize: 14, color: '#9CA3AF', textAlign: 'center', marginBottom: 32, lineHeight: 20 },
+  pinSub: { fontSize: 14, color: '#A8A49C', textAlign: 'center', marginBottom: 32, lineHeight: 20 },
 
   pinInput: {
-    backgroundColor: '#1C1C1E', borderRadius: 16, borderWidth: 1.5, borderColor: '#374151',
+    backgroundColor: '#17171A', borderRadius: 16, borderWidth: 1.5, borderColor: '#2A2A2F',
     // 6-digit PIN: fontSize matches typography.h2 (28pt). letterSpacing
     // 12 spaces dots/digits visibly. allowFontScaling=false on the
     // TextInput prevents AX5 (310%) Dynamic Type from blowing this past
@@ -299,14 +299,14 @@ const styles = StyleSheet.create({
   },
 
   pinBtn: {
-    backgroundColor: '#6366F1', borderRadius: 14, paddingVertical: 16,
+    backgroundColor: '#D4B07A', borderRadius: 14, paddingVertical: 16,
     paddingHorizontal: 48, marginTop: 8, width: '100%', alignItems: 'center',
   },
   pinBtnDisabled: { opacity: 0.4 },
-  pinBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  pinBtnText: { color: '#17171A', fontSize: 16, fontWeight: '700' },
 
-  errorText: { color: '#EF4444', fontSize: 13, marginBottom: 8 },
+  errorText: { color: '#E07A6B', fontSize: 13, marginBottom: 8 },
 
   resetLink: { marginTop: 24 },
-  resetLinkText: { color: '#6B7280', fontSize: 13, textDecorationLine: 'underline' },
+  resetLinkText: { color: '#A8A49C', fontSize: 13, textDecorationLine: 'underline' },
 });

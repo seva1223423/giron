@@ -7,10 +7,10 @@ import { adminService } from '../../services/adminService';
 import type { Announcement, AnnouncementType } from '../../types';
 
 const TYPE_META: Record<AnnouncementType, { color: string; icon: string; label: string }> = {
-  info:        { color: '#6366F1', icon: 'ℹ️', label: 'Инфо' },
-  warning:     { color: '#F59E0B', icon: '⚠️', label: 'Предупреждение' },
-  maintenance: { color: '#EF4444', icon: '🔧', label: 'Тех. работы' },
-  promo:       { color: '#10B981', icon: '🎁', label: 'Акция' },
+  info:        { color: '#D4B07A', icon: 'ℹ️', label: 'Инфо' },
+  warning:     { color: '#E8A36A', icon: '⚠️', label: 'Предупреждение' },
+  maintenance: { color: '#E07A6B', icon: '🔧', label: 'Тех. работы' },
+  promo:       { color: '#9AC28C', icon: '🎁', label: 'Акция' },
 };
 
 const TYPES: AnnouncementType[] = ['info', 'warning', 'maintenance', 'promo'];
@@ -35,18 +35,18 @@ function AnnouncementCard({
         </View>
         <View style={styles.cardActions}>
           <TouchableOpacity style={styles.cardBtn} onPress={onEdit}>
-            <Text style={[styles.cardBtnText, { color: '#6366F1' }]}>Ред.</Text>
+            <Text style={[styles.cardBtnText, { color: '#D4B07A' }]}>Ред.</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.cardBtn} onPress={onDuplicate}>
-            <Text style={[styles.cardBtnText, { color: '#8B5CF6' }]}>Копия</Text>
+            <Text style={[styles.cardBtnText, { color: '#D4B07A' }]}>Копия</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.cardBtn} onPress={onToggle}>
-            <Text style={[styles.cardBtnText, { color: item.isActive ? '#10B981' : '#6B7280' }]}>
+            <Text style={[styles.cardBtnText, { color: item.isActive ? '#9AC28C' : '#A8A49C' }]}>
               {item.isActive ? 'Активно' : 'Выкл'}
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.cardBtn, { borderColor: '#EF444440' }]} onPress={onDelete}>
-            <Text style={[styles.cardBtnText, { color: '#EF4444' }]}>Удалить</Text>
+          <TouchableOpacity style={[styles.cardBtn, { borderColor: '#E07A6B40' }]} onPress={onDelete}>
+            <Text style={[styles.cardBtnText, { color: '#E07A6B' }]}>Удалить</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -62,11 +62,11 @@ function AnnouncementCard({
             <Text style={styles.cardMeta}>👁 {item.viewCount}</Text>
           )}
           {item.targetRole && (
-            <Text style={[styles.cardMeta, { color: '#F59E0B' }]}>🎯 {item.targetRole}</Text>
+            <Text style={[styles.cardMeta, { color: '#E8A36A' }]}>🎯 {item.targetRole}</Text>
           )}
         </View>
         {item.endsAt && (
-          <Text style={[styles.cardMeta, isExpired && { color: '#EF4444' }]}>
+          <Text style={[styles.cardMeta, isExpired && { color: '#E07A6B' }]}>
             до {new Date(item.endsAt).toLocaleDateString('ru-RU')}
             {isExpired ? ' (истёкло)' : ''}
           </Text>
@@ -233,7 +233,7 @@ export default function AdminAnnouncementsScreen() {
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>{editItem ? 'Редактировать объявление' : 'Новое объявление'}</Text>
                 <TouchableOpacity onPress={() => { setShowForm(false); resetForm(); }}>
-                  <Text style={{ color: '#6B7280', fontSize: 16 }}>✕</Text>
+                  <Text style={{ color: '#A8A49C', fontSize: 16 }}>✕</Text>
                 </TouchableOpacity>
               </View>
 
@@ -260,7 +260,7 @@ export default function AdminAnnouncementsScreen() {
                 value={formTitle}
                 onChangeText={setFormTitle}
                 placeholder="Заголовок объявления..."
-                placeholderTextColor="#4B5563"
+                placeholderTextColor="#2A2A2F"
                 maxLength={200}
               />
 
@@ -270,7 +270,7 @@ export default function AdminAnnouncementsScreen() {
                 value={formBody}
                 onChangeText={setFormBody}
                 placeholder="Текст объявления..."
-                placeholderTextColor="#4B5563"
+                placeholderTextColor="#2A2A2F"
                 multiline
                 maxLength={2000}
               />
@@ -280,15 +280,15 @@ export default function AdminAnnouncementsScreen() {
                 {[{ key: '', label: 'Все' }, { key: 'free', label: 'Free' }, { key: 'pro', label: 'PRO' }, { key: 'trainer', label: 'Trainer' }, { key: 'club', label: 'Club' }].map((opt) => (
                   <TouchableOpacity
                     key={opt.key}
-                    style={[styles.typeBtn, formTarget === opt.key && { backgroundColor: '#6366F122', borderColor: '#6366F1' }]}
+                    style={[styles.typeBtn, formTarget === opt.key && { backgroundColor: '#D4B07A22', borderColor: '#D4B07A' }]}
                     onPress={() => handleTargetChange(opt.key)}
                   >
-                    <Text style={[styles.typeBtnText, formTarget === opt.key && { color: '#6366F1' }]}>{opt.label}</Text>
+                    <Text style={[styles.typeBtnText, formTarget === opt.key && { color: '#D4B07A' }]}>{opt.label}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
               {audienceCount !== null && (
-                <Text style={{ fontSize: 11, color: '#6366F1', marginBottom: 10, fontWeight: '600' }}>
+                <Text style={{ fontSize: 11, color: '#D4B07A', marginBottom: 10, fontWeight: '600' }}>
                   Охват: ~{audienceCount} {audienceCount === 1 ? 'пользователь' : audienceCount < 5 ? 'пользователя' : 'пользователей'}
                 </Text>
               )}
@@ -299,7 +299,7 @@ export default function AdminAnnouncementsScreen() {
                 value={formEndsAt}
                 onChangeText={setFormEndsAt}
                 placeholder="2026-12-31 (YYYY-MM-DD)"
-                placeholderTextColor="#4B5563"
+                placeholderTextColor="#2A2A2F"
               />
 
               <TouchableOpacity style={styles.createBtn} onPress={handleSubmit} disabled={busy}>
@@ -322,12 +322,12 @@ export default function AdminAnnouncementsScreen() {
       </View>
 
       {loading ? (
-        <ActivityIndicator style={styles.center} color="#6366F1" size="large" />
+        <ActivityIndicator style={styles.center} color="#D4B07A" size="large" />
       ) : (
         <FlatList
           data={items}
           keyExtractor={(a) => a.id}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#6366F1" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#D4B07A" />}
           renderItem={({ item }) => (
             <AnnouncementCard
               item={item}
@@ -346,39 +346,39 @@ export default function AdminAnnouncementsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0F0F0F' },
+  container: { flex: 1, backgroundColor: '#0E0E0F' },
   center: { flex: 1, justifyContent: 'center' },
-  topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12, borderBottomWidth: 1, borderBottomColor: '#1C1C1E' },
-  topLabel: { fontSize: 12, color: '#6B7280' },
-  addBtn: { backgroundColor: '#6366F1', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 7 },
-  addBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 13 },
+  topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12, borderBottomWidth: 1, borderBottomColor: '#17171A' },
+  topLabel: { fontSize: 12, color: '#A8A49C' },
+  addBtn: { backgroundColor: '#D4B07A', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 7 },
+  addBtnText: { color: '#17171A', fontWeight: '700', fontSize: 13 },
   list: { padding: 12, paddingBottom: 40 },
-  empty: { textAlign: 'center', color: '#6B7280', marginTop: 40, fontSize: 15 },
+  empty: { textAlign: 'center', color: '#A8A49C', marginTop: 40, fontSize: 15 },
 
-  card: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: '#2C2C2E' },
+  card: { backgroundColor: '#17171A', borderRadius: 12, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: '#1E1E22' },
   cardInactive: { opacity: 0.55 },
-  cardExpired: { borderColor: '#EF444430' },
+  cardExpired: { borderColor: '#E07A6B30' },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   typeBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
   typeText: { fontSize: 11, fontWeight: '700' },
   cardActions: { flexDirection: 'row', gap: 6 },
-  cardBtn: { borderRadius: 6, borderWidth: 1, borderColor: '#2C2C2E', paddingHorizontal: 8, paddingVertical: 3 },
+  cardBtn: { borderRadius: 6, borderWidth: 1, borderColor: '#1E1E22', paddingHorizontal: 8, paddingVertical: 3 },
   cardBtnText: { fontSize: 11, fontWeight: '600' },
   cardTitle: { fontSize: 15, fontWeight: '700', color: '#FFFFFF', marginBottom: 4 },
-  cardBody: { fontSize: 13, color: '#9CA3AF', lineHeight: 18, marginBottom: 8 },
+  cardBody: { fontSize: 13, color: '#A8A49C', lineHeight: 18, marginBottom: 8 },
   cardFooter: { flexDirection: 'row', justifyContent: 'space-between' },
-  cardMeta: { fontSize: 11, color: '#4B5563' },
+  cardMeta: { fontSize: 11, color: '#2A2A2F' },
 
   // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
-  modalSheet: { backgroundColor: '#1C1C1E', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, maxHeight: '90%' },
+  modalSheet: { backgroundColor: '#17171A', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, maxHeight: '90%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   modalTitle: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
-  fieldLabel: { fontSize: 11, color: '#6B7280', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, marginTop: 12 },
-  fieldInput: { backgroundColor: '#0F0F0F', borderRadius: 8, padding: 12, fontSize: 14, color: '#FFFFFF', borderWidth: 1, borderColor: '#3C3C3E' },
+  fieldLabel: { fontSize: 11, color: '#A8A49C', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, marginTop: 12 },
+  fieldInput: { backgroundColor: '#0E0E0F', borderRadius: 8, padding: 12, fontSize: 14, color: '#FFFFFF', borderWidth: 1, borderColor: '#3C3C3E' },
   typeRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
-  typeBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 8, borderWidth: 1, borderColor: '#2C2C2E', paddingHorizontal: 10, paddingVertical: 6, backgroundColor: '#0F0F0F' },
-  typeBtnText: { fontSize: 12, color: '#9CA3AF', fontWeight: '600' },
-  createBtn: { backgroundColor: '#6366F1', borderRadius: 10, padding: 14, alignItems: 'center', marginTop: 16, marginBottom: 8 },
-  createBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 15 },
+  typeBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 8, borderWidth: 1, borderColor: '#1E1E22', paddingHorizontal: 10, paddingVertical: 6, backgroundColor: '#0E0E0F' },
+  typeBtnText: { fontSize: 12, color: '#A8A49C', fontWeight: '600' },
+  createBtn: { backgroundColor: '#D4B07A', borderRadius: 10, padding: 14, alignItems: 'center', marginTop: 16, marginBottom: 8 },
+  createBtnText: { color: '#17171A', fontWeight: '700', fontSize: 15 },
 });

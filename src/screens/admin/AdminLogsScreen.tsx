@@ -12,17 +12,17 @@ import { useAuthStore } from '../../store/useAuthStore';
 import type { AdminLog } from '../../types';
 
 const ACTION_META: Record<string, { color: string; icon: string; label: string }> = {
-  CHANGE_ROLE:         { color: '#6366F1', icon: '🎭', label: 'Роль' },
-  CHANGE_SUBSCRIPTION: { color: '#F59E0B', icon: '💳', label: 'Подписка' },
-  BAN_USER:            { color: '#EF4444', icon: '⛔', label: 'Бан' },
-  UNBAN_USER:          { color: '#10B981', icon: '✅', label: 'Разбан' },
-  DELETE_USER:         { color: '#EF4444', icon: '🗑', label: 'Удаление' },
-  UPDATE_NOTE:         { color: '#9CA3AF', icon: '📝', label: 'Заметка' },
-  CLOSE_TICKET:        { color: '#6B7280', icon: '🎫', label: 'Тикет' },
-  REPLY_TICKET:        { color: '#6B7280', icon: '💬', label: 'Ответ' },
-  EXPORT_USERS:        { color: '#10B981', icon: '📤', label: 'Экспорт' },
-  ASSIGN_TICKET:       { color: '#8B5CF6', icon: '👤', label: 'Назначение' },
-  SEND_MESSAGE:        { color: '#6366F1', icon: '💬', label: 'Сообщение' },
+  CHANGE_ROLE:         { color: '#D4B07A', icon: '🎭', label: 'Роль' },
+  CHANGE_SUBSCRIPTION: { color: '#E8A36A', icon: '💳', label: 'Подписка' },
+  BAN_USER:            { color: '#E07A6B', icon: '⛔', label: 'Бан' },
+  UNBAN_USER:          { color: '#9AC28C', icon: '✅', label: 'Разбан' },
+  DELETE_USER:         { color: '#E07A6B', icon: '🗑', label: 'Удаление' },
+  UPDATE_NOTE:         { color: '#A8A49C', icon: '📝', label: 'Заметка' },
+  CLOSE_TICKET:        { color: '#A8A49C', icon: '🎫', label: 'Тикет' },
+  REPLY_TICKET:        { color: '#A8A49C', icon: '💬', label: 'Ответ' },
+  EXPORT_USERS:        { color: '#9AC28C', icon: '📤', label: 'Экспорт' },
+  ASSIGN_TICKET:       { color: '#D4B07A', icon: '👤', label: 'Назначение' },
+  SEND_MESSAGE:        { color: '#D4B07A', icon: '💬', label: 'Сообщение' },
 };
 
 const ACTION_FILTERS = ['', ...Object.keys(ACTION_META)];
@@ -55,7 +55,7 @@ function getDateRange(preset: DatePreset): { from?: string; to?: string } {
 }
 
 function LogRow({ log, onUserPress }: { log: AdminLog; onUserPress: (id: string) => void }) {
-  const meta = ACTION_META[log.action] ?? { color: '#6B7280', icon: '•', label: log.action };
+  const meta = ACTION_META[log.action] ?? { color: '#A8A49C', icon: '•', label: log.action };
   const hasUserTarget = log.targetId && log.action !== 'EXPORT_USERS';
   return (
     <View style={styles.row}>
@@ -78,7 +78,7 @@ function LogRow({ log, onUserPress }: { log: AdminLog; onUserPress: (id: string)
           onPress={() => hasUserTarget && onUserPress(log.targetId!)}
           disabled={!hasUserTarget}
         >
-          <Text style={[styles.target, hasUserTarget && { color: '#6366F190', textDecorationLine: 'underline' }]}>
+          <Text style={[styles.target, hasUserTarget && { color: '#D4B07A90', textDecorationLine: 'underline' }]}>
             {hasUserTarget ? 'Открыть пользователя' : `ID: ${log.targetId}`}
           </Text>
         </TouchableOpacity>
@@ -169,7 +169,7 @@ export default function AdminLogsScreen() {
           value={search}
           onChangeText={handleSearchChange}
           placeholder="Поиск по админу или деталям..."
-          placeholderTextColor="#4B5563"
+          placeholderTextColor="#2A2A2F"
           clearButtonMode="while-editing"
         />
       </View>
@@ -195,7 +195,7 @@ export default function AdminLogsScreen() {
           return (
             <TouchableOpacity
               key={a}
-              style={[styles.filterChip, isActive && { backgroundColor: (m?.color ?? '#6366F1') }]}
+              style={[styles.filterChip, isActive && { backgroundColor: (m?.color ?? '#D4B07A') }]}
               onPress={() => setActionFilter(a)}
             >
               {m && <Text style={{ fontSize: 11, marginRight: 4 }}>{m.icon}</Text>}
@@ -212,7 +212,7 @@ export default function AdminLogsScreen() {
           Записей: {total}{searchDebounced ? ` (поиск: "${searchDebounced}")` : ''}
         </Text>
         <TouchableOpacity
-          style={[styles.filterChip, myActionsOnly && { backgroundColor: '#6366F1' }]}
+          style={[styles.filterChip, myActionsOnly && { backgroundColor: '#D4B07A' }]}
           onPress={() => setMyActionsOnly(!myActionsOnly)}
         >
           <Text style={[styles.filterText, myActionsOnly && { color: '#FFFFFF' }]}>
@@ -221,14 +221,14 @@ export default function AdminLogsScreen() {
         </TouchableOpacity>
         <TouchableOpacity style={styles.filterChip} onPress={exportCSV} disabled={exporting}>
           {exporting
-            ? <ActivityIndicator size="small" color="#6366F1" />
-            : <Text style={[styles.filterText, { color: '#6366F1' }]}>CSV</Text>
+            ? <ActivityIndicator size="small" color="#D4B07A" />
+            : <Text style={[styles.filterText, { color: '#D4B07A' }]}>CSV</Text>
           }
         </TouchableOpacity>
       </View>
 
       {loading ? (
-        <ActivityIndicator style={styles.center} color="#6366F1" size="large" />
+        <ActivityIndicator style={styles.center} color="#D4B07A" size="large" />
       ) : (
         <FlatList
           data={logs}
@@ -241,8 +241,8 @@ export default function AdminLogsScreen() {
           )}
           onEndReached={loadMore}
           onEndReachedThreshold={0.3}
-          refreshControl={<RefreshControl refreshing={loading} onRefresh={() => load(1)} tintColor="#6366F1" />}
-          ListFooterComponent={loadingMore ? <ActivityIndicator color="#6366F1" style={{ marginVertical: 16 }} /> : null}
+          refreshControl={<RefreshControl refreshing={loading} onRefresh={() => load(1)} tintColor="#D4B07A" />}
+          ListFooterComponent={loadingMore ? <ActivityIndicator color="#D4B07A" style={{ marginVertical: 16 }} /> : null}
           contentContainerStyle={styles.list}
           ListEmptyComponent={<Text style={styles.empty}>Нет записей</Text>}
         />
@@ -252,41 +252,41 @@ export default function AdminLogsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0F0F0F' },
+  container: { flex: 1, backgroundColor: '#0E0E0F' },
   center: { flex: 1, justifyContent: 'center' },
 
   searchRow: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 6 },
   searchInput: {
-    backgroundColor: '#1C1C1E', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9,
-    fontSize: 14, color: '#FFFFFF', borderWidth: 1, borderColor: '#2C2C2E',
+    backgroundColor: '#17171A', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9,
+    fontSize: 14, color: '#FFFFFF', borderWidth: 1, borderColor: '#1E1E22',
   },
 
   dateFilters: { paddingHorizontal: 12, paddingBottom: 6, gap: 6 },
   dateChip: {
     borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6,
-    backgroundColor: '#1C1C1E', borderWidth: 1, borderColor: '#2C2C2E',
+    backgroundColor: '#17171A', borderWidth: 1, borderColor: '#1E1E22',
   },
-  dateChipActive: { backgroundColor: '#6366F1', borderColor: '#6366F1' },
-  dateChipText: { fontSize: 12, color: '#9CA3AF', fontWeight: '600' },
+  dateChipActive: { backgroundColor: '#D4B07A', borderColor: '#D4B07A' },
+  dateChipText: { fontSize: 12, color: '#A8A49C', fontWeight: '600' },
 
   filters: { paddingHorizontal: 12, paddingVertical: 4, gap: 6 },
   filterChip: {
     flexDirection: 'row', alignItems: 'center',
     borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: '#17171A',
   },
-  filterText: { fontSize: 12, color: '#9CA3AF', fontWeight: '600' },
+  filterText: { fontSize: 12, color: '#A8A49C', fontWeight: '600' },
 
-  totalLabel: { fontSize: 12, color: '#6B7280', paddingHorizontal: 16, marginBottom: 4 },
+  totalLabel: { fontSize: 12, color: '#A8A49C', paddingHorizontal: 16, marginBottom: 4 },
   list: { padding: 12, paddingBottom: 32 },
-  empty: { textAlign: 'center', color: '#6B7280', marginTop: 40, fontSize: 15 },
-  row: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: '#2C2C2E' },
+  empty: { textAlign: 'center', color: '#A8A49C', marginTop: 40, fontSize: 15 },
+  row: { backgroundColor: '#17171A', borderRadius: 12, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: '#1E1E22' },
   rowTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 4 },
   iconBadge: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   actionBadge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, alignSelf: 'flex-start', marginBottom: 4 },
   actionText: { fontSize: 11, fontWeight: '700' },
-  date: { fontSize: 11, color: '#6B7280' },
-  admin: { fontSize: 12, color: '#9CA3AF' },
-  target: { fontSize: 11, color: '#6B7280', marginTop: 4, fontFamily: 'monospace' },
-  details: { fontSize: 13, color: '#D1D5DB', marginTop: 4, fontStyle: 'italic' },
+  date: { fontSize: 11, color: '#A8A49C' },
+  admin: { fontSize: 12, color: '#A8A49C' },
+  target: { fontSize: 11, color: '#A8A49C', marginTop: 4, fontFamily: 'monospace' },
+  details: { fontSize: 13, color: '#F4F1EA', marginTop: 4, fontStyle: 'italic' },
 });

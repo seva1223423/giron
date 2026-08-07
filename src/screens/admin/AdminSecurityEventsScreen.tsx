@@ -8,14 +8,14 @@ const ACTION_META: Record<string, { icon: string; label: string; color: string }
   REGISTER:           { icon: '+', label: 'Регистрация', color: '#34C759' },
   LOGIN_SUCCESS:      { icon: '✓', label: 'Вход выполнен', color: '#34C759' },
   LOGIN_FAIL:         { icon: '✗', label: 'Неверный пароль', color: '#FF9F0A' },
-  ACCOUNT_LOCKED:     { icon: '!', label: 'Аккаунт заблокирован', color: '#EF4444' },
-  SUSPICIOUS_LOGIN:   { icon: '!', label: 'Вход с нового IP', color: '#EF4444' },
+  ACCOUNT_LOCKED:     { icon: '!', label: 'Аккаунт заблокирован', color: '#E07A6B' },
+  SUSPICIOUS_LOGIN:   { icon: '!', label: 'Вход с нового IP', color: '#E07A6B' },
   PASSWORD_CHANGE: { icon: 'P', label: 'Смена пароля', color: '#D4B07A' },
   EMAIL_VERIFIED:  { icon: '@', label: 'Email подтверждён', color: '#34C759' },
   PHONE_VERIFIED:  { icon: '#', label: 'Телефон подтверждён', color: '#34C759' },
   PHONE_CHANGED:   { icon: '#', label: 'Смена номера телефона', color: '#D4B07A' },
-  ACCOUNT_DELETED: { icon: 'X', label: 'Удаление аккаунта', color: '#EF4444' },
-  OTP_BRUTEFORCE:  { icon: '!', label: 'Подбор OTP-кода', color: '#EF4444' },
+  ACCOUNT_DELETED: { icon: 'X', label: 'Удаление аккаунта', color: '#E07A6B' },
+  OTP_BRUTEFORCE:  { icon: '!', label: 'Подбор OTP-кода', color: '#E07A6B' },
   TOKEN_REVOKED:   { icon: 'O', label: 'Сессии завершены', color: '#FF9F0A' },
   TOTP_ENABLED:    { icon: 'A', label: '2FA включена', color: '#34C759' },
   TOTP_DISABLED:   { icon: 'A', label: '2FA отключена', color: '#FF9F0A' },
@@ -24,7 +24,7 @@ const ACTION_META: Record<string, { icon: string; label: string; color: string }
 };
 
 function getActionMeta(action: string) {
-  return ACTION_META[action] ?? { icon: '·', label: action, color: '#6B7280' };
+  return ACTION_META[action] ?? { icon: '·', label: action, color: '#A8A49C' };
 }
 
 function formatDate(iso: string): string {
@@ -90,13 +90,13 @@ export default function AdminSecurityEventsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0F0F0F' },
+  container: { flex: 1, backgroundColor: '#0E0E0F' },
   content: { padding: 16, paddingBottom: 40 },
-  empty: { color: '#6B7280', textAlign: 'center', marginTop: 40, fontSize: 14 },
+  empty: { color: '#A8A49C', textAlign: 'center', marginTop: 40, fontSize: 14 },
   row: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 12, gap: 12 },
   rowBorder: { borderBottomWidth: 1, borderBottomColor: '#1F2937' },
   iconWrap: { width: 30, height: 30, borderRadius: 8, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   label: { fontSize: 14, fontWeight: '600', color: '#F9FAFB' },
-  meta: { fontSize: 12, color: '#6B7280', marginTop: 2 },
-  details: { fontSize: 11, color: '#4B5563', marginTop: 1 },
+  meta: { fontSize: 12, color: '#A8A49C', marginTop: 2 },
+  details: { fontSize: 11, color: '#2A2A2F', marginTop: 1 },
 });

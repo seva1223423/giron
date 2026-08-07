@@ -15,9 +15,9 @@ type Sub = {
   user: { id: string; firstName: string; lastName?: string | null; email: string; isBanned: boolean };
 };
 
-const PLAN_COLOR: Record<string, string> = { pro: '#6366F1', trainer: '#F59E0B', club: '#10B981' };
+const PLAN_COLOR: Record<string, string> = { pro: '#D4B07A', trainer: '#E8A36A', club: '#9AC28C' };
 const PLAN_PRICE: Record<string, number> = { pro: 9.99, trainer: 19.99, club: 29.99 };
-const STATUS_COLOR: Record<string, string> = { active: '#10B981', cancelled: '#F59E0B', expired: '#EF4444' };
+const STATUS_COLOR: Record<string, string> = { active: '#9AC28C', cancelled: '#E8A36A', expired: '#E07A6B' };
 
 const FILTER_TABS = [
   { value: '', label: 'Все' },
@@ -40,8 +40,8 @@ function daysUntil(dateStr: string | null): number | null {
 }
 
 function SubRow({ sub, onPress, onLongPress }: { sub: Sub; onPress: () => void; onLongPress: () => void }) {
-  const planColor = PLAN_COLOR[sub.plan] ?? '#6B7280';
-  const statusColor = STATUS_COLOR[sub.status] ?? '#6B7280';
+  const planColor = PLAN_COLOR[sub.plan] ?? '#A8A49C';
+  const statusColor = STATUS_COLOR[sub.status] ?? '#A8A49C';
   const days = daysUntil(sub.endDate);
   const isExpiringSoon = days !== null && days >= 0 && days <= 14 && sub.status === 'active';
   const isOverdue = days !== null && days < 0;
@@ -50,8 +50,8 @@ function SubRow({ sub, onPress, onLongPress }: { sub: Sub; onPress: () => void; 
     <TouchableOpacity
       style={[
         styles.row,
-        isExpiringSoon && { borderLeftWidth: 3, borderLeftColor: '#F59E0B', borderColor: '#F59E0B20' },
-        isOverdue && sub.status === 'active' && { borderLeftWidth: 3, borderLeftColor: '#EF4444', borderColor: '#EF444420' },
+        isExpiringSoon && { borderLeftWidth: 3, borderLeftColor: '#E8A36A', borderColor: '#E8A36A20' },
+        isOverdue && sub.status === 'active' && { borderLeftWidth: 3, borderLeftColor: '#E07A6B', borderColor: '#E07A6B20' },
       ]}
       onPress={onPress}
       onLongPress={onLongPress}
@@ -65,7 +65,7 @@ function SubRow({ sub, onPress, onLongPress }: { sub: Sub; onPress: () => void; 
         <View style={{ flex: 1 }}>
           <Text style={styles.userName} numberOfLines={1}>
             {sub.user.firstName} {sub.user.lastName ?? ''}
-            {sub.user.isBanned && <Text style={{ color: '#EF4444' }}> 🔒</Text>}
+            {sub.user.isBanned && <Text style={{ color: '#E07A6B' }}> 🔒</Text>}
           </Text>
           <Text style={styles.userEmail} numberOfLines={1}>{sub.user.email}</Text>
         </View>
@@ -77,8 +77,8 @@ function SubRow({ sub, onPress, onLongPress }: { sub: Sub; onPress: () => void; 
         {sub.endDate && (
           <Text style={[
             styles.expiryText,
-            isExpiringSoon && { color: '#F59E0B', fontWeight: '700' },
-            isOverdue && { color: '#EF4444', fontWeight: '700' },
+            isExpiringSoon && { color: '#E8A36A', fontWeight: '700' },
+            isOverdue && { color: '#E07A6B', fontWeight: '700' },
           ]}>
             {days !== null && days >= 0
               ? `${days}д`
@@ -232,7 +232,7 @@ export default function AdminSubscriptionsScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>📢 Рассылка по сегменту</Text>
               <TouchableOpacity onPress={() => setShowBroadcast(false)}>
-                <Text style={{ color: '#6B7280', fontSize: 18 }}>✕</Text>
+                <Text style={{ color: '#A8A49C', fontSize: 18 }}>✕</Text>
               </TouchableOpacity>
             </View>
             <Text style={styles.modalLabel}>Тариф</Text>
@@ -240,18 +240,18 @@ export default function AdminSubscriptionsScreen() {
               {['pro', 'trainer', 'club'].map((p) => (
                 <TouchableOpacity
                   key={p}
-                  style={[styles.planBtn, bcPlan === p && { backgroundColor: (PLAN_COLOR[p] ?? '#6366F1') + '22', borderColor: PLAN_COLOR[p] ?? '#6366F1' }]}
+                  style={[styles.planBtn, bcPlan === p && { backgroundColor: (PLAN_COLOR[p] ?? '#D4B07A') + '22', borderColor: PLAN_COLOR[p] ?? '#D4B07A' }]}
                   onPress={() => setBcPlan(p)}
                 >
-                  <Text style={[styles.planBtnText, bcPlan === p && { color: PLAN_COLOR[p] ?? '#6366F1' }]}>{p.toUpperCase()}</Text>
+                  <Text style={[styles.planBtnText, bcPlan === p && { color: PLAN_COLOR[p] ?? '#D4B07A' }]}>{p.toUpperCase()}</Text>
                 </TouchableOpacity>
               ))}
             </View>
             <TouchableOpacity
-              style={[styles.toggleBtn, bcExpiringOnly && { backgroundColor: '#F59E0B22', borderColor: '#F59E0B60' }]}
+              style={[styles.toggleBtn, bcExpiringOnly && { backgroundColor: '#E8A36A22', borderColor: '#E8A36A60' }]}
               onPress={() => setBcExpiringOnly(!bcExpiringOnly)}
             >
-              <Text style={[styles.toggleBtnText, bcExpiringOnly && { color: '#F59E0B' }]}>
+              <Text style={[styles.toggleBtnText, bcExpiringOnly && { color: '#E8A36A' }]}>
                 {bcExpiringOnly ? '✓ Только истекающие (≤14 дн)' : '⏰ Только истекающие (≤14 дн)'}
               </Text>
             </TouchableOpacity>
@@ -259,7 +259,7 @@ export default function AdminSubscriptionsScreen() {
             <TextInput
               style={styles.modalInput}
               placeholder="Тема сообщения..."
-              placeholderTextColor="#6B7280"
+              placeholderTextColor="#A8A49C"
               value={bcSubject}
               onChangeText={setBcSubject}
               maxLength={200}
@@ -268,7 +268,7 @@ export default function AdminSubscriptionsScreen() {
             <TextInput
               style={[styles.modalInput, { height: 120, textAlignVertical: 'top' }]}
               placeholder="Текст сообщения пользователю..."
-              placeholderTextColor="#6B7280"
+              placeholderTextColor="#A8A49C"
               value={bcMessage}
               onChangeText={setBcMessage}
               multiline
@@ -297,7 +297,7 @@ export default function AdminSubscriptionsScreen() {
         </View>
         <View style={styles.summaryDivider} />
         <View style={styles.summaryItem}>
-          <Text style={[styles.summaryValue, { color: '#10B981' }]}>${mrr.toFixed(0)}</Text>
+          <Text style={[styles.summaryValue, { color: '#9AC28C' }]}>${mrr.toFixed(0)}</Text>
           <Text style={styles.summaryLabel}>MRR (страница)</Text>
         </View>
         <View style={styles.summaryDivider} />
@@ -330,7 +330,7 @@ export default function AdminSubscriptionsScreen() {
             style={[styles.tab, plan === item.value && styles.tabActive]}
             onPress={() => setPlan(item.value)}
           >
-            <Text style={[styles.tabText, plan === item.value && { color: item.value ? PLAN_COLOR[item.value] ?? '#6366F1' : '#6366F1' }]}>
+            <Text style={[styles.tabText, plan === item.value && { color: item.value ? PLAN_COLOR[item.value] ?? '#D4B07A' : '#D4B07A' }]}>
               {item.label}
             </Text>
           </TouchableOpacity>
@@ -349,13 +349,13 @@ export default function AdminSubscriptionsScreen() {
             style={[styles.tab, filter === item.value && styles.tabActive]}
             onPress={() => setFilter(item.value)}
           >
-            <Text style={[styles.tabText, filter === item.value && { color: '#6366F1' }]}>{item.label}</Text>
+            <Text style={[styles.tabText, filter === item.value && { color: '#D4B07A' }]}>{item.label}</Text>
           </TouchableOpacity>
         )}
       />
 
       {loading ? (
-        <ActivityIndicator style={styles.center} color="#6366F1" size="large" />
+        <ActivityIndicator style={styles.center} color="#D4B07A" size="large" />
       ) : (
         <FlatList
           data={subs}
@@ -367,10 +367,10 @@ export default function AdminSubscriptionsScreen() {
               onLongPress={() => onLongPress(item)}
             />
           )}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6366F1" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#D4B07A" />}
           onEndReached={loadMore}
           onEndReachedThreshold={0.3}
-          ListFooterComponent={loadingMore ? <ActivityIndicator color="#6366F1" style={{ padding: 16 }} /> : null}
+          ListFooterComponent={loadingMore ? <ActivityIndicator color="#D4B07A" style={{ padding: 16 }} /> : null}
           ListEmptyComponent={
             <View style={styles.empty}><Text style={styles.emptyText}>Подписок не найдено</Text></View>
           }
@@ -382,30 +382,30 @@ export default function AdminSubscriptionsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0F0F0F' },
+  container: { flex: 1, backgroundColor: '#0E0E0F' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
   summaryBar: {
-    flexDirection: 'row', backgroundColor: '#1C1C1E',
-    borderBottomWidth: 1, borderBottomColor: '#2C2C2E', paddingVertical: 10,
+    flexDirection: 'row', backgroundColor: '#17171A',
+    borderBottomWidth: 1, borderBottomColor: '#1E1E22', paddingVertical: 10,
   },
   summaryItem: { flex: 1, alignItems: 'center' },
   summaryValue: { fontSize: 18, fontWeight: '700', color: '#FFFFFF' },
-  summaryLabel: { fontSize: 11, color: '#6B7280', marginTop: 2 },
-  summaryDivider: { width: 1, backgroundColor: '#2C2C2E', marginVertical: 4 },
+  summaryLabel: { fontSize: 11, color: '#A8A49C', marginTop: 2 },
+  summaryDivider: { width: 1, backgroundColor: '#1E1E22', marginVertical: 4 },
 
   tabsRow: { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 8, gap: 8 },
   tab: {
     paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
-    backgroundColor: '#1C1C1E', borderWidth: 1, borderColor: '#2C2C2E',
+    backgroundColor: '#17171A', borderWidth: 1, borderColor: '#1E1E22',
   },
-  tabActive: { backgroundColor: '#6366F115', borderColor: '#6366F160' },
-  tabText: { fontSize: 13, fontWeight: '600', color: '#9CA3AF' },
+  tabActive: { backgroundColor: '#D4B07A15', borderColor: '#D4B07A60' },
+  tabText: { fontSize: 13, fontWeight: '600', color: '#A8A49C' },
 
   row: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: '#1C1C1E', marginHorizontal: 12, marginVertical: 4,
-    borderRadius: 12, borderWidth: 1, borderColor: '#2C2C2E', padding: 12,
+    backgroundColor: '#17171A', marginHorizontal: 12, marginVertical: 4,
+    borderRadius: 12, borderWidth: 1, borderColor: '#1E1E22', padding: 12,
   },
   rowLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
   rowRight: { alignItems: 'flex-end', gap: 4 },
@@ -414,33 +414,33 @@ const styles = StyleSheet.create({
   },
   planText: { fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
   userName: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
-  userEmail: { fontSize: 12, color: '#6B7280', marginTop: 1 },
+  userEmail: { fontSize: 12, color: '#A8A49C', marginTop: 1 },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
   statusText: { fontSize: 11, fontWeight: '600' },
-  expiryText: { fontSize: 12, color: '#9CA3AF', fontWeight: '500' },
+  expiryText: { fontSize: 12, color: '#A8A49C', fontWeight: '500' },
 
   empty: { alignItems: 'center', marginTop: 60 },
-  emptyText: { fontSize: 16, color: '#6B7280' },
+  emptyText: { fontSize: 16, color: '#A8A49C' },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
-  modalSheet: { backgroundColor: '#1C1C1E', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, maxHeight: '85%' },
+  modalSheet: { backgroundColor: '#17171A', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, maxHeight: '85%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   modalTitle: { fontSize: 17, fontWeight: '700', color: '#FFFFFF' },
-  modalLabel: { fontSize: 11, fontWeight: '700', color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
+  modalLabel: { fontSize: 11, fontWeight: '700', color: '#A8A49C', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
   modalInput: {
-    backgroundColor: '#2C2C2E', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10,
+    backgroundColor: '#1E1E22', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10,
     fontSize: 15, color: '#FFFFFF', marginBottom: 14,
   },
   planBtn: {
-    flex: 1, paddingVertical: 8, borderRadius: 8, backgroundColor: '#2C2C2E',
+    flex: 1, paddingVertical: 8, borderRadius: 8, backgroundColor: '#1E1E22',
     borderWidth: 1, borderColor: 'transparent', alignItems: 'center',
   },
-  planBtnText: { fontSize: 13, fontWeight: '700', color: '#9CA3AF' },
+  planBtnText: { fontSize: 13, fontWeight: '700', color: '#A8A49C' },
   toggleBtn: {
-    paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, backgroundColor: '#2C2C2E',
+    paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, backgroundColor: '#1E1E22',
     borderWidth: 1, borderColor: '#3C3C3E', marginBottom: 14, alignItems: 'center',
   },
-  toggleBtnText: { fontSize: 14, color: '#9CA3AF', fontWeight: '600' },
-  broadcastBtn: { backgroundColor: '#6366F1', borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 4 },
-  broadcastBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+  toggleBtnText: { fontSize: 14, color: '#A8A49C', fontWeight: '600' },
+  broadcastBtn: { backgroundColor: '#D4B07A', borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 4 },
+  broadcastBtnText: { fontSize: 15, fontWeight: '700', color: '#17171A' },
 });

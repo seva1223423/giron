@@ -27,10 +27,10 @@ type RouteParams = { userId: string };
 
 const ROLES: UserRole[] = ['guest', 'visitor', 'client', 'trainer', 'support', 'admin'];
 const PLANS = [
-  { key: 'free', label: 'Free', color: '#6B7280' },
-  { key: 'pro', label: 'PRO', color: '#6366F1' },
-  { key: 'trainer', label: 'Trainer', color: '#F59E0B' },
-  { key: 'club', label: 'Club', color: '#10B981' },
+  { key: 'free', label: 'Free', color: '#A8A49C' },
+  { key: 'pro', label: 'PRO', color: '#D4B07A' },
+  { key: 'trainer', label: 'Trainer', color: '#E8A36A' },
+  { key: 'club', label: 'Club', color: '#9AC28C' },
 ] as const;
 
 type Plan = typeof PLANS[number]['key'];
@@ -300,7 +300,7 @@ export default function AdminUserDetailScreen() {
     );
   }, [userId, user, withStepUp]);
 
-  if (loading) return <ActivityIndicator style={styles.center} color="#6366F1" size="large" />;
+  if (loading) return <ActivityIndicator style={styles.center} color="#D4B07A" size="large" />;
   if (!user) return null;
 
   const sub = user.subscription;
@@ -316,7 +316,7 @@ export default function AdminUserDetailScreen() {
     Math.min(user._count.meals * 0.5, 20) +           // up to 20 pts for nutrition
     Math.min(user._count.cardioSessions * 2, 15)      // up to 15 pts for cardio
   ));
-  const engagementColor = engagementScore >= 70 ? '#10B981' : engagementScore >= 40 ? '#F59E0B' : '#EF4444';
+  const engagementColor = engagementScore >= 70 ? '#9AC28C' : engagementScore >= 40 ? '#E8A36A' : '#E07A6B';
   const engagementLabel = engagementScore >= 70 ? 'Высокий' : engagementScore >= 40 ? 'Средний' : 'Низкий';
 
   return (
@@ -331,14 +331,14 @@ export default function AdminUserDetailScreen() {
             <View style={styles.msgHeader}>
               <Text style={styles.msgTitle}>Написать пользователю</Text>
               <TouchableOpacity onPress={() => setShowMsgModal(false)}>
-                <Text style={{ color: '#6B7280', fontSize: 18 }}>✕</Text>
+                <Text style={{ color: '#A8A49C', fontSize: 18 }}>✕</Text>
               </TouchableOpacity>
             </View>
             <Text style={styles.msgHint}>Создаётся тикет в поддержке, видимый пользователю</Text>
             <TextInput
               style={styles.msgSubjectInput}
               placeholder="Тема сообщения..."
-              placeholderTextColor="#6B7280"
+              placeholderTextColor="#A8A49C"
               value={msgSubject}
               onChangeText={setMsgSubject}
               maxLength={200}
@@ -346,7 +346,7 @@ export default function AdminUserDetailScreen() {
             <TextInput
               style={styles.msgBodyInput}
               placeholder="Текст сообщения..."
-              placeholderTextColor="#6B7280"
+              placeholderTextColor="#A8A49C"
               value={msgBody}
               onChangeText={setMsgBody}
               multiline
@@ -370,7 +370,7 @@ export default function AdminUserDetailScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {busy && (
         <View style={styles.busyOverlay}>
-          <ActivityIndicator color="#6366F1" size="large" />
+          <ActivityIndicator color="#D4B07A" size="large" />
         </View>
       )}
 
@@ -385,9 +385,9 @@ export default function AdminUserDetailScreen() {
 
       {/* Lockout banner */}
       {!user.isBanned && user.lockedUntil && new Date(user.lockedUntil) > new Date() && (
-        <View style={[styles.banBanner, { backgroundColor: '#F59E0B12', borderColor: '#F59E0B50' }]}>
-          <Text style={[styles.banBannerTitle, { color: '#F59E0B' }]}>🔒 Временная блокировка</Text>
-          <Text style={[styles.banBannerReason, { color: '#F59E0BAA' }]}>
+        <View style={[styles.banBanner, { backgroundColor: '#E8A36A12', borderColor: '#E8A36A50' }]}>
+          <Text style={[styles.banBannerTitle, { color: '#E8A36A' }]}>🔒 Временная блокировка</Text>
+          <Text style={[styles.banBannerReason, { color: '#E8A36AAA' }]}>
             Слишком много неверных паролей. До: {new Date(user.lockedUntil!).toLocaleString('ru-RU')}
           </Text>
           <TouchableOpacity
@@ -400,9 +400,9 @@ export default function AdminUserDetailScreen() {
               } catch { Alert.alert('Ошибка', 'Не удалось снять блокировку'); }
               finally { setBusy(false); }
             }}
-            style={{ marginTop: 8, alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, backgroundColor: '#F59E0B22', borderWidth: 1, borderColor: '#F59E0B' }}
+            style={{ marginTop: 8, alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, backgroundColor: '#E8A36A22', borderWidth: 1, borderColor: '#E8A36A' }}
           >
-            <Text style={{ fontSize: 12, color: '#F59E0B', fontWeight: '700' }}>Снять блокировку</Text>
+            <Text style={{ fontSize: 12, color: '#E8A36A', fontWeight: '700' }}>Снять блокировку</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -417,16 +417,16 @@ export default function AdminUserDetailScreen() {
         const daysLeft = sub?.endDate ? Math.ceil((new Date(sub.endDate).getTime() - Date.now()) / 86400000) : null;
 
         if (isPaid && daysSince !== null && daysSince >= 14) {
-          alerts.push({ icon: '⚡', color: '#EF4444', text: `Чурн-риск: нет тренировок ${daysSince} дней при активной подписке`, action: { label: '💬 Написать', onPress: () => setShowMsgModal(true) } });
+          alerts.push({ icon: '⚡', color: '#E07A6B', text: `Чурн-риск: нет тренировок ${daysSince} дней при активной подписке`, action: { label: '💬 Написать', onPress: () => setShowMsgModal(true) } });
         }
         if (daysLeft !== null && daysLeft <= 7 && daysLeft > 0) {
-          alerts.push({ icon: '⏰', color: '#F59E0B', text: `Подписка ${sub!.plan.toUpperCase()} истекает через ${daysLeft} дн.` });
+          alerts.push({ icon: '⏰', color: '#E8A36A', text: `Подписка ${sub!.plan.toUpperCase()} истекает через ${daysLeft} дн.` });
         }
         if (!user.goal && user._count.workouts === 0) {
-          alerts.push({ icon: '🆕', color: '#6366F1', text: 'Новый пользователь: цель не задана, тренировок нет' });
+          alerts.push({ icon: '🆕', color: '#D4B07A', text: 'Новый пользователь: цель не задана, тренировок нет' });
         }
         if (user._count.supportTickets > 5 && user.supportTickets?.some((t) => t.status === 'open')) {
-          alerts.push({ icon: '🎫', color: '#8B5CF6', text: `${user._count.supportTickets} тикетов, есть открытые` });
+          alerts.push({ icon: '🎫', color: '#D4B07A', text: `${user._count.supportTickets} тикетов, есть открытые` });
         }
         if (alerts.length === 0) return null;
         return (
@@ -448,7 +448,7 @@ export default function AdminUserDetailScreen() {
 
       {/* User header */}
       <View style={styles.header}>
-        <View style={[styles.avatar, { backgroundColor: user.isBanned ? '#EF444433' : '#6366F133', borderColor: user.isBanned ? '#EF4444' : '#6366F1' }]}>
+        <View style={[styles.avatar, { backgroundColor: user.isBanned ? '#E07A6B33' : '#D4B07A33', borderColor: user.isBanned ? '#E07A6B' : '#D4B07A' }]}>
           <Text style={styles.avatarText}>{user.firstName[0]}{user.lastName?.[0] ?? ''}</Text>
         </View>
         <View style={{ flex: 1 }}>
@@ -462,7 +462,7 @@ export default function AdminUserDetailScreen() {
           )}
           {/* Email verification badge + quick action */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
-            <Text style={{ fontSize: 11, color: user.emailVerified ? '#34C759' : '#F59E0B', fontWeight: '600' }}>
+            <Text style={{ fontSize: 11, color: user.emailVerified ? '#34C759' : '#E8A36A', fontWeight: '600' }}>
               {user.emailVerified ? '✓ Email подтверждён' : '⚠ Email не подтверждён'}
             </Text>
             {!user.emailVerified && (
@@ -487,7 +487,7 @@ export default function AdminUserDetailScreen() {
             {user.vkId && <Text style={{ fontSize: 10, color: '#0077FF', fontWeight: '700', backgroundColor: '#0077FF15', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 2 }}>ВК</Text>}
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
-            <Text style={[styles.roleBadge, { color: roleLower === 'admin' ? '#F59E0B' : '#9CA3AF' }]}>
+            <Text style={[styles.roleBadge, { color: roleLower === 'admin' ? '#E8A36A' : '#A8A49C' }]}>
               {roleLower.toUpperCase()}
             </Text>
             <Text style={styles.meta}>
@@ -550,7 +550,7 @@ export default function AdminUserDetailScreen() {
                 key={p.key}
                 style={[styles.planChip, isActive && { backgroundColor: p.color + '22', borderColor: p.color }]}
               >
-                <Text style={[styles.planChipText, { color: isActive ? p.color : '#6B7280' }]} numberOfLines={1}>
+                <Text style={[styles.planChipText, { color: isActive ? p.color : '#A8A49C' }]} numberOfLines={1}>
                   {p.label}
                   {isActive && sub?.status ? ` · ${sub.status}` : ''}
                 </Text>
@@ -668,7 +668,7 @@ export default function AdminUserDetailScreen() {
         user.chatMessages?.forEach((m) => events.push({ date: m.createdAt, type: 'ai', label: m.content }));
         events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         const TYPE_ICON = { workout: '🏋️', ticket: '🎧', ai: '🤖' };
-        const TYPE_COLOR = { workout: '#F59E0B', ticket: '#6366F1', ai: '#8B5CF6' };
+        const TYPE_COLOR = { workout: '#E8A36A', ticket: '#D4B07A', ai: '#D4B07A' };
         return (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Последняя активность</Text>
@@ -732,14 +732,14 @@ export default function AdminUserDetailScreen() {
           <View style={styles.card}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <Text style={styles.cardTitle}>Частота тренировок (90 дней)</Text>
-              <Text style={{ fontSize: 11, color: '#6B7280' }}>{totalWorkouts} тр · {activeWeeks}/12 нед</Text>
+              <Text style={{ fontSize: 11, color: '#A8A49C' }}>{totalWorkouts} тр · {activeWeeks}/12 нед</Text>
             </View>
             <View style={{ flexDirection: 'row', gap: 3 }}>
               {weeks.map((week, wi) => (
                 <View key={wi} style={{ flex: 1, gap: 2 }}>
                   {week.days.map((day, di) => {
                     const isFuture = day.date > today.toISOString().split('T')[0];
-                    const bg = isFuture ? 'transparent' : day.count > 1 ? '#6366F1' : day.count === 1 ? '#6366F170' : '#1C1C1E';
+                    const bg = isFuture ? 'transparent' : day.count > 1 ? '#D4B07A' : day.count === 1 ? '#D4B07A70' : '#17171A';
                     return (
                       <View
                         key={di}
@@ -755,12 +755,12 @@ export default function AdminUserDetailScreen() {
               ))}
             </View>
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, alignItems: 'center' }}>
-              <View style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: '#1C1C1E', borderWidth: 1, borderColor: '#2C2C2E' }} />
-              <Text style={{ fontSize: 10, color: '#6B7280' }}>0</Text>
-              <View style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: '#6366F170' }} />
-              <Text style={{ fontSize: 10, color: '#6B7280' }}>1</Text>
-              <View style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: '#6366F1' }} />
-              <Text style={{ fontSize: 10, color: '#6B7280' }}>2+</Text>
+              <View style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: '#17171A', borderWidth: 1, borderColor: '#1E1E22' }} />
+              <Text style={{ fontSize: 10, color: '#A8A49C' }}>0</Text>
+              <View style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: '#D4B07A70' }} />
+              <Text style={{ fontSize: 10, color: '#A8A49C' }}>1</Text>
+              <View style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: '#D4B07A' }} />
+              <Text style={{ fontSize: 10, color: '#A8A49C' }}>2+</Text>
             </View>
           </View>
         );
@@ -792,7 +792,7 @@ export default function AdminUserDetailScreen() {
           <View style={styles.card}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <Text style={styles.cardTitle}>Динамика веса</Text>
-              <Text style={[styles.listMeta, { color: delta < 0 ? '#10B981' : delta > 0 ? '#F59E0B' : '#6B7280', fontWeight: '700' }]}>
+              <Text style={[styles.listMeta, { color: delta < 0 ? '#9AC28C' : delta > 0 ? '#E8A36A' : '#A8A49C', fontWeight: '700' }]}>
                 {delta > 0 ? `+${delta.toFixed(1)}` : delta.toFixed(1)} кг
               </Text>
             </View>
@@ -805,7 +805,7 @@ export default function AdminUserDetailScreen() {
                     key={i}
                     style={{
                       flex: 1, height: h, borderRadius: 3,
-                      backgroundColor: isLast ? '#6366F1' : '#6366F150',
+                      backgroundColor: isLast ? '#D4B07A' : '#D4B07A50',
                     }}
                   />
                 );
@@ -827,7 +827,7 @@ export default function AdminUserDetailScreen() {
         const avgQuality = qualityEntries.length > 0
           ? qualityEntries.reduce((s, e) => s + (e.quality ?? 0), 0) / qualityEntries.length
           : null;
-        const sleepColor = avgDuration >= 7.5 ? '#10B981' : avgDuration >= 6 ? '#F59E0B' : '#EF4444';
+        const sleepColor = avgDuration >= 7.5 ? '#9AC28C' : avgDuration >= 6 ? '#E8A36A' : '#E07A6B';
         return (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Сон (последние {entries.length} записей)</Text>
@@ -840,7 +840,7 @@ export default function AdminUserDetailScreen() {
               </View>
               {avgQuality !== null && (
                 <View>
-                  <Text style={[styles.statValue, { fontSize: 20, color: avgQuality >= 4 ? '#10B981' : avgQuality >= 3 ? '#F59E0B' : '#EF4444' }]}>
+                  <Text style={[styles.statValue, { fontSize: 20, color: avgQuality >= 4 ? '#9AC28C' : avgQuality >= 3 ? '#E8A36A' : '#E07A6B' }]}>
                     {avgQuality.toFixed(1)}/5
                   </Text>
                   <Text style={styles.statLabel}>ср. качество</Text>
@@ -855,7 +855,7 @@ export default function AdminUserDetailScreen() {
                     key={e.id}
                     style={{
                       flex: 1, height: h, borderRadius: 2,
-                      backgroundColor: i === entries.length - 1 ? '#6366F1' : '#6366F150',
+                      backgroundColor: i === entries.length - 1 ? '#D4B07A' : '#D4B07A50',
                     }}
                   />
                 );
@@ -985,7 +985,7 @@ export default function AdminUserDetailScreen() {
             date: w.completedAt,
             icon: '💪',
             label: `Тренировка: ${w.name}${w.totalVolume ? ` · ${Math.round(w.totalVolume)} кг` : ''}${w.durationMinutes ? ` · ${w.durationMinutes} мин` : ''}`,
-            color: '#F59E0B',
+            color: '#E8A36A',
             id: 'w_' + w.id,
           });
         });
@@ -993,28 +993,28 @@ export default function AdminUserDetailScreen() {
           date: s.createdAt,
           icon: '🏃',
           label: `Кардио: ${s.type} · ${s.durationMinutes} мин${s.distanceKm ? ` · ${s.distanceKm.toFixed(1)} км` : ''}`,
-          color: '#10B981',
+          color: '#9AC28C',
           id: 'c_' + s.id,
         }));
         user.chatMessages?.slice(0, 5).forEach((m) => events.push({
           date: m.createdAt,
           icon: '🤖',
           label: `ИИ: ${m.content.slice(0, 60)}${m.content.length > 60 ? '…' : ''}`,
-          color: '#8B5CF6',
+          color: '#D4B07A',
           id: 'm_' + m.id,
         }));
         user.bodyWeights?.slice(0, 5).forEach((bw) => events.push({
           date: bw.date,
           icon: '⚖️',
           label: `Вес: ${bw.weightKg} кг`,
-          color: '#6366F1',
+          color: '#D4B07A',
           id: 'bw_' + bw.id,
         }));
         user.supportTickets?.forEach((t) => events.push({
           date: t.createdAt,
           icon: '🎫',
           label: `Тикет: ${t.subject} · ${t.status}`,
-          color: '#6B7280',
+          color: '#A8A49C',
           id: 't_' + t.id,
         }));
         events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -1052,10 +1052,10 @@ export default function AdminUserDetailScreen() {
           personality: 'Личность',
         };
         const CATEGORY_COLOR: Record<string, string> = {
-          preference: '#6366F1',
-          habit: '#10B981',
-          injury: '#EF4444',
-          allergy: '#F59E0B',
+          preference: '#D4B07A',
+          habit: '#9AC28C',
+          injury: '#E07A6B',
+          allergy: '#E8A36A',
           schedule: '#3B82F6',
           personality: '#EC4899',
         };
@@ -1069,8 +1069,8 @@ export default function AdminUserDetailScreen() {
             <Text style={styles.cardTitle}>Память ИИ ({user.aiMemories.length})</Text>
             {Object.entries(grouped).map(([cat, mems]) => (
               <View key={cat} style={styles.memGroup}>
-                <View style={[styles.memCatBadge, { backgroundColor: (CATEGORY_COLOR[cat] ?? '#6B7280') + '25', borderColor: CATEGORY_COLOR[cat] ?? '#6B7280' }]}>
-                  <Text style={[styles.memCatText, { color: CATEGORY_COLOR[cat] ?? '#9CA3AF' }]}>
+                <View style={[styles.memCatBadge, { backgroundColor: (CATEGORY_COLOR[cat] ?? '#A8A49C') + '25', borderColor: CATEGORY_COLOR[cat] ?? '#A8A49C' }]}>
+                  <Text style={[styles.memCatText, { color: CATEGORY_COLOR[cat] ?? '#A8A49C' }]}>
                     {CATEGORY_LABEL[cat] ?? cat}
                   </Text>
                 </View>
@@ -1081,7 +1081,7 @@ export default function AdminUserDetailScreen() {
                       <Text style={styles.memValue} numberOfLines={2}>{m.value}</Text>
                     </View>
                     <View style={styles.memRight}>
-                      <Text style={[styles.memConf, { color: m.confidence > 0.7 ? '#10B981' : m.confidence > 0.4 ? '#F59E0B' : '#EF4444' }]}>
+                      <Text style={[styles.memConf, { color: m.confidence > 0.7 ? '#9AC28C' : m.confidence > 0.4 ? '#E8A36A' : '#E07A6B' }]}>
                         {Math.round(m.confidence * 100)}%
                       </Text>
                       <Text style={styles.memSource}>{m.source}</Text>
@@ -1105,10 +1105,10 @@ export default function AdminUserDetailScreen() {
           ) : (
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <TouchableOpacity onPress={() => { setEditingNote(false); setNoteText(user.adminNote ?? ''); }}>
-                <Text style={{ color: '#6B7280', fontSize: 12 }}>Отмена</Text>
+                <Text style={{ color: '#A8A49C', fontSize: 12 }}>Отмена</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={saveNote} disabled={busy}>
-                <Text style={{ color: '#6366F1', fontSize: 12, fontWeight: '700' }}>Сохранить</Text>
+                <Text style={{ color: '#D4B07A', fontSize: 12, fontWeight: '700' }}>Сохранить</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -1119,7 +1119,7 @@ export default function AdminUserDetailScreen() {
             value={noteText}
             onChangeText={setNoteText}
             placeholder="Внутренняя заметка для администраторов..."
-            placeholderTextColor="#4B5563"
+            placeholderTextColor="#2A2A2F"
             multiline
             maxLength={1000}
           />
@@ -1137,9 +1137,9 @@ export default function AdminUserDetailScreen() {
       >
         <View>
           <Text style={[styles.cardTitle, { marginBottom: 2 }]}>События безопасности</Text>
-          <Text style={{ fontSize: 12, color: '#6B7280' }}>Входы, смены пароля, OTP-атаки</Text>
+          <Text style={{ fontSize: 12, color: '#A8A49C' }}>Входы, смены пароля, OTP-атаки</Text>
         </View>
-        <Text style={{ color: '#9CA3AF', fontSize: 20 }}>›</Text>
+        <Text style={{ color: '#A8A49C', fontSize: 20 }}>›</Text>
       </TouchableOpacity>
 
       {/* Message user */}
@@ -1160,20 +1160,20 @@ export default function AdminUserDetailScreen() {
               Alert.alert('Ошибка', 'Не удалось загрузить сессии');
             }
           }}>
-            <Text style={{ fontSize: 12, color: '#8B5CF6' }}>Загрузить</Text>
+            <Text style={{ fontSize: 12, color: '#D4B07A' }}>Загрузить</Text>
           </TouchableOpacity>
         </View>
         {activeSessions === null ? (
-          <Text style={{ fontSize: 12, color: '#6B7280' }}>Нажмите «Загрузить» для просмотра</Text>
+          <Text style={{ fontSize: 12, color: '#A8A49C' }}>Нажмите «Загрузить» для просмотра</Text>
         ) : activeSessions.length === 0 ? (
-          <Text style={{ fontSize: 12, color: '#6B7280' }}>Нет активных сессий</Text>
+          <Text style={{ fontSize: 12, color: '#A8A49C' }}>Нет активных сессий</Text>
         ) : (
           activeSessions.map((s) => (
             <View key={s.id} style={{ paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' }}>
               <Text style={{ fontSize: 13, fontWeight: '600', color: '#111827' }}>
                 {s.userAgent ? (s.userAgent.includes('iPhone') ? 'iPhone' : s.userAgent.includes('Android') ? 'Android' : s.userAgent.slice(0, 30)) : 'Неизвестное устройство'}
               </Text>
-              <Text style={{ fontSize: 11, color: '#6B7280' }}>
+              <Text style={{ fontSize: 11, color: '#A8A49C' }}>
                 IP: {s.ip ?? '—'} · Вход: {new Date(s.createdAt).toLocaleDateString('ru-RU')}
               </Text>
             </View>
@@ -1212,10 +1212,10 @@ export default function AdminUserDetailScreen() {
         }}
       >
         <View>
-          <Text style={[styles.cardTitle, { marginBottom: 2, color: '#EF4444' }]}>Выйти со всех устройств</Text>
-          <Text style={{ fontSize: 12, color: '#6B7280' }}>Отзывает все refresh-токены пользователя</Text>
+          <Text style={[styles.cardTitle, { marginBottom: 2, color: '#E07A6B' }]}>Выйти со всех устройств</Text>
+          <Text style={{ fontSize: 12, color: '#A8A49C' }}>Отзывает все refresh-токены пользователя</Text>
         </View>
-        <Text style={{ color: '#EF4444', fontSize: 20 }}>›</Text>
+        <Text style={{ color: '#E07A6B', fontSize: 20 }}>›</Text>
       </TouchableOpacity>
 
       {/* Force disable 2FA */}
@@ -1251,7 +1251,7 @@ export default function AdminUserDetailScreen() {
         >
           <View>
             <Text style={[styles.cardTitle, { marginBottom: 2, color: '#FF9F0A' }]}>Отключить 2FA</Text>
-            <Text style={{ fontSize: 12, color: '#6B7280' }}>Для восстановления доступа пользователя</Text>
+            <Text style={{ fontSize: 12, color: '#A8A49C' }}>Для восстановления доступа пользователя</Text>
           </View>
           <Text style={{ color: '#FF9F0A', fontSize: 20 }}>›</Text>
         </TouchableOpacity>
@@ -1282,7 +1282,7 @@ export default function AdminUserDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0F0F0F' },
+  container: { flex: 1, backgroundColor: '#0E0E0F' },
   content: { padding: 16, paddingBottom: 48 },
   center: { flex: 1, justifyContent: 'center' },
 
@@ -1298,38 +1298,38 @@ const styles = StyleSheet.create({
   },
   avatarText: { color: '#FFFFFF', fontSize: 22, fontWeight: '700' },
   name: { fontSize: 18, fontWeight: '700', color: '#FFFFFF' },
-  email: { fontSize: 13, color: '#9CA3AF', marginTop: 1 },
-  meta: { fontSize: 12, color: '#6B7280', marginTop: 1 },
+  email: { fontSize: 13, color: '#A8A49C', marginTop: 1 },
+  meta: { fontSize: 12, color: '#A8A49C', marginTop: 1 },
   roleBadge: { fontSize: 11, fontWeight: '700', letterSpacing: 0.5, marginTop: 4 },
 
   statsRow: {
-    flexDirection: 'row', backgroundColor: '#1C1C1E', borderRadius: 14,
+    flexDirection: 'row', backgroundColor: '#17171A', borderRadius: 14,
     padding: 14, marginBottom: 16, justifyContent: 'space-between',
-    borderWidth: 1, borderColor: '#2C2C2E',
+    borderWidth: 1, borderColor: '#1E1E22',
   },
   statItem: { alignItems: 'center', flex: 1 },
-  statValue: { fontSize: 18, fontWeight: '800', color: '#6366F1' },
-  statLabel: { fontSize: 9, color: '#6B7280', marginTop: 2, textAlign: 'center' },
+  statValue: { fontSize: 18, fontWeight: '800', color: '#D4B07A' },
+  statLabel: { fontSize: 9, color: '#A8A49C', marginTop: 2, textAlign: 'center' },
 
   // Engagement score
   engagementCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#1C1C1E', borderRadius: 12, padding: 14,
+    backgroundColor: '#17171A', borderRadius: 12, padding: 14,
     marginBottom: 12, borderWidth: 1,
   },
   engagementLeft: { width: 80 },
-  engagementTitle: { fontSize: 10, color: '#6B7280', fontWeight: '600', textTransform: 'uppercase', marginBottom: 2 },
+  engagementTitle: { fontSize: 10, color: '#A8A49C', fontWeight: '600', textTransform: 'uppercase', marginBottom: 2 },
   engagementLabel: { fontSize: 13, fontWeight: '700' },
-  engagementBarTrack: { height: 8, backgroundColor: '#2C2C2E', borderRadius: 4, overflow: 'hidden' },
+  engagementBarTrack: { height: 8, backgroundColor: '#1E1E22', borderRadius: 4, overflow: 'hidden' },
   engagementBarFill: { height: '100%', borderRadius: 4 },
   engagementScore: { fontSize: 22, fontWeight: '800', width: 36, textAlign: 'right' },
 
   card: {
-    backgroundColor: '#1C1C1E', borderRadius: 14, padding: 16,
-    marginBottom: 12, borderWidth: 1, borderColor: '#2C2C2E',
+    backgroundColor: '#17171A', borderRadius: 14, padding: 16,
+    marginBottom: 12, borderWidth: 1, borderColor: '#1E1E22',
   },
-  cardTitle: { fontSize: 13, fontWeight: '700', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 14 },
-  cardHint: { fontSize: 11, color: '#4B5563', marginTop: 10 },
+  cardTitle: { fontSize: 13, fontWeight: '700', color: '#A8A49C', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 14 },
+  cardHint: { fontSize: 11, color: '#2A2A2F', marginTop: 10 },
 
   // Subscription
   subStatus: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
@@ -1338,99 +1338,99 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 6,
   },
   planChipText: { fontSize: 12, fontWeight: '600' },
-  subMeta: { fontSize: 12, color: '#6B7280', marginBottom: 4 },
+  subMeta: { fontSize: 12, color: '#A8A49C', marginBottom: 4 },
   subEndRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
   extendRow: { flexDirection: 'row', gap: 4 },
   extendBtn: {
-    borderRadius: 6, borderWidth: 1, borderColor: '#10B98160',
-    paddingHorizontal: 8, paddingVertical: 4, backgroundColor: '#10B98110',
+    borderRadius: 6, borderWidth: 1, borderColor: '#9AC28C60',
+    paddingHorizontal: 8, paddingVertical: 4, backgroundColor: '#9AC28C10',
   },
-  extendBtnText: { fontSize: 11, fontWeight: '700', color: '#10B981' },
-  subSectionLabel: { fontSize: 11, color: '#6B7280', fontWeight: '600', marginTop: 12, marginBottom: 8 },
+  extendBtnText: { fontSize: 11, fontWeight: '700', color: '#9AC28C' },
+  subSectionLabel: { fontSize: 11, color: '#A8A49C', fontWeight: '600', marginTop: 12, marginBottom: 8 },
   subActions: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   grantBtn: {
     borderRadius: 8, borderWidth: 1.5, paddingHorizontal: 14, paddingVertical: 8,
   },
   grantBtnText: { fontSize: 13, fontWeight: '700' },
-  divider: { height: 1, backgroundColor: '#2C2C2E', marginVertical: 12 },
+  divider: { height: 1, backgroundColor: '#1E1E22', marginVertical: 12 },
   revokeBtn: {
-    backgroundColor: '#EF444412', borderRadius: 10, borderWidth: 1,
-    borderColor: '#EF4444', padding: 12, alignItems: 'center',
+    backgroundColor: '#E07A6B12', borderRadius: 10, borderWidth: 1,
+    borderColor: '#E07A6B', padding: 12, alignItems: 'center',
   },
-  revokeBtnText: { color: '#EF4444', fontSize: 14, fontWeight: '700' },
-  revokeBtnSub: { color: '#EF444480', fontSize: 11, marginTop: 2 },
+  revokeBtnText: { color: '#E07A6B', fontSize: 14, fontWeight: '700' },
+  revokeBtnSub: { color: '#E07A6B80', fontSize: 11, marginTop: 2 },
 
   // Role chips
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
     borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8,
-    backgroundColor: '#0F0F0F', borderWidth: 1, borderColor: '#2C2C2E',
+    backgroundColor: '#0E0E0F', borderWidth: 1, borderColor: '#1E1E22',
   },
-  chipActive: { backgroundColor: '#6366F122', borderColor: '#6366F1' },
-  chipText: { color: '#9CA3AF', fontSize: 13, fontWeight: '600', textTransform: 'capitalize' },
-  chipTextActive: { color: '#6366F1' },
+  chipActive: { backgroundColor: '#D4B07A22', borderColor: '#D4B07A' },
+  chipText: { color: '#A8A49C', fontSize: 13, fontWeight: '600', textTransform: 'capitalize' },
+  chipTextActive: { color: '#D4B07A' },
 
   // Info rows
-  infoRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#2C2C2E' },
-  infoLabel: { fontSize: 13, color: '#6B7280' },
+  infoRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#1E1E22' },
+  infoLabel: { fontSize: 13, color: '#A8A49C' },
   infoValue: { fontSize: 13, color: '#FFFFFF', fontWeight: '500' },
 
   // List items
-  listRow: { paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: '#2C2C2E' },
+  listRow: { paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: '#1E1E22' },
   listMain: { fontSize: 14, color: '#FFFFFF', marginBottom: 2 },
-  listMeta: { fontSize: 12, color: '#6B7280' },
+  listMeta: { fontSize: 12, color: '#A8A49C' },
 
-  timelineRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#2C2C2E' },
+  timelineRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#1E1E22' },
   timelineDot: { width: 26, height: 26, borderRadius: 13, borderWidth: 1, justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
   timelineLabel: { fontSize: 13, color: '#FFFFFF' },
-  timelineSub: { fontSize: 11, color: '#6B7280', marginTop: 1 },
-  timelineDate: { fontSize: 11, color: '#4B5563', flexShrink: 0 },
+  timelineSub: { fontSize: 11, color: '#A8A49C', marginTop: 1 },
+  timelineDate: { fontSize: 11, color: '#2A2A2F', flexShrink: 0 },
 
   // Ban banner
   banBanner: {
-    backgroundColor: '#EF444412', borderRadius: 12, borderWidth: 1,
-    borderColor: '#EF444450', padding: 14, marginBottom: 16,
+    backgroundColor: '#E07A6B12', borderRadius: 12, borderWidth: 1,
+    borderColor: '#E07A6B50', padding: 14, marginBottom: 16,
   },
-  banBannerTitle: { fontSize: 14, fontWeight: '800', color: '#EF4444', marginBottom: 4 },
-  banBannerReason: { fontSize: 13, color: '#EF444490', fontStyle: 'italic' },
-  banBannerDate: { fontSize: 11, color: '#EF444460', marginTop: 2 },
+  banBannerTitle: { fontSize: 14, fontWeight: '800', color: '#E07A6B', marginBottom: 4 },
+  banBannerReason: { fontSize: 13, color: '#E07A6B90', fontStyle: 'italic' },
+  banBannerDate: { fontSize: 11, color: '#E07A6B60', marginTop: 2 },
 
   // Admin note
-  editNoteBtn: { paddingHorizontal: 10, paddingVertical: 4, backgroundColor: '#2C2C2E', borderRadius: 6 },
-  editNoteBtnText: { fontSize: 11, color: '#9CA3AF', fontWeight: '600' },
+  editNoteBtn: { paddingHorizontal: 10, paddingVertical: 4, backgroundColor: '#1E1E22', borderRadius: 6 },
+  editNoteBtnText: { fontSize: 11, color: '#A8A49C', fontWeight: '600' },
   noteInput: {
-    backgroundColor: '#0F0F0F', borderRadius: 8, padding: 12,
+    backgroundColor: '#0E0E0F', borderRadius: 8, padding: 12,
     fontSize: 14, color: '#FFFFFF', minHeight: 80, borderWidth: 1, borderColor: '#3C3C3E',
   },
-  noteText: { fontSize: 14, color: '#D1D5DB', lineHeight: 20, fontStyle: 'italic' },
-  notePlaceholder: { fontSize: 13, color: '#374151', fontStyle: 'italic' },
+  noteText: { fontSize: 14, color: '#F4F1EA', lineHeight: 20, fontStyle: 'italic' },
+  notePlaceholder: { fontSize: 13, color: '#2A2A2F', fontStyle: 'italic' },
 
   // Unban button
   unbanBtn: {
-    backgroundColor: '#10B98112', borderRadius: 10, borderWidth: 1,
-    borderColor: '#10B981', padding: 12, alignItems: 'center',
+    backgroundColor: '#9AC28C12', borderRadius: 10, borderWidth: 1,
+    borderColor: '#9AC28C', padding: 12, alignItems: 'center',
   },
-  unbanBtnText: { color: '#10B981', fontSize: 14, fontWeight: '700' },
+  unbanBtnText: { color: '#9AC28C', fontSize: 14, fontWeight: '700' },
 
   // Delete button
   deleteBtn: {
-    backgroundColor: '#EF444408', borderRadius: 10, borderWidth: 1,
-    borderColor: '#EF444450', padding: 12, alignItems: 'center',
+    backgroundColor: '#E07A6B08', borderRadius: 10, borderWidth: 1,
+    borderColor: '#E07A6B50', padding: 12, alignItems: 'center',
   },
-  deleteBtnText: { color: '#EF4444', fontSize: 14, fontWeight: '700' },
+  deleteBtnText: { color: '#E07A6B', fontSize: 14, fontWeight: '700' },
   deleteBtnSub: { color: '#EF444060', fontSize: 11, marginTop: 2 },
 
-  historyRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#2C2C2E', gap: 8 },
-  historyDetails: { fontSize: 13, color: '#D1D5DB', marginBottom: 2 },
-  historyAdmin: { fontSize: 11, color: '#6B7280' },
-  historyDate: { fontSize: 11, color: '#4B5563', marginTop: 2 },
+  historyRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#1E1E22', gap: 8 },
+  historyDetails: { fontSize: 13, color: '#F4F1EA', marginBottom: 2 },
+  historyAdmin: { fontSize: 11, color: '#A8A49C' },
+  historyDate: { fontSize: 11, color: '#2A2A2F', marginTop: 2 },
 
   heatmapGrid: { flexDirection: 'row', gap: 3, marginBottom: 8 },
   heatmapCol: { flexDirection: 'column', gap: 3 },
-  heatmapCell: { width: 14, height: 14, borderRadius: 3, backgroundColor: '#2C2C2E' },
-  heatmapCellActive: { backgroundColor: '#6366F1' },
+  heatmapCell: { width: 14, height: 14, borderRadius: 3, backgroundColor: '#1E1E22' },
+  heatmapCellActive: { backgroundColor: '#D4B07A' },
   heatmapCellToday: { borderWidth: 1, borderColor: '#A5B4FC' },
-  heatmapLegend: { fontSize: 11, color: '#6B7280', marginTop: 4 },
+  heatmapLegend: { fontSize: 11, color: '#A8A49C', marginTop: 4 },
 
   // Contextual alerts
   alertRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 10, borderWidth: 1, padding: 10 },
@@ -1444,11 +1444,11 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
   evtLine: {
-    position: 'absolute', left: 13, top: 28, width: 2, height: 14, backgroundColor: '#2C2C2E',
+    position: 'absolute', left: 13, top: 28, width: 2, height: 14, backgroundColor: '#1E1E22',
   },
   evtContent: { flex: 1, paddingTop: 2 },
-  evtLabel: { fontSize: 12, color: '#D1D5DB', lineHeight: 16 },
-  evtDate: { fontSize: 10, color: '#6B7280', marginTop: 2 },
+  evtLabel: { fontSize: 12, color: '#F4F1EA', lineHeight: 16 },
+  evtDate: { fontSize: 10, color: '#A8A49C', marginTop: 2 },
 
   // AI Memories
   memGroup: { marginBottom: 12 },
@@ -1459,37 +1459,37 @@ const styles = StyleSheet.create({
   memCatText: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
   memRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
-    paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#1C1C1E',
+    paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#17171A',
   },
   memLeft: { flex: 1, paddingRight: 8 },
-  memKey: { fontSize: 12, fontWeight: '600', color: '#D1D5DB', marginBottom: 2 },
-  memValue: { fontSize: 12, color: '#6B7280' },
+  memKey: { fontSize: 12, fontWeight: '600', color: '#F4F1EA', marginBottom: 2 },
+  memValue: { fontSize: 12, color: '#A8A49C' },
   memRight: { alignItems: 'flex-end' },
   memConf: { fontSize: 13, fontWeight: '700' },
-  memSource: { fontSize: 10, color: '#4B5563', marginTop: 1, textTransform: 'capitalize' },
+  memSource: { fontSize: 10, color: '#2A2A2F', marginTop: 1, textTransform: 'capitalize' },
 
   // Message user
   msgUserBtn: {
-    backgroundColor: '#6366F112', borderRadius: 12, borderWidth: 1,
-    borderColor: '#6366F140', padding: 14, marginBottom: 12,
+    backgroundColor: '#D4B07A12', borderRadius: 12, borderWidth: 1,
+    borderColor: '#D4B07A40', padding: 14, marginBottom: 12,
   },
-  msgUserBtnText: { fontSize: 14, fontWeight: '700', color: '#6366F1' },
-  msgUserBtnSub: { fontSize: 11, color: '#6366F170', marginTop: 2 },
+  msgUserBtnText: { fontSize: 14, fontWeight: '700', color: '#D4B07A' },
+  msgUserBtnSub: { fontSize: 11, color: '#D4B07A70', marginTop: 2 },
 
   // Message modal
   msgOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
-  msgSheet: { backgroundColor: '#1C1C1E', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, paddingBottom: 32 },
+  msgSheet: { backgroundColor: '#17171A', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, paddingBottom: 32 },
   msgHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   msgTitle: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
-  msgHint: { fontSize: 12, color: '#6B7280', marginBottom: 12 },
+  msgHint: { fontSize: 12, color: '#A8A49C', marginBottom: 12 },
   msgSubjectInput: {
-    backgroundColor: '#2C2C2E', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10,
+    backgroundColor: '#1E1E22', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10,
     fontSize: 14, color: '#FFFFFF', marginBottom: 10, borderWidth: 1, borderColor: '#3C3C3E',
   },
   msgBodyInput: {
-    backgroundColor: '#2C2C2E', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10,
+    backgroundColor: '#1E1E22', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10,
     fontSize: 14, color: '#FFFFFF', height: 120, marginBottom: 16, borderWidth: 1, borderColor: '#3C3C3E',
   },
-  msgSendBtn: { backgroundColor: '#6366F1', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
-  msgSendBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+  msgSendBtn: { backgroundColor: '#D4B07A', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  msgSendBtnText: { fontSize: 15, fontWeight: '700', color: '#17171A' },
 });

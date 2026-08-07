@@ -34,7 +34,7 @@ const PLAN_FILTERS = [
   { key: 'free', label: 'Free' },
 ];
 const PLAN_COLOR: Record<string, string> = {
-  free: '#6B7280', pro: '#6366F1', trainer: '#F59E0B', club: '#10B981',
+  free: '#A8A49C', pro: '#D4B07A', trainer: '#E8A36A', club: '#9AC28C',
 };
 
 // Quickly grant/revoke subscription inline from the list.
@@ -97,13 +97,13 @@ function SubActions({ user, onDone, withStepUp }: { user: AdminUserSummary; onDo
     );
   };
 
-  if (busy) return <ActivityIndicator size="small" color="#6366F1" />;
+  if (busy) return <ActivityIndicator size="small" color="#D4B07A" />;
 
   return (
     <View style={subStyles.row}>
       {isActive ? (
         <TouchableOpacity style={[subStyles.btn, subStyles.revokeBtn]} onPress={revoke}>
-          <Text style={[subStyles.btnText, { color: '#EF4444' }]}>Отозвать</Text>
+          <Text style={[subStyles.btnText, { color: '#E07A6B' }]}>Отозвать</Text>
         </TouchableOpacity>
       ) : (
         <>
@@ -122,7 +122,7 @@ function SubActions({ user, onDone, withStepUp }: { user: AdminUserSummary; onDo
 const subStyles = StyleSheet.create({
   row: { flexDirection: 'row', gap: 6, marginTop: 8 },
   btn: { borderRadius: 6, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 4 },
-  revokeBtn: { borderColor: '#EF4444' },
+  revokeBtn: { borderColor: '#E07A6B' },
   btnText: { fontSize: 11, fontWeight: '700' },
 });
 
@@ -136,9 +136,9 @@ function engagementScore(user: AdminUserSummary): number {
 }
 
 function engColor(score: number): string {
-  if (score >= 70) return '#10B981';
-  if (score >= 35) return '#F59E0B';
-  return '#EF4444';
+  if (score >= 70) return '#9AC28C';
+  if (score >= 35) return '#E8A36A';
+  return '#E07A6B';
 }
 
 function UserRow({
@@ -191,7 +191,7 @@ function UserRow({
     Alert.alert(`${user.firstName} ${user.lastName ?? ''}`, user.email, options);
   }, [user, onPress, onRefresh]);
   const sub = user.subscription;
-  const planColor = PLAN_COLOR[sub?.plan ?? 'free'] ?? '#6B7280';
+  const planColor = PLAN_COLOR[sub?.plan ?? 'free'] ?? '#A8A49C';
   const isNew = Date.now() - new Date(user.createdAt).getTime() < DAY_MS;
   const lastWorkoutAt = user.workouts?.[0]?.completedAt;
   const daysSinceWorkout = lastWorkoutAt
@@ -205,8 +205,8 @@ function UserRow({
   return (
     <View style={[styles.row, user.isBanned && styles.rowBanned, isChurnRisk && styles.rowChurn]}>
       <TouchableOpacity style={styles.rowTop} onPress={onPress} onLongPress={handleLongPress} delayLongPress={400} activeOpacity={0.7}>
-        <View style={[styles.avatar, { backgroundColor: user.isBanned ? '#EF444433' : planColor + '33', borderColor: user.isBanned ? '#EF4444' : planColor }]}>
-          <Text style={[styles.avatarText, { color: user.isBanned ? '#EF4444' : planColor }]}>
+        <View style={[styles.avatar, { backgroundColor: user.isBanned ? '#E07A6B33' : planColor + '33', borderColor: user.isBanned ? '#E07A6B' : planColor }]}>
+          <Text style={[styles.avatarText, { color: user.isBanned ? '#E07A6B' : planColor }]}>
             {user.firstName[0]}{user.lastName?.[0] ?? ''}
           </Text>
         </View>
@@ -231,7 +231,7 @@ function UserRow({
             {daysSinceWorkout !== null && (
               <>
                 <Text style={styles.metaDot}>·</Text>
-                <Text style={[styles.meta, daysSinceWorkout > 14 && { color: '#EF444480' }]}>
+                <Text style={[styles.meta, daysSinceWorkout > 14 && { color: '#E07A6B80' }]}>
                   {daysSinceWorkout === 0 ? 'сегодня' : `${daysSinceWorkout}д назад`}
                 </Text>
               </>
@@ -248,7 +248,7 @@ function UserRow({
                     return (
                       <>
                         <Text style={styles.metaDot}>·</Text>
-                        <Text style={{ fontSize: 11, color: '#F59E0B', fontWeight: '600' }}>⏰ {daysLeft}д</Text>
+                        <Text style={{ fontSize: 11, color: '#E8A36A', fontWeight: '600' }}>⏰ {daysLeft}д</Text>
                       </>
                     );
                   }
@@ -431,7 +431,7 @@ export default function AdminUsersScreen() {
         <TextInput
           style={styles.searchInput}
           placeholder="Поиск по имени или email..."
-          placeholderTextColor="#6B7280"
+          placeholderTextColor="#A8A49C"
           value={search}
           onChangeText={setSearch}
           clearButtonMode="while-editing"
@@ -456,7 +456,7 @@ export default function AdminUsersScreen() {
         {PLAN_FILTERS.map((p) => (
           <TouchableOpacity
             key={p.key}
-            style={[styles.filterBtn, planFilter === p.key && { backgroundColor: PLAN_COLOR[p.key] ?? '#6366F1' }]}
+            style={[styles.filterBtn, planFilter === p.key && { backgroundColor: PLAN_COLOR[p.key] ?? '#D4B07A' }]}
             onPress={() => setPlanFilter(p.key)}
           >
             <Text style={[styles.filterText, planFilter === p.key && styles.filterTextActive]}>
@@ -468,7 +468,7 @@ export default function AdminUsersScreen() {
 
       <View style={styles.filterRow}>
         <TouchableOpacity
-          style={[styles.filterBtn, dormant && { backgroundColor: '#F59E0B' }]}
+          style={[styles.filterBtn, dormant && { backgroundColor: '#E8A36A' }]}
           onPress={() => setDormant(!dormant)}
         >
           <Text style={[styles.filterText, dormant && styles.filterTextActive]}>
@@ -476,7 +476,7 @@ export default function AdminUsersScreen() {
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.filterBtn, bannedOnly && { backgroundColor: '#EF4444' }]}
+          style={[styles.filterBtn, bannedOnly && { backgroundColor: '#E07A6B' }]}
           onPress={() => setBannedOnly(!bannedOnly)}
         >
           <Text style={[styles.filterText, bannedOnly && styles.filterTextActive]}>
@@ -484,7 +484,7 @@ export default function AdminUsersScreen() {
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.filterBtn, lockedOnly && { backgroundColor: '#F59E0B' }]}
+          style={[styles.filterBtn, lockedOnly && { backgroundColor: '#E8A36A' }]}
           onPress={() => setLockedOnly(!lockedOnly)}
         >
           <Text style={[styles.filterText, lockedOnly && styles.filterTextActive]}>
@@ -492,7 +492,7 @@ export default function AdminUsersScreen() {
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.filterBtn, subExpiringSoon && { backgroundColor: '#F59E0B' }]}
+          style={[styles.filterBtn, subExpiringSoon && { backgroundColor: '#E8A36A' }]}
           onPress={() => setSubExpiringSoon(!subExpiringSoon)}
         >
           <Text style={[styles.filterText, subExpiringSoon && styles.filterTextActive]}>
@@ -500,7 +500,7 @@ export default function AdminUsersScreen() {
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.filterBtn, recentlyActive && { backgroundColor: '#10B981' }]}
+          style={[styles.filterBtn, recentlyActive && { backgroundColor: '#9AC28C' }]}
           onPress={() => setRecentlyActive(!recentlyActive)}
         >
           <Text style={[styles.filterText, recentlyActive && styles.filterTextActive]}>
@@ -513,10 +513,10 @@ export default function AdminUsersScreen() {
         {SORT_OPTIONS.map((opt, i) => (
           <TouchableOpacity
             key={i}
-            style={[styles.filterBtn, sortIdx === i && { backgroundColor: '#374151' }]}
+            style={[styles.filterBtn, sortIdx === i && { backgroundColor: '#2A2A2F' }]}
             onPress={() => setSortIdx(i)}
           >
-            <Text style={[styles.filterText, sortIdx === i && { color: '#9CA3AF' }]}>
+            <Text style={[styles.filterText, sortIdx === i && { color: '#A8A49C' }]}>
               {sortIdx === i ? '↕ ' : ''}{opt.label}
             </Text>
           </TouchableOpacity>
@@ -527,23 +527,23 @@ export default function AdminUsersScreen() {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Text style={styles.totalLabel}>Всего: {total}</Text>
           {selectMode && (
-            <Text style={{ fontSize: 12, color: '#6366F1', fontWeight: '600' }}>
+            <Text style={{ fontSize: 12, color: '#D4B07A', fontWeight: '600' }}>
               ({selectedIds.size} выбрано)
             </Text>
           )}
         </View>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <TouchableOpacity
-            style={[styles.exportBtn, selectMode && { backgroundColor: '#6366F122', borderColor: '#6366F160' }]}
+            style={[styles.exportBtn, selectMode && { backgroundColor: '#D4B07A22', borderColor: '#D4B07A60' }]}
             onPress={() => { if (selectMode) exitSelectMode(); else setSelectMode(true); }}
           >
-            <Text style={[styles.exportBtnText, selectMode && { color: '#6366F1' }]}>
+            <Text style={[styles.exportBtnText, selectMode && { color: '#D4B07A' }]}>
               {selectMode ? 'Отмена' : 'Выбрать'}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.exportBtn} onPress={exportCSV} disabled={exporting}>
             {exporting
-              ? <ActivityIndicator size="small" color="#6366F1" />
+              ? <ActivityIndicator size="small" color="#D4B07A" />
               : <Text style={styles.exportBtnText}>CSV</Text>
             }
           </TouchableOpacity>
@@ -551,7 +551,7 @@ export default function AdminUsersScreen() {
       </View>
 
       {loading ? (
-        <ActivityIndicator style={styles.center} color="#6366F1" size="large" />
+        <ActivityIndicator style={styles.center} color="#D4B07A" size="large" />
       ) : (
         <FlatList
           data={users}
@@ -566,7 +566,7 @@ export default function AdminUsersScreen() {
               {selectMode && (
                 <View style={[styles.checkboxRow]}>
                   <View style={[styles.checkbox, selectedIds.has(item.id) && styles.checkboxSelected]}>
-                    {selectedIds.has(item.id) && <Text style={{ fontSize: 10, color: '#FFF', fontWeight: '800' }}>✓</Text>}
+                    {selectedIds.has(item.id) && <Text style={{ fontSize: 10, color: '#17171A', fontWeight: '800' }}>✓</Text>}
                   </View>
                 </View>
               )}
@@ -581,11 +581,11 @@ export default function AdminUsersScreen() {
           onEndReached={loadMore}
           onEndReachedThreshold={0.3}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => load(1, false, true)} tintColor="#6366F1" />
+            <RefreshControl refreshing={refreshing} onRefresh={() => load(1, false, true)} tintColor="#D4B07A" />
           }
           ListFooterComponent={
             loadingMore
-              ? <ActivityIndicator color="#6366F1" style={{ marginVertical: 16 }} />
+              ? <ActivityIndicator color="#D4B07A" style={{ marginVertical: 16 }} />
               : null
           }
           contentContainerStyle={styles.list}
@@ -599,11 +599,11 @@ export default function AdminUsersScreen() {
           <TouchableOpacity style={styles.bulkBtn} onPress={() => setShowMassMsg(true)}>
             <Text style={styles.bulkBtnText}>💬 Написать ({selectedIds.size})</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.bulkBtn, { borderColor: '#F59E0B60', backgroundColor: '#F59E0B10' }]} onPress={() => setShowBulkSub(true)}>
-            <Text style={[styles.bulkBtnText, { color: '#F59E0B' }]}>💳 Подписка</Text>
+          <TouchableOpacity style={[styles.bulkBtn, { borderColor: '#E8A36A60', backgroundColor: '#E8A36A10' }]} onPress={() => setShowBulkSub(true)}>
+            <Text style={[styles.bulkBtnText, { color: '#E8A36A' }]}>💳 Подписка</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.bulkBtn, { borderColor: '#6B728060' }]} onPress={exitSelectMode}>
-            <Text style={[styles.bulkBtnText, { color: '#6B7280' }]}>Отмена</Text>
+          <TouchableOpacity style={[styles.bulkBtn, { borderColor: '#A8A49C60' }]} onPress={exitSelectMode}>
+            <Text style={[styles.bulkBtnText, { color: '#A8A49C' }]}>Отмена</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -616,14 +616,14 @@ export default function AdminUsersScreen() {
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Рассылка ({selectedIds.size} польз.)</Text>
                 <TouchableOpacity onPress={() => setShowMassMsg(false)}>
-                  <Text style={{ color: '#6B7280', fontSize: 18 }}>✕</Text>
+                  <Text style={{ color: '#A8A49C', fontSize: 18 }}>✕</Text>
                 </TouchableOpacity>
               </View>
               <Text style={styles.modalHint}>Каждому пользователю будет создан тикет поддержки с вашим сообщением</Text>
               <TextInput
                 style={styles.modalInput}
                 placeholder="Тема..."
-                placeholderTextColor="#6B7280"
+                placeholderTextColor="#A8A49C"
                 value={massMsgSubject}
                 onChangeText={setMassMsgSubject}
                 maxLength={200}
@@ -631,7 +631,7 @@ export default function AdminUsersScreen() {
               <TextInput
                 style={[styles.modalInput, { height: 100 }]}
                 placeholder="Текст сообщения..."
-                placeholderTextColor="#6B7280"
+                placeholderTextColor="#A8A49C"
                 value={massMsgBody}
                 onChangeText={setMassMsgBody}
                 multiline
@@ -660,7 +660,7 @@ export default function AdminUsersScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Выдать подписку ({selectedIds.size} польз.)</Text>
               <TouchableOpacity onPress={() => setShowBulkSub(false)}>
-                <Text style={{ color: '#6B7280', fontSize: 18 }}>✕</Text>
+                <Text style={{ color: '#A8A49C', fontSize: 18 }}>✕</Text>
               </TouchableOpacity>
             </View>
             <Text style={styles.modalHint}>Все выбранные пользователи получат выбранный план</Text>
@@ -671,7 +671,7 @@ export default function AdminUsersScreen() {
                   style={[
                     styles.exportBtn,
                     { flex: 1, justifyContent: 'center', paddingVertical: 10 },
-                    bulkSubPlan === plan && { backgroundColor: (PLAN_COLOR[plan] ?? '#6366F1') + '25', borderColor: PLAN_COLOR[plan] ?? '#6366F1' },
+                    bulkSubPlan === plan && { backgroundColor: (PLAN_COLOR[plan] ?? '#D4B07A') + '25', borderColor: PLAN_COLOR[plan] ?? '#D4B07A' },
                   ]}
                   onPress={() => setBulkSubPlan(plan)}
                 >
@@ -699,37 +699,37 @@ export default function AdminUsersScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0F0F0F' },
+  container: { flex: 1, backgroundColor: '#0E0E0F' },
   searchBar: { padding: 12, paddingBottom: 8 },
   searchInput: {
-    backgroundColor: '#1C1C1E',
+    backgroundColor: '#17171A',
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 15,
     color: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#2C2C2E',
+    borderColor: '#1E1E22',
   },
   filterRow: { flexDirection: 'row', paddingHorizontal: 12, gap: 6, flexWrap: 'wrap', marginBottom: 4 },
-  filterBtn: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: '#1C1C1E' },
-  filterBtnActive: { backgroundColor: '#6366F1' },
-  filterText: { fontSize: 12, color: '#9CA3AF', fontWeight: '600' },
-  filterTextActive: { color: '#FFFFFF' },
+  filterBtn: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: '#17171A' },
+  filterBtnActive: { backgroundColor: '#D4B07A' },
+  filterText: { fontSize: 12, color: '#A8A49C', fontWeight: '600' },
+  filterTextActive: { color: '#17171A' },
   totalRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginBottom: 4 },
-  totalLabel: { fontSize: 12, color: '#6B7280' },
-  exportBtn: { borderRadius: 6, borderWidth: 1, borderColor: '#6366F1', paddingHorizontal: 10, paddingVertical: 3, minWidth: 36, alignItems: 'center' },
-  exportBtnText: { fontSize: 11, fontWeight: '700', color: '#6366F1' },
+  totalLabel: { fontSize: 12, color: '#A8A49C' },
+  exportBtn: { borderRadius: 6, borderWidth: 1, borderColor: '#D4B07A', paddingHorizontal: 10, paddingVertical: 3, minWidth: 36, alignItems: 'center' },
+  exportBtnText: { fontSize: 11, fontWeight: '700', color: '#D4B07A' },
   center: { flex: 1, justifyContent: 'center' },
   list: { paddingHorizontal: 12, paddingBottom: 32 },
 
   row: {
-    backgroundColor: '#1C1C1E',
+    backgroundColor: '#17171A',
     borderRadius: 14,
     padding: 14,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#2C2C2E',
+    borderColor: '#1E1E22',
   },
   rowTop: {
     flexDirection: 'row',
@@ -744,44 +744,44 @@ const styles = StyleSheet.create({
   avatarText: { fontSize: 16, fontWeight: '700' },
   info: { flex: 1 },
   name: { fontSize: 15, fontWeight: '600', color: '#FFFFFF', marginBottom: 1 },
-  email: { fontSize: 12, color: '#9CA3AF', marginBottom: 2 },
-  meta: { fontSize: 11, color: '#6B7280' },
-  metaDot: { fontSize: 11, color: '#374151' },
-  arrow: { fontSize: 20, color: '#4B5563' },
+  email: { fontSize: 12, color: '#A8A49C', marginBottom: 2 },
+  meta: { fontSize: 11, color: '#A8A49C' },
+  metaDot: { fontSize: 11, color: '#2A2A2F' },
+  arrow: { fontSize: 20, color: '#2A2A2F' },
   planBadge: { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
   planText: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase' },
-  rowBanned: { borderColor: '#EF444440', backgroundColor: '#1A0A0A' },
-  rowChurn: { borderColor: '#F59E0B40' },
-  bannedBadge: { backgroundColor: '#EF444422', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1, borderWidth: 1, borderColor: '#EF444450' },
-  bannedText: { fontSize: 9, fontWeight: '800', color: '#EF4444', letterSpacing: 0.5 },
-  banReason: { fontSize: 11, color: '#EF444488', marginTop: 2, fontStyle: 'italic' },
-  newBadge: { backgroundColor: '#10B98122', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1, borderWidth: 1, borderColor: '#10B98150' },
-  newText: { fontSize: 9, fontWeight: '800', color: '#10B981', letterSpacing: 0.5 },
-  churnBadge: { backgroundColor: '#F59E0B22', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1, borderWidth: 1, borderColor: '#F59E0B50' },
-  churnText: { fontSize: 9, fontWeight: '800', color: '#F59E0B', letterSpacing: 0.5 },
+  rowBanned: { borderColor: '#E07A6B40', backgroundColor: '#1A0A0A' },
+  rowChurn: { borderColor: '#E8A36A40' },
+  bannedBadge: { backgroundColor: '#E07A6B22', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1, borderWidth: 1, borderColor: '#E07A6B50' },
+  bannedText: { fontSize: 9, fontWeight: '800', color: '#E07A6B', letterSpacing: 0.5 },
+  banReason: { fontSize: 11, color: '#E07A6B88', marginTop: 2, fontStyle: 'italic' },
+  newBadge: { backgroundColor: '#9AC28C22', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1, borderWidth: 1, borderColor: '#9AC28C50' },
+  newText: { fontSize: 9, fontWeight: '800', color: '#9AC28C', letterSpacing: 0.5 },
+  churnBadge: { backgroundColor: '#E8A36A22', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1, borderWidth: 1, borderColor: '#E8A36A50' },
+  churnText: { fontSize: 9, fontWeight: '800', color: '#E8A36A', letterSpacing: 0.5 },
   scoreCol: { alignItems: 'center', gap: 2, marginLeft: 4 },
   scoreBadge: { width: 34, height: 34, borderRadius: 17, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
   scoreNum: { fontSize: 12, fontWeight: '800' },
-  scoreLabel: { fontSize: 9, color: '#4B5563', fontWeight: '600', letterSpacing: 0.5 },
+  scoreLabel: { fontSize: 9, color: '#2A2A2F', fontWeight: '600', letterSpacing: 0.5 },
 
   checkboxRow: { position: 'absolute', left: 6, top: '50%', zIndex: 10 },
-  checkbox: { width: 20, height: 20, borderRadius: 10, borderWidth: 1.5, borderColor: '#4B5563', backgroundColor: '#1C1C1E', alignItems: 'center', justifyContent: 'center' },
-  checkboxSelected: { backgroundColor: '#6366F1', borderColor: '#6366F1' },
+  checkbox: { width: 20, height: 20, borderRadius: 10, borderWidth: 1.5, borderColor: '#2A2A2F', backgroundColor: '#17171A', alignItems: 'center', justifyContent: 'center' },
+  checkboxSelected: { backgroundColor: '#D4B07A', borderColor: '#D4B07A' },
 
   bulkBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingVertical: 12,
-    paddingBottom: 28, backgroundColor: '#1C1C1E', borderTopWidth: 1, borderTopColor: '#2C2C2E',
+    paddingBottom: 28, backgroundColor: '#17171A', borderTopWidth: 1, borderTopColor: '#1E1E22',
   },
-  bulkBtn: { flex: 1, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: '#6366F140', alignItems: 'center', backgroundColor: '#6366F112' },
-  bulkBtnText: { fontSize: 13, fontWeight: '700', color: '#6366F1' },
+  bulkBtn: { flex: 1, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: '#D4B07A40', alignItems: 'center', backgroundColor: '#D4B07A12' },
+  bulkBtnText: { fontSize: 13, fontWeight: '700', color: '#D4B07A' },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
-  modalSheet: { backgroundColor: '#1C1C1E', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, paddingBottom: 32 },
+  modalSheet: { backgroundColor: '#17171A', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, paddingBottom: 32 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   modalTitle: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
-  modalHint: { fontSize: 12, color: '#6B7280', marginBottom: 12 },
-  modalInput: { backgroundColor: '#2C2C2E', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: '#FFFFFF', marginBottom: 10, borderWidth: 1, borderColor: '#3C3C3E' },
-  modalSendBtn: { backgroundColor: '#6366F1', borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 4 },
-  modalSendBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+  modalHint: { fontSize: 12, color: '#A8A49C', marginBottom: 12 },
+  modalInput: { backgroundColor: '#1E1E22', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: '#FFFFFF', marginBottom: 10, borderWidth: 1, borderColor: '#3C3C3E' },
+  modalSendBtn: { backgroundColor: '#D4B07A', borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 4 },
+  modalSendBtnText: { fontSize: 15, fontWeight: '700', color: '#17171A' },
 });

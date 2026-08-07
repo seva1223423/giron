@@ -23,17 +23,17 @@ const STATUS_TABS: { value: TicketStatus | ''; label: string }[] = [
   { value: 'closed', label: 'Закрытые' },
 ];
 const PRIORITY_TABS: { value: TicketPriority | ''; label: string; color: string }[] = [
-  { value: '', label: 'Все', color: '#6B7280' },
-  { value: 'urgent', label: '🔴 Срочно', color: '#EF4444' },
-  { value: 'high', label: '🟠 Высокий', color: '#F59E0B' },
-  { value: 'normal', label: '🔵 Норм', color: '#6366F1' },
-  { value: 'low', label: '⚪ Низкий', color: '#6B7280' },
+  { value: '', label: 'Все', color: '#A8A49C' },
+  { value: 'urgent', label: '🔴 Срочно', color: '#E07A6B' },
+  { value: 'high', label: '🟠 Высокий', color: '#E8A36A' },
+  { value: 'normal', label: '🔵 Норм', color: '#D4B07A' },
+  { value: 'low', label: '⚪ Низкий', color: '#A8A49C' },
 ];
 const STATUS_COLOR: Record<TicketStatus, string> = {
-  open: '#EF4444', in_progress: '#F59E0B', resolved: '#10B981', closed: '#6B7280',
+  open: '#E07A6B', in_progress: '#E8A36A', resolved: '#9AC28C', closed: '#A8A49C',
 };
 const PRIORITY_COLOR: Record<TicketPriority, string> = {
-  urgent: '#EF4444', high: '#F59E0B', normal: '#6366F1', low: '#6B7280',
+  urgent: '#E07A6B', high: '#E8A36A', normal: '#D4B07A', low: '#A8A49C',
 };
 const PRIORITY_LABEL: Record<TicketPriority, string> = {
   urgent: '🔴 Срочно', high: '🟠 Высокий', normal: '🔵 Норм', low: '⚪ Низкий',
@@ -42,9 +42,9 @@ const PRIORITY_LABEL: Record<TicketPriority, string> = {
 function formatWait(dateStr: string): { label: string; color: string } {
   const ms = Date.now() - new Date(dateStr).getTime();
   const h = ms / 3600000;
-  if (h < 1) return { label: `${Math.round(ms / 60000)}м`, color: '#10B981' };
-  if (h < 8) return { label: `${Math.round(h)}ч`, color: '#F59E0B' };
-  return { label: `${Math.round(h)}ч`, color: '#EF4444' };
+  if (h < 1) return { label: `${Math.round(ms / 60000)}м`, color: '#9AC28C' };
+  if (h < 8) return { label: `${Math.round(h)}ч`, color: '#E8A36A' };
+  return { label: `${Math.round(h)}ч`, color: '#E07A6B' };
 }
 
 function TicketRow({
@@ -64,9 +64,9 @@ function TicketRow({
     <TouchableOpacity
       style={[
         styles.card,
-        isUrgent && { borderLeftWidth: 3, borderLeftColor: '#EF4444', borderColor: '#EF444430' },
-        needsReply && !isUrgent && { borderLeftWidth: 3, borderLeftColor: '#F59E0B', borderColor: '#F59E0B20' },
-        selected && { backgroundColor: '#6366F115', borderColor: '#6366F150' },
+        isUrgent && { borderLeftWidth: 3, borderLeftColor: '#E07A6B', borderColor: '#E07A6B30' },
+        needsReply && !isUrgent && { borderLeftWidth: 3, borderLeftColor: '#E8A36A', borderColor: '#E8A36A20' },
+        selected && { backgroundColor: '#D4B07A15', borderColor: '#D4B07A50' },
       ]}
       onPress={onPress}
       onLongPress={onLongPress}
@@ -76,7 +76,7 @@ function TicketRow({
       <View style={styles.cardTop}>
         {selectMode && (
           <View style={[styles.checkbox, selected && styles.checkboxSelected]}>
-            {selected && <Text style={{ fontSize: 10, color: '#FFFFFF', fontWeight: '800' }}>✓</Text>}
+            {selected && <Text style={{ fontSize: 10, color: '#17171A', fontWeight: '800' }}>✓</Text>}
           </View>
         )}
         <Text style={styles.subject} numberOfLines={1}>{ticket.subject}</Text>
@@ -98,7 +98,7 @@ function TicketRow({
         </Text>
       </View>
       {lastMsg && (
-        <Text style={[styles.lastMsg, needsReply && { color: '#9CA3AF' }]} numberOfLines={1}>
+        <Text style={[styles.lastMsg, needsReply && { color: '#A8A49C' }]} numberOfLines={1}>
           {lastMsg.isStaff ? '↩ ' : '↳ '}{lastMsg.content}
         </Text>
       )}
@@ -164,11 +164,14 @@ export default function AdminSupportScreen() {
   const load = useCallback(async (p: number, append = false) => {
     if (p === 1) setLoading(true); else setLoadingMore(true);
     try {
-      const [res, cnts, met] = await Promise.all([
-        adminService.getSupportTickets({ status: status || undefined, priority: priority || undefined, assignedToMe: assignedToMe || undefined, search: search || undefined, sort: sortOrder, page: p, limit: 20 }),
-        p === 1 ? adminService.getSupportCounts() : Promise.resolve(counts),
-        p === 1 ? adminService.getSupportMetrics() : Promise.resolve(null),
+      // Counts and metrics are chips above the list — if either fails the
+      // tickets themselves must still arrive. Unguarded, one failing chip
+      // took the whole ticket list with it.
+      const [cnts, met] = await Promise.all([
+        p === 1 ? adminService.getSupportCounts().catch(() => counts) : Promise.resolve(counts),
+        p === 1 ? adminService.getSupportMetrics().catch(() => null) : Promise.resolve(null),
       ]);
+      const res = await adminService.getSupportTickets({ status: status || undefined, priority: priority || undefined, assignedToMe: assignedToMe || undefined, search: search || undefined, sort: sortOrder, page: p, limit: 20 });
       setTickets(append ? (prev) => [...prev, ...res.tickets] : res.tickets);
       setTotal(res.total);
       setPage(res.page);
@@ -223,15 +226,26 @@ export default function AdminSupportScreen() {
           onPress: async () => {
             setBulkBusy(true);
             try {
-              await Promise.all(
-                Array.from(selected).map((id) =>
-                  supportService.updateTicketStatus(id, update)
-                )
+              // Promise.all aborted on the first rejection, so the tickets
+              // that DID update were never reflected: the screen stayed in
+              // select mode, the list was never reloaded, and the alert said
+              // "часть тикетов" without saying which part. allSettled lets
+              // every request finish and reports the real count.
+              const ids = Array.from(selected);
+              const results = await Promise.allSettled(
+                ids.map((id) => supportService.updateTicketStatus(id, update))
               );
+              const failed = results.filter((r) => r.status === 'rejected').length;
               exitSelectMode();
               await load(1);
+              if (failed > 0) {
+                Alert.alert(
+                  'Обновлено частично',
+                  `${ids.length - failed} из ${ids.length} тикетов обновлены. Остальные попробуй ещё раз.`,
+                );
+              }
             } catch {
-              Alert.alert('Ошибка', 'Не удалось обновить часть тикетов');
+              Alert.alert('Ошибка', 'Не удалось обновить тикеты');
             } finally {
               setBulkBusy(false);
             }
@@ -261,12 +275,12 @@ export default function AdminSupportScreen() {
           </View>
           <View style={styles.metricDivider} />
           <View style={styles.metricItem}>
-            <Text style={[styles.metricValue, metrics.unassigned > 0 && { color: '#F59E0B' }]}>{metrics.unassigned}</Text>
+            <Text style={[styles.metricValue, metrics.unassigned > 0 && { color: '#E8A36A' }]}>{metrics.unassigned}</Text>
             <Text style={styles.metricLabel}>Без агента</Text>
           </View>
           <View style={styles.metricDivider} />
           <View style={styles.metricItem}>
-            <Text style={[styles.metricValue, (metrics.avgResponseHours ?? 0) > 8 && { color: '#EF4444' }]}>
+            <Text style={[styles.metricValue, (metrics.avgResponseHours ?? 0) > 8 && { color: '#E07A6B' }]}>
               {metrics.avgResponseHours != null ? `${metrics.avgResponseHours}ч` : '—'}
             </Text>
             <Text style={styles.metricLabel}>Ср. ответ (7д)</Text>
@@ -286,10 +300,10 @@ export default function AdminSupportScreen() {
             .sort((a, b) => b[1] - a[1])
             .map(([cat, count]) => {
               const CAT_COLORS: Record<string, string> = {
-                billing: '#F59E0B', technical: '#EF4444', feature_request: '#6366F1',
-                account: '#8B5CF6', bug: '#EF4444', other: '#6B7280',
+                billing: '#E8A36A', technical: '#E07A6B', feature_request: '#D4B07A',
+                account: '#D4B07A', bug: '#E07A6B', other: '#A8A49C',
               };
-              const color = CAT_COLORS[cat] ?? '#6B7280';
+              const color = CAT_COLORS[cat] ?? '#A8A49C';
               return (
                 <TouchableOpacity
                   key={cat}
@@ -310,10 +324,10 @@ export default function AdminSupportScreen() {
           {metrics.staffWorkload.sort((a, b) => b.count - a.count).map((s) => (
             <TouchableOpacity
               key={s.id}
-              style={[styles.catChip, { borderColor: '#10B98140' }]}
+              style={[styles.catChip, { borderColor: '#9AC28C40' }]}
               onPress={() => setAssignedToMe(false)}
             >
-              <Text style={[styles.catCount, { color: '#10B981' }]}>{s.count}</Text>
+              <Text style={[styles.catCount, { color: '#9AC28C' }]}>{s.count}</Text>
               <Text style={styles.catLabel}>{s.name || 'Агент'}</Text>
             </TouchableOpacity>
           ))}
@@ -324,7 +338,7 @@ export default function AdminSupportScreen() {
         <TextInput
           style={styles.searchInput}
           placeholder="Поиск по теме, email, имени..."
-          placeholderTextColor="#6B7280"
+          placeholderTextColor="#A8A49C"
           value={search}
           onChangeText={setSearch}
           clearButtonMode="while-editing"
@@ -359,34 +373,34 @@ export default function AdminSupportScreen() {
 
       <View style={styles.priorityRow}>
         <TouchableOpacity
-          style={[styles.priorityBtn, assignedToMe && { backgroundColor: '#10B98122', borderColor: '#10B98160' }]}
+          style={[styles.priorityBtn, assignedToMe && { backgroundColor: '#9AC28C22', borderColor: '#9AC28C60' }]}
           onPress={() => setAssignedToMe(!assignedToMe)}
         >
-          <Text style={[styles.priorityText, assignedToMe && { color: '#10B981' }]}>
+          <Text style={[styles.priorityText, assignedToMe && { color: '#9AC28C' }]}>
             {assignedToMe ? '✓ Мои тикеты' : 'Мои тикеты'}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.priorityBtn, needsReplyFilter && { backgroundColor: '#F59E0B22', borderColor: '#F59E0B60' }]}
+          style={[styles.priorityBtn, needsReplyFilter && { backgroundColor: '#E8A36A22', borderColor: '#E8A36A60' }]}
           onPress={() => setNeedsReplyFilter(!needsReplyFilter)}
         >
-          <Text style={[styles.priorityText, needsReplyFilter && { color: '#F59E0B' }]}>
+          <Text style={[styles.priorityText, needsReplyFilter && { color: '#E8A36A' }]}>
             {needsReplyFilter ? '✓ Ждут ответа' : 'Ждут ответа'}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.priorityBtn, unassignedOnly && { backgroundColor: '#EF444422', borderColor: '#EF444460' }]}
+          style={[styles.priorityBtn, unassignedOnly && { backgroundColor: '#E07A6B22', borderColor: '#E07A6B60' }]}
           onPress={() => setUnassignedOnly(!unassignedOnly)}
         >
-          <Text style={[styles.priorityText, unassignedOnly && { color: '#EF4444' }]}>
+          <Text style={[styles.priorityText, unassignedOnly && { color: '#E07A6B' }]}>
             {unassignedOnly ? '✓ Без агента' : 'Без агента'}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.priorityBtn, selectMode && { backgroundColor: '#6366F122', borderColor: '#6366F160' }]}
+          style={[styles.priorityBtn, selectMode && { backgroundColor: '#D4B07A22', borderColor: '#D4B07A60' }]}
           onPress={() => { if (selectMode) exitSelectMode(); else setSelectMode(true); }}
         >
-          <Text style={[styles.priorityText, selectMode && { color: '#6366F1' }]}>
+          <Text style={[styles.priorityText, selectMode && { color: '#D4B07A' }]}>
             {selectMode ? `✓ Выбор (${selected.size})` : 'Выбрать'}
           </Text>
         </TouchableOpacity>
@@ -400,10 +414,10 @@ export default function AdminSupportScreen() {
         ] as const).map((s) => (
           <TouchableOpacity
             key={s.value}
-            style={[styles.priorityBtn, sortOrder === s.value && { backgroundColor: '#6366F122', borderColor: '#6366F160' }]}
+            style={[styles.priorityBtn, sortOrder === s.value && { backgroundColor: '#D4B07A22', borderColor: '#D4B07A60' }]}
             onPress={() => setSortOrder(s.value)}
           >
-            <Text style={[styles.priorityText, sortOrder === s.value && { color: '#6366F1' }]}>{s.label}</Text>
+            <Text style={[styles.priorityText, sortOrder === s.value && { color: '#D4B07A' }]}>{s.label}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -413,17 +427,17 @@ export default function AdminSupportScreen() {
           <Text style={styles.totalLabel}>Всего: {total}</Text>
           {selectMode && (
             <TouchableOpacity onPress={selectAll}>
-              <Text style={{ fontSize: 12, color: '#6366F1', fontWeight: '600' }}>Выбрать все</Text>
+              <Text style={{ fontSize: 12, color: '#D4B07A', fontWeight: '600' }}>Выбрать все</Text>
             </TouchableOpacity>
           )}
         </View>
         <TouchableOpacity onPress={exportCSV} disabled={exporting} style={styles.exportBtn}>
-          {exporting ? <ActivityIndicator size="small" color="#6366F1" /> : <Text style={styles.exportBtnText}>CSV</Text>}
+          {exporting ? <ActivityIndicator size="small" color="#D4B07A" /> : <Text style={styles.exportBtnText}>CSV</Text>}
         </TouchableOpacity>
       </View>
 
       {loading ? (
-        <ActivityIndicator style={styles.center} color="#6366F1" size="large" />
+        <ActivityIndicator style={styles.center} color="#D4B07A" size="large" />
       ) : (
         <FlatList
           data={displayedTickets}
@@ -487,8 +501,8 @@ export default function AdminSupportScreen() {
           )}
           onEndReached={loadMore}
           onEndReachedThreshold={0.3}
-          refreshControl={<RefreshControl refreshing={loading} onRefresh={() => load(1)} tintColor="#6366F1" />}
-          ListFooterComponent={loadingMore ? <ActivityIndicator color="#6366F1" style={{ marginVertical: 16 }} /> : null}
+          refreshControl={<RefreshControl refreshing={loading} onRefresh={() => load(1)} tintColor="#D4B07A" />}
+          ListFooterComponent={loadingMore ? <ActivityIndicator color="#D4B07A" style={{ marginVertical: 16 }} /> : null}
           contentContainerStyle={styles.list}
           ListEmptyComponent={<Text style={styles.empty}>Нет тикетов</Text>}
         />
@@ -508,10 +522,10 @@ export default function AdminSupportScreen() {
                 <Text style={styles.bulkBtnText}>✓ Решить ({selected.size})</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.bulkBtn, styles.bulkBtnClose]} onPress={() => bulkUpdate({ status: 'closed' })}>
-                <Text style={[styles.bulkBtnText, { color: '#EF4444' }]}>✕ Закрыть ({selected.size})</Text>
+                <Text style={[styles.bulkBtnText, { color: '#E07A6B' }]}>✕ Закрыть ({selected.size})</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.bulkBtn, { borderColor: '#F59E0B60' }]} onPress={() => bulkUpdate({ priority: 'urgent' })}>
-                <Text style={[styles.bulkBtnText, { color: '#F59E0B' }]}>🔴 Urgent</Text>
+              <TouchableOpacity style={[styles.bulkBtn, { borderColor: '#E8A36A60' }]} onPress={() => bulkUpdate({ priority: 'urgent' })}>
+                <Text style={[styles.bulkBtnText, { color: '#E8A36A' }]}>🔴 Urgent</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.bulkCancelBtn} onPress={exitSelectMode}>
                 <Text style={styles.bulkCancelText}>Отмена</Text>
@@ -525,71 +539,71 @@ export default function AdminSupportScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0F0F0F' },
+  container: { flex: 1, backgroundColor: '#0E0E0F' },
   searchBar: { padding: 12, paddingBottom: 4 },
   searchInput: {
-    backgroundColor: '#1C1C1E', borderRadius: 10, paddingHorizontal: 14,
-    paddingVertical: 10, fontSize: 14, color: '#FFFFFF', borderWidth: 1, borderColor: '#2C2C2E',
+    backgroundColor: '#17171A', borderRadius: 10, paddingHorizontal: 14,
+    paddingVertical: 10, fontSize: 14, color: '#FFFFFF', borderWidth: 1, borderColor: '#1E1E22',
   },
   tabsRow: { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 10, gap: 6, flexWrap: 'wrap' },
-  tab: { flexDirection: 'row', alignItems: 'center', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: '#1C1C1E', gap: 4 },
-  tabActive: { backgroundColor: '#6366F1' },
-  tabText: { fontSize: 12, color: '#9CA3AF', fontWeight: '600' },
-  tabTextActive: { color: '#FFFFFF' },
+  tab: { flexDirection: 'row', alignItems: 'center', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: '#17171A', gap: 4 },
+  tabActive: { backgroundColor: '#D4B07A' },
+  tabText: { fontSize: 12, color: '#A8A49C', fontWeight: '600' },
+  tabTextActive: { color: '#17171A' },
   countBadge: { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 8, paddingHorizontal: 5, paddingVertical: 1 },
   countText: { fontSize: 10, color: '#FFFFFF', fontWeight: '700' },
-  totalLabel: { fontSize: 12, color: '#6B7280' },
+  totalLabel: { fontSize: 12, color: '#A8A49C' },
   center: { flex: 1, justifyContent: 'center' },
   list: { padding: 12, paddingBottom: 80 },
-  empty: { textAlign: 'center', color: '#6B7280', marginTop: 40, fontSize: 15 },
+  empty: { textAlign: 'center', color: '#A8A49C', marginTop: 40, fontSize: 15 },
 
-  card: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: '#2C2C2E' },
+  card: { backgroundColor: '#17171A', borderRadius: 12, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: '#1E1E22' },
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   subject: { fontSize: 15, fontWeight: '600', color: '#FFFFFF', flex: 1, marginRight: 8 },
   statusBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
   statusText: { fontSize: 11, fontWeight: '600' },
   cardMid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  user: { fontSize: 12, color: '#9CA3AF', flex: 1, marginRight: 8 },
+  user: { fontSize: 12, color: '#A8A49C', flex: 1, marginRight: 8 },
   priority: { fontSize: 12, fontWeight: '600' },
-  lastMsg: { fontSize: 12, color: '#6B7280', fontStyle: 'italic', marginBottom: 6 },
+  lastMsg: { fontSize: 12, color: '#A8A49C', fontStyle: 'italic', marginBottom: 6 },
   cardBottom: { flexDirection: 'row', justifyContent: 'space-between' },
-  date: { fontSize: 11, color: '#6B7280' },
-  assigned: { fontSize: 11, color: '#10B981' },
-  unassigned: { fontSize: 11, color: '#6B7280' },
+  date: { fontSize: 11, color: '#A8A49C' },
+  assigned: { fontSize: 11, color: '#9AC28C' },
+  unassigned: { fontSize: 11, color: '#A8A49C' },
   priorityRow: { flexDirection: 'row', paddingHorizontal: 12, gap: 6, flexWrap: 'wrap', marginBottom: 4 },
-  priorityBtn: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: '#1C1C1E', borderWidth: 1, borderColor: '#2C2C2E' },
-  priorityText: { fontSize: 11, color: '#9CA3AF', fontWeight: '600' },
+  priorityBtn: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: '#17171A', borderWidth: 1, borderColor: '#1E1E22' },
+  priorityText: { fontSize: 11, color: '#A8A49C', fontWeight: '600' },
   waitBadge: { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
   waitText: { fontSize: 10, fontWeight: '700' },
-  exportBtn: { backgroundColor: '#1C1C1E', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 5, borderWidth: 1, borderColor: '#2C2C2E' },
-  exportBtnText: { fontSize: 12, color: '#6366F1', fontWeight: '700' },
+  exportBtn: { backgroundColor: '#17171A', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 5, borderWidth: 1, borderColor: '#1E1E22' },
+  exportBtnText: { fontSize: 12, color: '#D4B07A', fontWeight: '700' },
 
   checkbox: {
-    width: 20, height: 20, borderRadius: 6, borderWidth: 2, borderColor: '#4B5563',
+    width: 20, height: 20, borderRadius: 6, borderWidth: 2, borderColor: '#2A2A2F',
     alignItems: 'center', justifyContent: 'center',
   },
-  checkboxSelected: { backgroundColor: '#6366F1', borderColor: '#6366F1' },
+  checkboxSelected: { backgroundColor: '#D4B07A', borderColor: '#D4B07A' },
 
   bulkBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: '#1C1C1E', borderTopWidth: 1, borderTopColor: '#2C2C2E',
+    backgroundColor: '#17171A', borderTopWidth: 1, borderTopColor: '#1E1E22',
     flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12,
     // paddingBottom is overridden inline via insets.bottom — see render
   },
-  bulkBtn: { flex: 1, backgroundColor: '#10B98122', borderRadius: 10, borderWidth: 1, borderColor: '#10B98150', paddingVertical: 10, alignItems: 'center' },
-  bulkBtnClose: { backgroundColor: '#EF444415', borderColor: '#EF444440' },
-  bulkBtnText: { fontSize: 13, fontWeight: '700', color: '#10B981' },
+  bulkBtn: { flex: 1, backgroundColor: '#9AC28C22', borderRadius: 10, borderWidth: 1, borderColor: '#9AC28C50', paddingVertical: 10, alignItems: 'center' },
+  bulkBtnClose: { backgroundColor: '#E07A6B15', borderColor: '#E07A6B40' },
+  bulkBtnText: { fontSize: 13, fontWeight: '700', color: '#9AC28C' },
   bulkCancelBtn: { paddingHorizontal: 12, paddingVertical: 10 },
-  bulkCancelText: { fontSize: 13, color: '#6B7280', fontWeight: '600' },
+  bulkCancelText: { fontSize: 13, color: '#A8A49C', fontWeight: '600' },
 
-  metricsBar: { flexDirection: 'row', backgroundColor: '#1C1C1E', borderBottomWidth: 1, borderBottomColor: '#2C2C2E' },
+  metricsBar: { flexDirection: 'row', backgroundColor: '#17171A', borderBottomWidth: 1, borderBottomColor: '#1E1E22' },
   metricItem: { flex: 1, alignItems: 'center', paddingVertical: 10 },
   metricValue: { fontSize: 16, fontWeight: '800', color: '#FFFFFF' },
-  metricLabel: { fontSize: 9, color: '#6B7280', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.3, marginTop: 2 },
-  metricDivider: { width: 1, backgroundColor: '#2C2C2E', marginVertical: 8 },
+  metricLabel: { fontSize: 9, color: '#A8A49C', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.3, marginTop: 2 },
+  metricDivider: { width: 1, backgroundColor: '#1E1E22', marginVertical: 8 },
 
   catRow: { paddingHorizontal: 12, paddingVertical: 8, gap: 6 },
-  catChip: { alignItems: 'center', backgroundColor: '#1C1C1E', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: '#2C2C2E', minWidth: 50 },
+  catChip: { alignItems: 'center', backgroundColor: '#17171A', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: '#1E1E22', minWidth: 50 },
   catCount: { fontSize: 14, fontWeight: '800' },
-  catLabel: { fontSize: 9, color: '#6B7280', textTransform: 'capitalize', marginTop: 1 },
+  catLabel: { fontSize: 9, color: '#A8A49C', textTransform: 'capitalize', marginTop: 1 },
 });

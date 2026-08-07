@@ -66,7 +66,7 @@ export default function AdminMetricsKeyScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color="#6366F1" size="large" />
+        <ActivityIndicator color="#D4B07A" size="large" />
       </View>
     );
   }
@@ -102,7 +102,7 @@ export default function AdminMetricsKeyScreen() {
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6366F1" />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#D4B07A" />}
     >
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
@@ -164,10 +164,10 @@ export default function AdminMetricsKeyScreen() {
         }
         accentColor={
           metrics.payingUsers.current >= 200
-            ? '#10B981'
+            ? '#9AC28C'
             : metrics.payingUsers.current >= 50
-              ? '#F59E0B'
-              : '#EF4444'
+              ? '#E8A36A'
+              : '#E07A6B'
         }
       />
 
@@ -177,7 +177,7 @@ export default function AdminMetricsKeyScreen() {
         label="Месячный отток"
         value={`${metrics.monthlyChurn.churnPct}%`}
         sub={`${metrics.monthlyChurn.churnedLast30} ушло из ~${metrics.monthlyChurn.avgPaying} в среднем · здоровый порог ≤${metrics.monthlyChurn.healthyThreshold}%`}
-        accentColor={metrics.monthlyChurn.isHealthy ? '#10B981' : '#EF4444'}
+        accentColor={metrics.monthlyChurn.isHealthy ? '#9AC28C' : '#E07A6B'}
         healthLabel={metrics.monthlyChurn.isHealthy ? 'Здоровый' : 'Слишком высокий'}
       />
 
@@ -187,7 +187,7 @@ export default function AdminMetricsKeyScreen() {
         label="ARPU (₽/мес)"
         value={`${metrics.arpu.rub.toLocaleString('ru-RU')} ₽`}
         sub={`MRR ≈ ${metrics.arpu.totalMrrRub.toLocaleString('ru-RU')} ₽ · ${metrics.arpu.sampleSize} платящих · здоровый ≥${metrics.arpu.healthyThreshold} ₽`}
-        accentColor={metrics.arpu.isHealthy ? '#10B981' : '#EF4444'}
+        accentColor={metrics.arpu.isHealthy ? '#9AC28C' : '#E07A6B'}
         healthLabel={metrics.arpu.isHealthy ? 'Здоровый' : 'Низкий'}
       />
 
@@ -197,12 +197,12 @@ export default function AdminMetricsKeyScreen() {
         label="Активация (24ч)"
         value={`${metrics.activation.activationRatePct}%`}
         sub={`${metrics.activation.activated24h} из ${metrics.activation.cohortSize} новых · медиана до 1-го чата: ${formatTtf(metrics.activation.medianTtfMinutes)} · здоровый ≥${metrics.activation.healthyThreshold}%`}
-        accentColor={metrics.activation.isHealthy ? '#10B981' : '#EF4444'}
+        accentColor={metrics.activation.isHealthy ? '#9AC28C' : '#E07A6B'}
         healthLabel={metrics.activation.isHealthy ? 'Здоровая' : 'Низкая'}
       />
 
       {/* 5. Funnel */}
-      <View style={[styles.card, { borderLeftColor: '#6366F1' }]}>
+      <View style={[styles.card, { borderLeftColor: '#D4B07A' }]}>
         <View style={styles.cardHeader}>
           <Text style={styles.cardIndex}>5</Text>
           <View style={{ flex: 1 }}>
@@ -242,7 +242,7 @@ export default function AdminMetricsKeyScreen() {
           drop off in the 5-step flow. Only renders if the server returned
           the block (older server builds won't have onboardingFunnel). */}
       {metrics.onboardingFunnel && metrics.onboardingFunnel.cohortSize > 0 && (
-        <View style={[styles.card, { borderLeftColor: '#F59E0B' }]}>
+        <View style={[styles.card, { borderLeftColor: '#E8A36A' }]}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardIndex}>6</Text>
             <View style={{ flex: 1 }}>
@@ -369,35 +369,35 @@ const styles = StyleSheet.create({
   backBtn: { marginBottom: 12 },
   titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
   refreshBtn: {
-    backgroundColor: '#15151F',
+    backgroundColor: '#0E0E0F',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#3F3F4D',
   },
-  refreshBtnText: { color: '#9CA3AF', fontSize: 12, fontWeight: '600' },
+  refreshBtnText: { color: '#A8A49C', fontSize: 12, fontWeight: '600' },
   rangeRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
   rangeBtn: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: '#15151F',
+    backgroundColor: '#0E0E0F',
     borderWidth: 1,
     borderColor: '#3F3F4D',
   },
   rangeBtnActive: {
-    backgroundColor: '#6366F120',
-    borderColor: '#6366F1',
+    backgroundColor: '#D4B07A20',
+    borderColor: '#D4B07A',
   },
-  rangeBtnText: { color: '#9CA3AF', fontSize: 12, fontWeight: '600' },
+  rangeBtnText: { color: '#A8A49C', fontSize: 12, fontWeight: '600' },
   rangeBtnTextActive: { color: '#A5B4FC' },
-  backText: { color: '#6366F1', fontSize: 15, fontWeight: '600' },
+  backText: { color: '#D4B07A', fontSize: 15, fontWeight: '600' },
   title: { fontSize: 24, fontWeight: '800', color: '#FFFFFF' },
-  subtitle: { fontSize: 12, color: '#6B7280', marginTop: 4 },
+  subtitle: { fontSize: 12, color: '#A8A49C', marginTop: 4 },
 
   card: {
-    backgroundColor: '#15151F',
+    backgroundColor: '#0E0E0F',
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
@@ -411,9 +411,9 @@ const styles = StyleSheet.create({
     width: 32,
     textAlign: 'center',
   },
-  cardLabel: { fontSize: 14, fontWeight: '600', color: '#9CA3AF' },
+  cardLabel: { fontSize: 14, fontWeight: '600', color: '#A8A49C' },
   cardValue: { fontSize: 28, fontWeight: '800', marginTop: 4 },
-  cardSub: { fontSize: 12, color: '#6B7280', lineHeight: 16, marginTop: 4 },
+  cardSub: { fontSize: 12, color: '#A8A49C', lineHeight: 16, marginTop: 4 },
   healthBadge: { fontSize: 11, fontWeight: '700', marginTop: 2 },
 
   funnelStep: {
@@ -424,9 +424,9 @@ const styles = StyleSheet.create({
     borderBottomColor: '#1F1F2A',
     borderBottomWidth: 1,
   },
-  funnelLabel: { fontSize: 13, color: '#D1D5DB', flex: 1 },
+  funnelLabel: { fontSize: 13, color: '#F4F1EA', flex: 1 },
   funnelValue: { fontSize: 18, fontWeight: '700', color: '#FFFFFF' },
-  funnelConv: { fontSize: 11, color: '#6B7280' },
+  funnelConv: { fontSize: 11, color: '#A8A49C' },
   funnelTotal: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -434,13 +434,13 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     marginTop: 4,
   },
-  funnelTotalLabel: { fontSize: 13, fontWeight: '600', color: '#9CA3AF' },
-  funnelTotalValue: { fontSize: 22, fontWeight: '800', color: '#10B981' },
+  funnelTotalLabel: { fontSize: 13, fontWeight: '600', color: '#A8A49C' },
+  funnelTotalValue: { fontSize: 22, fontWeight: '800', color: '#9AC28C' },
 
-  disclaimer: { fontSize: 11, color: '#4B5563', lineHeight: 16, marginTop: 16 },
+  disclaimer: { fontSize: 11, color: '#2A2A2F', lineHeight: 16, marginTop: 16 },
 
-  errorTitle: { fontSize: 18, fontWeight: '700', color: '#EF4444', marginBottom: 8 },
-  errorMessage: { fontSize: 14, color: '#9CA3AF', textAlign: 'center', marginBottom: 16 },
-  retryBtn: { backgroundColor: '#6366F1', paddingVertical: 10, paddingHorizontal: 24, borderRadius: 12 },
-  retryText: { color: '#FFFFFF', fontWeight: '600' },
+  errorTitle: { fontSize: 18, fontWeight: '700', color: '#E07A6B', marginBottom: 8 },
+  errorMessage: { fontSize: 14, color: '#A8A49C', textAlign: 'center', marginBottom: 16 },
+  retryBtn: { backgroundColor: '#D4B07A', paddingVertical: 10, paddingHorizontal: 24, borderRadius: 12 },
+  retryText: { color: '#17171A', fontWeight: '600' },
 });

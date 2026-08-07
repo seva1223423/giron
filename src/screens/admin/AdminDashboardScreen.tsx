@@ -39,7 +39,7 @@ function SectionTitle({ title }: { title: string }) {
 }
 
 function StatCard({
-  title, value, sub, color = '#6366F1', trend,
+  title, value, sub, color = '#D4B07A', trend,
 }: {
   title: string; value: string | number; sub?: string; color?: string; trend?: number | null;
 }) {
@@ -49,7 +49,7 @@ function StatCard({
       <Text style={[styles.statValue, { color }]}>{value}</Text>
       {sub && <Text style={styles.statSub}>{sub}</Text>}
       {trend != null && (
-        <Text style={{ fontSize: 10, fontWeight: '700', color: trend > 0 ? '#10B981' : trend < 0 ? '#EF4444' : '#6B7280', marginTop: 2 }}>
+        <Text style={{ fontSize: 10, fontWeight: '700', color: trend > 0 ? '#9AC28C' : trend < 0 ? '#E07A6B' : '#A8A49C', marginTop: 2 }}>
           {trend > 0 ? `↑ +${trend}%` : trend < 0 ? `↓ ${trend}%` : '→ 0%'} vs пред. нед.
         </Text>
       )}
@@ -139,13 +139,13 @@ function SubSplitBar({
       </View>
       <View style={styles.splitLegend}>
         <View style={styles.splitLegendItem}>
-          <View style={[styles.legendDot, { backgroundColor: '#8B5CF6' }]} />
+          <View style={[styles.legendDot, { backgroundColor: '#D4B07A' }]} />
           <Text style={styles.splitLegendText}>
             С подпиской: <Text style={styles.splitLegendNum}>{withSub}</Text>
           </Text>
         </View>
         <View style={styles.splitLegendItem}>
-          <View style={[styles.legendDot, { backgroundColor: '#374151' }]} />
+          <View style={[styles.legendDot, { backgroundColor: '#2A2A2F' }]} />
           <Text style={styles.splitLegendText}>
             Без подписки: <Text style={styles.splitLegendNum}>{total - withSub}</Text>
           </Text>
@@ -182,6 +182,7 @@ function MemBar({
 export default function AdminDashboardScreen() {
   const navigation = useNavigation<AdminNav>();
   const [stats, setStats] = useState<AdminStats | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [me, setMe] = useState<AdminMe | null>(null);
   const [cronHealth, setCronHealth] = useState<CronHealthResponse | null>(null);
   const [analytics, setAnalytics] = useState<AdminAnalytics | null>(null);
@@ -215,12 +216,17 @@ export default function AdminDashboardScreen() {
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     else setRefreshing(true);
+    setLoadError(null);
     try {
-      const [statsData, analyticsData, logsData, feedData, meData, cronData] = await Promise.all([
-        adminService.getStats(),
-        adminService.getAnalytics(7),
-        adminService.getLogs({ limit: 6 }),
-        adminService.getActivityFeed(),
+      // Only /admin/stats is required — everything else is a panel that can
+      // sit empty. Two of these already had their own catch with a comment
+      // explaining exactly this; the other three did not, so a single failing
+      // request left `stats` null and the render below returned null: a blank
+      // screen with no error and no retry.
+      const [analyticsData, logsData, feedData, meData, cronData] = await Promise.all([
+        adminService.getAnalytics(7).catch(() => null),
+        adminService.getLogs({ limit: 6 }).catch(() => ({ logs: [] })),
+        adminService.getActivityFeed().catch(() => []),
         // /admin/me is uncached and per-actor — degrade gracefully if it
         // 500s so the rest of the dashboard still renders. Founder card
         // simply hides when null.
@@ -228,6 +234,7 @@ export default function AdminDashboardScreen() {
         // Cron health is supplementary — never block the dashboard on it.
         adminService.getCronHealth().catch(() => null),
       ]);
+      const statsData = await adminService.getStats();
       setStats(statsData);
       setAnalytics(analyticsData);
       setRecentLogs(logsData.logs);
@@ -235,6 +242,8 @@ export default function AdminDashboardScreen() {
       setMe(meData);
       setCronHealth(cronData);
       setLastRefreshed(new Date());
+    } catch {
+      setLoadError('Не удалось загрузить панель. Проверь соединение и попробуй ещё раз.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -288,8 +297,17 @@ export default function AdminDashboardScreen() {
     }
   }, []);
 
-  if (loading) return <ActivityIndicator style={styles.center} color="#6366F1" size="large" />;
-  if (!stats) return null;
+  if (loading) return <ActivityIndicator style={styles.center} color="#D4B07A" size="large" />;
+  if (!stats) {
+    return (
+      <View style={styles.errorBox}>
+        <Text style={styles.errorText}>{loadError ?? 'Панель недоступна.'}</Text>
+        <TouchableOpacity style={styles.retryBtn} onPress={() => load()}>
+          <Text style={styles.retryText}>Повторить</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   // Prefer the new `rssUsedPct` (resident set / dyno limit) when the
   // server reports it — that's a meaningful pressure signal. Fall back
@@ -310,7 +328,7 @@ export default function AdminDashboardScreen() {
     - ((stats.support.overdueTickets ?? 0) > 5 ? 15 : (stats.support.overdueTickets ?? 0) > 0 ? 5 : 0)
     - ((stats.support.urgentTickets ?? 0) > 0 ? 10 : 0)
   ));
-  const healthColor = healthScore >= 80 ? '#10B981' : healthScore >= 60 ? '#F59E0B' : '#EF4444';
+  const healthColor = healthScore >= 80 ? '#9AC28C' : healthScore >= 60 ? '#E8A36A' : '#E07A6B';
   const healthLabel = healthScore >= 80 ? 'Отлично' : healthScore >= 60 ? 'Внимание' : 'Проблемы';
 
   return (
@@ -322,17 +340,17 @@ export default function AdminDashboardScreen() {
           <TextInput
             style={styles.searchModalInput}
             placeholder="Поиск по ИИ-сообщениям и тикетам..."
-            placeholderTextColor="#6B7280"
+            placeholderTextColor="#A8A49C"
             value={searchQuery}
             onChangeText={handleSearchChange}
             autoFocus
             clearButtonMode="while-editing"
           />
           <TouchableOpacity onPress={() => { setShowSearch(false); setSearchQuery(''); setSearchResults(null); }}>
-            <Text style={{ color: '#6B7280', fontSize: 16, paddingLeft: 8 }}>✕</Text>
+            <Text style={{ color: '#A8A49C', fontSize: 16, paddingLeft: 8 }}>✕</Text>
           </TouchableOpacity>
         </View>
-        {searching && <ActivityIndicator color="#6366F1" style={{ marginTop: 24 }} />}
+        {searching && <ActivityIndicator color="#D4B07A" style={{ marginTop: 24 }} />}
         {searchResults && (
           <FlatList
             data={[
@@ -387,7 +405,7 @@ export default function AdminDashboardScreen() {
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#6366F1" />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#D4B07A" />}
     >
       {/* Header */}
       <View style={styles.headerRow}>
@@ -424,28 +442,28 @@ export default function AdminDashboardScreen() {
 
       {/* System alerts */}
       {(stats.support.urgentTickets ?? 0) > 0 && (
-        <AlertBanner icon="🚨" color="#EF4444" message={`${stats.support.urgentTickets} срочных тикетов требуют внимания`} />
+        <AlertBanner icon="🚨" color="#E07A6B" message={`${stats.support.urgentTickets} срочных тикетов требуют внимания`} />
       )}
       {stats.support.openTickets > 5 && !((stats.support.urgentTickets ?? 0) > 0) && (
-        <AlertBanner icon="🎧" color="#F59E0B" message={`${stats.support.openTickets} открытых тикетов — нужна обработка`} />
+        <AlertBanner icon="🎧" color="#E8A36A" message={`${stats.support.openTickets} открытых тикетов — нужна обработка`} />
       )}
       {(stats.ai.errorsToday ?? 0) > 10 && (
-        <AlertBanner icon="⚠️" color="#F59E0B" message={`${stats.ai.errorsToday} ошибок ИИ сегодня — проверь провайдера`} />
+        <AlertBanner icon="⚠️" color="#E8A36A" message={`${stats.ai.errorsToday} ошибок ИИ сегодня — проверь провайдера`} />
       )}
       {stats.server.dbPingMs != null && stats.server.dbPingMs > 500 && (
-        <AlertBanner icon="🐘" color="#EF4444" message={`DB ping ${stats.server.dbPingMs}мс — возможны проблемы с базой`} />
+        <AlertBanner icon="🐘" color="#E07A6B" message={`DB ping ${stats.server.dbPingMs}мс — возможны проблемы с базой`} />
       )}
       {(stats.server.systemMemUsedPct ?? 0) > 90 && (
-        <AlertBanner icon="💾" color="#EF4444" message={`Системная память ${stats.server.systemMemUsedPct}% — критический уровень`} />
+        <AlertBanner icon="💾" color="#E07A6B" message={`Системная память ${stats.server.systemMemUsedPct}% — критический уровень`} />
       )}
       {(stats.subsExpiringSoon ?? 0) > 0 && (
-        <AlertBanner icon="⏰" color="#F59E0B" message={`${stats.subsExpiringSoon} подписок истекают в ближайшие 7 дней`} onPress={() => navigation.navigate('AdminUsersScreen', { subExpiringSoon: true })} />
+        <AlertBanner icon="⏰" color="#E8A36A" message={`${stats.subsExpiringSoon} подписок истекают в ближайшие 7 дней`} onPress={() => navigation.navigate('AdminUsersScreen', { subExpiringSoon: true })} />
       )}
       {(stats.support.overdueTickets ?? 0) > 0 && (
-        <AlertBanner icon="🕐" color="#F59E0B" message={`${stats.support.overdueTickets} тикетов без ответа более 24 часов`} onPress={() => navigation.navigate('AdminSupportScreen')} />
+        <AlertBanner icon="🕐" color="#E8A36A" message={`${stats.support.overdueTickets} тикетов без ответа более 24 часов`} onPress={() => navigation.navigate('AdminSupportScreen')} />
       )}
       {(stats.churnRiskUsers ?? 0) > 0 && (
-        <AlertBanner icon="⚡" color="#8B5CF6" message={`${stats.churnRiskUsers} платных пользователей не тренируются 14+ дней`} onPress={() => navigation.navigate('AdminUsersScreen', { dormant: true })} />
+        <AlertBanner icon="⚡" color="#D4B07A" message={`${stats.churnRiskUsers} платных пользователей не тренируются 14+ дней`} onPress={() => navigation.navigate('AdminUsersScreen', { dormant: true })} />
       )}
 
       {/* Quick nav. "5 ключевых чисел" placed first — it's the screen the
@@ -478,7 +496,7 @@ export default function AdminDashboardScreen() {
         <TextInput
           style={styles.quickSearchInput}
           placeholder="Быстрый поиск пользователя..."
-          placeholderTextColor="#6B7280"
+          placeholderTextColor="#A8A49C"
           value={quickSearch}
           onChangeText={setQuickSearch}
           returnKeyType="search"
@@ -544,7 +562,7 @@ export default function AdminDashboardScreen() {
         <>
           <View style={styles.activityHeader}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: '#10B981' }} />
+              <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: '#9AC28C' }} />
               <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 0 }]}>
                 Онлайн сейчас ({stats.users.activeNow})
               </Text>
@@ -751,7 +769,7 @@ export default function AdminDashboardScreen() {
                 } : undefined}
                 activeOpacity={0.7}
               >
-                <View style={[styles.cronDot, { backgroundColor: isHealthy ? '#10B981' : '#EF4444' }]} />
+                <View style={[styles.cronDot, { backgroundColor: isHealthy ? '#9AC28C' : '#E07A6B' }]} />
                 <Text style={styles.cronName}>{job.id}{isRunnable ? ' ▶' : ''}</Text>
                 <Text style={styles.cronAge}>{ageStr}</Text>
                 <Text style={styles.cronCounts}>
@@ -768,10 +786,10 @@ export default function AdminDashboardScreen() {
         <Text style={styles.quickActionsTitle}>Быстрые действия</Text>
         <View style={styles.quickActionsGrid}>
           {[
-            { label: 'Новое объявление', color: '#6366F1', onPress: () => navigation.navigate('AdminAnnouncementsScreen') },
-            { label: 'Срочные тикеты', color: '#EF4444', onPress: () => navigation.navigate('AdminSupportScreen') },
-            { label: 'Экспорт пользователей', color: '#10B981', onPress: () => navigation.navigate('AdminUsersScreen') },
-            { label: 'Просмотр логов', color: '#F59E0B', onPress: () => navigation.navigate('AdminLogsScreen') },
+            { label: 'Новое объявление', color: '#D4B07A', onPress: () => navigation.navigate('AdminAnnouncementsScreen') },
+            { label: 'Срочные тикеты', color: '#E07A6B', onPress: () => navigation.navigate('AdminSupportScreen') },
+            { label: 'Экспорт пользователей', color: '#9AC28C', onPress: () => navigation.navigate('AdminUsersScreen') },
+            { label: 'Просмотр логов', color: '#E8A36A', onPress: () => navigation.navigate('AdminLogsScreen') },
           ].map((action) => (
             <TouchableOpacity
               key={action.label}
@@ -859,12 +877,12 @@ export default function AdminDashboardScreen() {
           <View style={styles.feedCard}>
             {activityFeed.slice(0, 8).map((ev) => {
               const TYPE_META: Record<string, { icon: string; color: string }> = {
-                workout: { icon: '💪', color: '#F59E0B' },
-                signup:  { icon: '🆕', color: '#6366F1' },
-                ai:      { icon: '🤖', color: '#8B5CF6' },
-                cardio:  { icon: '🏃', color: '#10B981' },
+                workout: { icon: '💪', color: '#E8A36A' },
+                signup:  { icon: '🆕', color: '#D4B07A' },
+                ai:      { icon: '🤖', color: '#D4B07A' },
+                cardio:  { icon: '🏃', color: '#9AC28C' },
               };
-              const meta = TYPE_META[ev.type] ?? { icon: '•', color: '#6B7280' };
+              const meta = TYPE_META[ev.type] ?? { icon: '•', color: '#A8A49C' };
               const timeAgo = (() => {
                 const ms = Date.now() - new Date(ev.date).getTime();
                 const m = Math.floor(ms / 60000);
@@ -900,11 +918,11 @@ export default function AdminDashboardScreen() {
           <View style={styles.sparkRow}>
             <View style={styles.sparkItem}>
               <Text style={styles.sparkLabel}>Регистрации</Text>
-              <Sparkline values={signups7d} color="#6366F1" />
+              <Sparkline values={signups7d} color="#D4B07A" />
             </View>
-            <View style={[styles.sparkItem, { borderLeftWidth: 1, borderLeftColor: '#2C2C2E', paddingLeft: 12 }]}>
+            <View style={[styles.sparkItem, { borderLeftWidth: 1, borderLeftColor: '#1E1E22', paddingLeft: 12 }]}>
               <Text style={styles.sparkLabel}>Тренировки</Text>
-              <Sparkline values={workouts7d} color="#F59E0B" />
+              <Sparkline values={workouts7d} color="#E8A36A" />
             </View>
           </View>
         </View>
@@ -917,10 +935,10 @@ export default function AdminDashboardScreen() {
           <View style={styles.todayGrid}>
             {(
               [
-                { label: 'Регистрации', d: stats.todayVsYesterday.signups, color: '#6366F1' },
-                { label: 'Тренировки', d: stats.todayVsYesterday.workouts, color: '#F59E0B' },
-                { label: 'ИИ-сообщ.', d: stats.todayVsYesterday.ai, color: '#8B5CF6' },
-                { label: 'Питание', d: stats.todayVsYesterday.meals, color: '#10B981' },
+                { label: 'Регистрации', d: stats.todayVsYesterday.signups, color: '#D4B07A' },
+                { label: 'Тренировки', d: stats.todayVsYesterday.workouts, color: '#E8A36A' },
+                { label: 'ИИ-сообщ.', d: stats.todayVsYesterday.ai, color: '#D4B07A' },
+                { label: 'Питание', d: stats.todayVsYesterday.meals, color: '#9AC28C' },
                 { label: 'Кардио', d: stats.todayVsYesterday.cardio, color: '#06B6D4' },
               ] as Array<{ label: string; d: { today: number; yesterday: number }; color: string }>
             ).map(({ label, d, color }) => {
@@ -931,7 +949,7 @@ export default function AdminDashboardScreen() {
                   <Text style={styles.todayCellLabel}>{label}</Text>
                   <Text style={[styles.todayCellValue, { color }]}>{d.today}</Text>
                   <Text style={[styles.todayCellDelta, {
-                    color: delta > 0 ? '#10B981' : delta < 0 ? '#EF4444' : '#6B7280',
+                    color: delta > 0 ? '#9AC28C' : delta < 0 ? '#E07A6B' : '#A8A49C',
                   }]}>
                     {delta > 0 ? `↑ +${delta}` : delta < 0 ? `↓ ${delta}` : '→ 0'}
                     {pct != null ? ` (${pct > 0 ? '+' : ''}${pct}%)` : ''}
@@ -964,9 +982,9 @@ export default function AdminDashboardScreen() {
                           <View style={[
                             styles.pulseBar,
                             { height: barH },
-                            isCurrent && { backgroundColor: '#6366F1' },
-                            !isCurrent && isPast && v > 0 && { backgroundColor: '#6366F180' },
-                            !isCurrent && !isPast && { backgroundColor: '#2C2C2E' },
+                            isCurrent && { backgroundColor: '#D4B07A' },
+                            !isCurrent && isPast && v > 0 && { backgroundColor: '#D4B07A80' },
+                            !isCurrent && !isPast && { backgroundColor: '#1E1E22' },
                           ]} />
                         </View>
                       );
@@ -991,8 +1009,8 @@ export default function AdminDashboardScreen() {
       <SectionTitle title="Пользователи" />
       <View style={styles.row}>
         <StatCard title="Всего" value={stats.users.total} />
-        <StatCard title="Онлайн (5м)" value={stats.users.activeNow} color="#10B981" />
-        <StatCard title="За час" value={stats.users.activeHour} color="#F59E0B" />
+        <StatCard title="Онлайн (5м)" value={stats.users.activeNow} color="#9AC28C" />
+        <StatCard title="За час" value={stats.users.activeHour} color="#E8A36A" />
       </View>
       <View style={styles.row}>
         <StatCard title="Сегодня" value={stats.users.newToday} sub="новых" />
@@ -1001,7 +1019,7 @@ export default function AdminDashboardScreen() {
       </View>
       {(stats.users.banned ?? 0) > 0 && (
         <View style={styles.row}>
-          <StatCard title="Заблокировано" value={stats.users.banned ?? 0} color="#EF4444" sub="пользователей" />
+          <StatCard title="Заблокировано" value={stats.users.banned ?? 0} color="#E07A6B" sub="пользователей" />
         </View>
       )}
 
@@ -1027,7 +1045,7 @@ export default function AdminDashboardScreen() {
       <View style={styles.row}>
         <StatCard title="Сегодня" value={stats.workouts.completedToday} sub="завершено" />
         <StatCard title="7 дней" value={stats.workouts.completedThisWeek} sub="завершено" trend={stats.trends?.workoutsWeekVsPrev} />
-        <StatCard title="Всего" value={stats.workouts.total ?? 0} sub="в базе" color="#9CA3AF" />
+        <StatCard title="Всего" value={stats.workouts.total ?? 0} sub="в базе" color="#A8A49C" />
       </View>
 
       {/* ── Nutrition ──────────────────────────────────────────────────── */}
@@ -1035,8 +1053,8 @@ export default function AdminDashboardScreen() {
         <>
           <SectionTitle title="Питание" />
           <View style={styles.row}>
-            <StatCard title="Приёмов сегодня" value={stats.nutrition.mealsToday} color="#F59E0B" />
-            <StatCard title="За 7 дней" value={stats.nutrition.mealsThisWeek} color="#F59E0B" />
+            <StatCard title="Приёмов сегодня" value={stats.nutrition.mealsToday} color="#E8A36A" />
+            <StatCard title="За 7 дней" value={stats.nutrition.mealsThisWeek} color="#E8A36A" />
           </View>
         </>
       )}
@@ -1046,8 +1064,8 @@ export default function AdminDashboardScreen() {
         <>
           <SectionTitle title="Кардио" />
           <View style={styles.row}>
-            <StatCard title="Сессий сегодня" value={stats.cardio.sessionsToday} color="#10B981" />
-            <StatCard title="За 7 дней" value={stats.cardio.sessionsThisWeek} color="#10B981" />
+            <StatCard title="Сессий сегодня" value={stats.cardio.sessionsToday} color="#9AC28C" />
+            <StatCard title="За 7 дней" value={stats.cardio.sessionsThisWeek} color="#9AC28C" />
           </View>
         </>
       )}
@@ -1060,7 +1078,7 @@ export default function AdminDashboardScreen() {
         <StatCard
           title="Ошибок сегодня"
           value={stats.ai.errorsToday ?? 0}
-          color={(stats.ai.errorsToday ?? 0) > 0 ? '#EF4444' : '#10B981'}
+          color={(stats.ai.errorsToday ?? 0) > 0 ? '#E07A6B' : '#9AC28C'}
         />
       </View>
       <View style={styles.row}>
@@ -1075,7 +1093,7 @@ export default function AdminDashboardScreen() {
         <StatCard
           title="Кеш-хитрейт"
           value={`${stats.ai.cacheHitRate ?? 0}%`}
-          color="#10B981"
+          color="#9AC28C"
           sub={`${stats.ai.cacheHits ?? 0} хит / ${stats.ai.cacheMisses ?? 0} мисс`}
         />
         <StatCard
@@ -1091,7 +1109,7 @@ export default function AdminDashboardScreen() {
             : (stats.ai.minLatencyMs ?? 0) > 0
               ? `${stats.ai.minLatencyMs}–${stats.ai.maxLatencyMs}мс`
               : undefined}
-          color={(stats.ai.p95LatencyMs ?? 0) > 5000 ? '#EF4444' : (stats.ai.p95LatencyMs ?? 0) > 2500 ? '#F59E0B' : '#10B981'}
+          color={(stats.ai.p95LatencyMs ?? 0) > 5000 ? '#E07A6B' : (stats.ai.p95LatencyMs ?? 0) > 2500 ? '#E8A36A' : '#9AC28C'}
         />
       </View>
 
@@ -1120,7 +1138,7 @@ export default function AdminDashboardScreen() {
           </View>
           <View style={styles.providerStat}>
             <Text style={styles.providerStatLabel}>Ошибок</Text>
-            <Text style={[styles.providerStatValue, { color: (stats.ai.errorsToday ?? 0) > 0 ? '#EF4444' : '#10B981' }]}>
+            <Text style={[styles.providerStatValue, { color: (stats.ai.errorsToday ?? 0) > 0 ? '#E07A6B' : '#9AC28C' }]}>
               {stats.ai.errorsToday ?? 0}
             </Text>
           </View>
@@ -1130,14 +1148,14 @@ export default function AdminDashboardScreen() {
       {/* ── Support ────────────────────────────────────────────────────── */}
       <SectionTitle title="Поддержка" />
       <View style={styles.row}>
-        <StatCard title="Открытых" value={stats.support.openTickets} color="#EF4444" />
-        <StatCard title="В работе" value={stats.support.inProgressTickets} color="#F59E0B" />
-        <StatCard title="Решено" value={stats.support.resolvedTickets ?? 0} color="#10B981" />
+        <StatCard title="Открытых" value={stats.support.openTickets} color="#E07A6B" />
+        <StatCard title="В работе" value={stats.support.inProgressTickets} color="#E8A36A" />
+        <StatCard title="Решено" value={stats.support.resolvedTickets ?? 0} color="#9AC28C" />
         {(stats.support.urgentTickets ?? 0) > 0 && (
-          <StatCard title="Срочных" value={stats.support.urgentTickets ?? 0} color="#EF4444" />
+          <StatCard title="Срочных" value={stats.support.urgentTickets ?? 0} color="#E07A6B" />
         )}
         {(stats.support.overdueTickets ?? 0) > 0 && (
-          <StatCard title="Просрочено" value={stats.support.overdueTickets ?? 0} color="#F59E0B" sub=">24ч без ответа" />
+          <StatCard title="Просрочено" value={stats.support.overdueTickets ?? 0} color="#E8A36A" sub=">24ч без ответа" />
         )}
       </View>
 
@@ -1147,11 +1165,11 @@ export default function AdminDashboardScreen() {
           <SectionTitle title="Объявления" />
           <View style={styles.row}>
             <TouchableOpacity
-              style={[styles.statCard, { borderWidth: 1, borderColor: '#6366F120' }]}
+              style={[styles.statCard, { borderWidth: 1, borderColor: '#D4B07A20' }]}
               onPress={() => navigation.navigate('AdminAnnouncementsScreen')}
             >
               <Text style={styles.statTitle}>Активных</Text>
-              <Text style={[styles.statValue, { color: '#6366F1' }]}>{stats.activeAnnouncements}</Text>
+              <Text style={[styles.statValue, { color: '#D4B07A' }]}>{stats.activeAnnouncements}</Text>
               <Text style={styles.statSub}>Нажми для управления</Text>
             </TouchableOpacity>
           </View>
@@ -1166,12 +1184,12 @@ export default function AdminDashboardScreen() {
           usedMb={stats.server.memoryUsedMb}
           totalMb={stats.server.memoryTotalMb}
           pct={memPct}
-          color={memPct > 80 ? '#EF4444' : '#6366F1'}
+          color={memPct > 80 ? '#E07A6B' : '#D4B07A'}
         />
         <MemBar
           label="Системная память"
           pct={sysPct}
-          color={sysPct > 85 ? '#EF4444' : '#F59E0B'}
+          color={sysPct > 85 ? '#E07A6B' : '#E8A36A'}
         />
         <Text style={styles.memLabel}>
           Свободно: {stats.server.systemMemFreeMb} МБ из {stats.server.systemMemTotalMb} МБ
@@ -1182,7 +1200,7 @@ export default function AdminDashboardScreen() {
             <View style={[styles.memBar, { marginTop: 12 }]}>
               <View style={[styles.memFill, {
                 width: `${Math.min(loadAvg1 * 20, 100)}%`,
-                backgroundColor: loadAvg1 > 3 ? '#EF4444' : loadAvg1 > 1.5 ? '#F59E0B' : '#10B981',
+                backgroundColor: loadAvg1 > 3 ? '#E07A6B' : loadAvg1 > 1.5 ? '#E8A36A' : '#9AC28C',
               }]} />
             </View>
             <Text style={styles.memLabel}>
@@ -1196,7 +1214,7 @@ export default function AdminDashboardScreen() {
           <Text style={styles.serverInfoItem}>{stats.server.platform}</Text>
           <Text style={styles.serverInfoItem}>{stats.server.nodeVersion}</Text>
           {stats.server.dbPingMs != null && (
-            <Text style={[styles.serverInfoItem, { color: stats.server.dbPingMs > 200 ? '#EF4444' : stats.server.dbPingMs > 80 ? '#F59E0B' : '#10B981' }]}>
+            <Text style={[styles.serverInfoItem, { color: stats.server.dbPingMs > 200 ? '#E07A6B' : stats.server.dbPingMs > 80 ? '#E8A36A' : '#9AC28C' }]}>
               DB: {stats.server.dbPingMs}мс
             </Text>
           )}
@@ -1206,16 +1224,16 @@ export default function AdminDashboardScreen() {
       {/* ── DAU ────────────────────────────────────────────────────────── */}
       {stats.dau && (
         <View style={styles.row}>
-          <StatCard title="DAU (трен.)" value={stats.dau.workoutUsers} sub="уник. польз. сегодня" color="#F59E0B" />
-          <StatCard title="DAU (ИИ)" value={stats.dau.aiUsers} sub="уник. польз. сегодня" color="#8B5CF6" />
+          <StatCard title="DAU (трен.)" value={stats.dau.workoutUsers} sub="уник. польз. сегодня" color="#E8A36A" />
+          <StatCard title="DAU (ИИ)" value={stats.dau.aiUsers} sub="уник. польз. сегодня" color="#D4B07A" />
         </View>
       )}
 
       {/* ── MAU ────────────────────────────────────────────────────────── */}
       {stats.mau && (
         <View style={styles.row}>
-          <StatCard title="MAU (трен.)" value={stats.mau.workoutUsers} sub="уник. польз. за 30 дн." color="#F59E0B" />
-          <StatCard title="MAU (ИИ)" value={stats.mau.aiUsers} sub="уник. польз. за 30 дн." color="#8B5CF6" />
+          <StatCard title="MAU (трен.)" value={stats.mau.workoutUsers} sub="уник. польз. за 30 дн." color="#E8A36A" />
+          <StatCard title="MAU (ИИ)" value={stats.mau.aiUsers} sub="уник. польз. за 30 дн." color="#D4B07A" />
         </View>
       )}
 
@@ -1309,7 +1327,7 @@ export default function AdminDashboardScreen() {
                   <View key={level} style={styles.demoRow}>
                     <Text style={styles.demoLabel}>{LEVEL_LABEL[level] ?? level}</Text>
                     <View style={styles.demoBarWrap}>
-                      <View style={[styles.demoBar, { width: `${Math.round((count / maxLevel) * 100)}%`, backgroundColor: '#F59E0B' }]} />
+                      <View style={[styles.demoBar, { width: `${Math.round((count / maxLevel) * 100)}%`, backgroundColor: '#E8A36A' }]} />
                     </View>
                     <Text style={styles.demoCount}>{count}</Text>
                   </View>
@@ -1342,215 +1360,219 @@ export default function AdminDashboardScreen() {
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0F0F0F' },
+  container: { flex: 1, backgroundColor: '#0E0E0F' },
   content: { padding: 16, paddingBottom: 40 },
   center: { flex: 1, justifyContent: 'center' },
+  errorBox: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32, gap: 16 },
+  errorText: { fontSize: 14, color: '#A8A49C', textAlign: 'center', lineHeight: 20 },
+  retryBtn: { backgroundColor: '#D4B07A', borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12 },
+  retryText: { fontSize: 14, fontWeight: '700', color: '#17171A' },
 
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   headerTitle: { fontSize: 22, fontWeight: '800', color: '#FFFFFF', letterSpacing: -0.5 },
-  headerSub: { fontSize: 10, color: '#4B5563' },
+  headerSub: { fontSize: 10, color: '#2A2A2F' },
   reportBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#1C1C2E', borderWidth: 1, borderColor: '#2D2D3A', alignItems: 'center', justifyContent: 'center' },
   reportBtnText: { fontSize: 16 },
 
-  searchModal: { flex: 1, backgroundColor: '#0F0F0F', paddingTop: 56 },
-  searchModalHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#2C2C2E' },
-  searchModalInput: { flex: 1, backgroundColor: '#1C1C1E', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: '#FFFFFF', borderWidth: 1, borderColor: '#2C2C2E' },
-  searchEmpty: { textAlign: 'center', color: '#6B7280', fontSize: 15, marginTop: 40 },
-  searchHint: { textAlign: 'center', color: '#4B5563', fontSize: 14, marginTop: 40, paddingHorizontal: 32 },
-  searchResultsHeader: { fontSize: 11, color: '#6B7280', fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, paddingHorizontal: 16, paddingVertical: 10 },
-  searchResultRow: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#1C1C1E' },
-  searchResultType: { fontSize: 10, color: '#6B7280', fontWeight: '700', textTransform: 'uppercase', marginBottom: 4 },
+  searchModal: { flex: 1, backgroundColor: '#0E0E0F', paddingTop: 56 },
+  searchModalHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#1E1E22' },
+  searchModalInput: { flex: 1, backgroundColor: '#17171A', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: '#FFFFFF', borderWidth: 1, borderColor: '#1E1E22' },
+  searchEmpty: { textAlign: 'center', color: '#A8A49C', fontSize: 15, marginTop: 40 },
+  searchHint: { textAlign: 'center', color: '#2A2A2F', fontSize: 14, marginTop: 40, paddingHorizontal: 32 },
+  searchResultsHeader: { fontSize: 11, color: '#A8A49C', fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, paddingHorizontal: 16, paddingVertical: 10 },
+  searchResultRow: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#17171A' },
+  searchResultType: { fontSize: 10, color: '#A8A49C', fontWeight: '700', textTransform: 'uppercase', marginBottom: 4 },
   searchResultTitle: { fontSize: 14, color: '#FFFFFF', lineHeight: 20, marginBottom: 3 },
-  searchResultMeta: { fontSize: 12, color: '#6B7280' },
+  searchResultMeta: { fontSize: 12, color: '#A8A49C' },
   healthBadge: { borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 6, alignItems: 'center' },
   healthScore: { fontSize: 20, fontWeight: '900' },
   healthLabel: { fontSize: 9, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
 
   quickSearchRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
   quickSearchInput: {
-    flex: 1, backgroundColor: '#1C1C1E', borderRadius: 10, paddingHorizontal: 12,
-    paddingVertical: 10, fontSize: 14, color: '#FFFFFF', borderWidth: 1, borderColor: '#2C2C2E',
+    flex: 1, backgroundColor: '#17171A', borderRadius: 10, paddingHorizontal: 12,
+    paddingVertical: 10, fontSize: 14, color: '#FFFFFF', borderWidth: 1, borderColor: '#1E1E22',
   },
-  quickSearchBtn: { backgroundColor: '#6366F1', borderRadius: 10, paddingHorizontal: 14, justifyContent: 'center' },
-  quickSearchBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 13 },
+  quickSearchBtn: { backgroundColor: '#D4B07A', borderRadius: 10, paddingHorizontal: 14, justifyContent: 'center' },
+  quickSearchBtnText: { color: '#17171A', fontWeight: '700', fontSize: 13 },
 
   navGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 },
-  navBtn: { width: '47%', backgroundColor: '#1C1C1E', borderRadius: 12, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#2C2C2E' },
+  navBtn: { width: '47%', backgroundColor: '#17171A', borderRadius: 12, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#1E1E22' },
   navBtnIcon: { fontSize: 20, marginBottom: 4 },
   navBtnText: { color: '#FFFFFF', fontSize: 12, fontWeight: '600' },
 
-  recentTitle: { fontSize: 11, fontWeight: '700', color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 },
-  recentChip: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#1C1C1E', borderRadius: 10, padding: 8, borderWidth: 1, borderColor: '#2C2C2E', maxWidth: 160 },
-  recentAvatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#6366F133', borderWidth: 1, borderColor: '#6366F1', justifyContent: 'center', alignItems: 'center' },
+  recentTitle: { fontSize: 11, fontWeight: '700', color: '#A8A49C', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 },
+  recentChip: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#17171A', borderRadius: 10, padding: 8, borderWidth: 1, borderColor: '#1E1E22', maxWidth: 160 },
+  recentAvatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#D4B07A33', borderWidth: 1, borderColor: '#D4B07A', justifyContent: 'center', alignItems: 'center' },
   recentAvatarText: { fontSize: 12, fontWeight: '700', color: '#A5B4FC' },
   recentName: { fontSize: 12, fontWeight: '600', color: '#FFFFFF', maxWidth: 110 },
-  recentEmail: { fontSize: 10, color: '#6B7280', maxWidth: 110 },
+  recentEmail: { fontSize: 10, color: '#A8A49C', maxWidth: 110 },
 
   sectionTitle: {
-    fontSize: 11, fontWeight: '700', color: '#6B7280',
+    fontSize: 11, fontWeight: '700', color: '#A8A49C',
     textTransform: 'uppercase', letterSpacing: 0.8,
     marginTop: 24, marginBottom: 10,
   },
 
   activityHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 24, marginBottom: 8 },
-  activityMore: { fontSize: 12, color: '#6366F1', fontWeight: '600' },
-  activityCard: { backgroundColor: '#1C1C1E', borderRadius: 12, borderWidth: 1, borderColor: '#2C2C2E', marginBottom: 8 },
+  activityMore: { fontSize: 12, color: '#D4B07A', fontWeight: '600' },
+  activityCard: { backgroundColor: '#17171A', borderRadius: 12, borderWidth: 1, borderColor: '#1E1E22', marginBottom: 8 },
   activityRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingHorizontal: 14, paddingVertical: 10 },
-  activityRowBorder: { borderBottomWidth: 1, borderBottomColor: '#2C2C2E' },
+  activityRowBorder: { borderBottomWidth: 1, borderBottomColor: '#1E1E22' },
   activityIcon: { fontSize: 14, marginTop: 1 },
-  activityAction: { fontSize: 12, fontWeight: '700', color: '#D1D5DB', marginBottom: 2 },
-  activityAdmin: { fontSize: 11, color: '#6B7280' },
-  activityTime: { fontSize: 10, color: '#4B5563', marginTop: 2 },
+  activityAction: { fontSize: 12, fontWeight: '700', color: '#F4F1EA', marginBottom: 2 },
+  activityAdmin: { fontSize: 11, color: '#A8A49C' },
+  activityTime: { fontSize: 10, color: '#2A2A2F', marginTop: 2 },
 
   signupsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
-  signupChip: { alignItems: 'center', backgroundColor: '#1C1C1E', borderRadius: 12, borderWidth: 1, borderColor: '#2C2C2E', paddingVertical: 8, paddingHorizontal: 12, minWidth: 70 },
-  signupAvatar: { fontSize: 18, fontWeight: '700', color: '#6366F1', marginBottom: 2 },
-  signupName: { fontSize: 11, fontWeight: '600', color: '#D1D5DB', marginBottom: 2, maxWidth: 64, textAlign: 'center' },
-  signupTime: { fontSize: 10, color: '#6B7280' },
+  signupChip: { alignItems: 'center', backgroundColor: '#17171A', borderRadius: 12, borderWidth: 1, borderColor: '#1E1E22', paddingVertical: 8, paddingHorizontal: 12, minWidth: 70 },
+  signupAvatar: { fontSize: 18, fontWeight: '700', color: '#D4B07A', marginBottom: 2 },
+  signupName: { fontSize: 11, fontWeight: '600', color: '#F4F1EA', marginBottom: 2, maxWidth: 64, textAlign: 'center' },
+  signupTime: { fontSize: 10, color: '#A8A49C' },
 
   // Online users
   onlineRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
-  onlineChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#10B98115', borderRadius: 20, borderWidth: 1, borderColor: '#10B98140', paddingVertical: 4, paddingHorizontal: 8 },
-  onlineAvatar: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#10B98130', justifyContent: 'center', alignItems: 'center' },
-  onlineAvatarText: { fontSize: 9, fontWeight: '700', color: '#10B981' },
-  onlineName: { fontSize: 11, color: '#10B981', fontWeight: '600', maxWidth: 70 },
+  onlineChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#9AC28C15', borderRadius: 20, borderWidth: 1, borderColor: '#9AC28C40', paddingVertical: 4, paddingHorizontal: 8 },
+  onlineAvatar: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#9AC28C30', justifyContent: 'center', alignItems: 'center' },
+  onlineAvatarText: { fontSize: 9, fontWeight: '700', color: '#9AC28C' },
+  onlineName: { fontSize: 11, color: '#9AC28C', fontWeight: '600', maxWidth: 70 },
 
   // Founder self-status card (/admin/me)
-  meCard: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: '#8B5CF640' },
+  meCard: { backgroundColor: '#17171A', borderRadius: 12, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: '#D4B07A40' },
   meHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 },
-  meHeaderSub: { fontSize: 11, color: '#6B7280' },
+  meHeaderSub: { fontSize: 11, color: '#A8A49C' },
   meChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
   meChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, borderWidth: 1 },
-  meChipOk: { backgroundColor: '#10B98115', borderColor: '#10B98140' },
-  meChipWarn: { backgroundColor: '#F59E0B15', borderColor: '#F59E0B40' },
-  meChipBad: { backgroundColor: '#EF444415', borderColor: '#EF444440' },
-  meChipNeutral: { backgroundColor: '#6B728015', borderColor: '#6B728040' },
+  meChipOk: { backgroundColor: '#9AC28C15', borderColor: '#9AC28C40' },
+  meChipWarn: { backgroundColor: '#E8A36A15', borderColor: '#E8A36A40' },
+  meChipBad: { backgroundColor: '#E07A6B15', borderColor: '#E07A6B40' },
+  meChipNeutral: { backgroundColor: '#A8A49C15', borderColor: '#A8A49C40' },
   meChipText: { fontSize: 11, fontWeight: '600', color: '#E5E7EB' },
   meStatRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 10 },
   meStat: { minWidth: '22%' },
-  meStatLabel: { fontSize: 9, color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
+  meStatLabel: { fontSize: 9, color: '#A8A49C', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
   meStatValue: { fontSize: 14, color: '#E5E7EB', fontWeight: '700' },
-  meRow: { fontSize: 11, color: '#9CA3AF', marginTop: 2 },
-  meTestBtn: { marginTop: 12, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: '#8B5CF640', backgroundColor: '#8B5CF610', alignItems: 'center' },
-  meTestBtnText: { fontSize: 12, fontWeight: '600', color: '#A78BFA' },
+  meRow: { fontSize: 11, color: '#A8A49C', marginTop: 2 },
+  meTestBtn: { marginTop: 12, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: '#D4B07A40', backgroundColor: '#D4B07A10', alignItems: 'center' },
+  meTestBtnText: { fontSize: 12, fontWeight: '600', color: '#D4B07A' },
   cronRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 },
   cronDot: { width: 8, height: 8, borderRadius: 4 },
   cronName: { flex: 1, fontSize: 12, color: '#E5E7EB', fontWeight: '600' },
-  cronAge: { fontSize: 11, color: '#9CA3AF' },
-  cronCounts: { fontSize: 10, color: '#6B7280', minWidth: 60, textAlign: 'right' },
+  cronAge: { fontSize: 11, color: '#A8A49C' },
+  cronCounts: { fontSize: 10, color: '#A8A49C', minWidth: 60, textAlign: 'right' },
 
   // Quick actions card
-  quickActionsCard: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 12, marginBottom: 16, borderWidth: 1, borderColor: '#2C2C2E' },
-  quickActionsTitle: { fontSize: 11, fontWeight: '700', color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 },
+  quickActionsCard: { backgroundColor: '#17171A', borderRadius: 12, padding: 12, marginBottom: 16, borderWidth: 1, borderColor: '#1E1E22' },
+  quickActionsTitle: { fontSize: 11, fontWeight: '700', color: '#A8A49C', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 },
   quickActionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  quickActionBtn: { flex: 1, minWidth: '45%', flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#0F0F0F', borderRadius: 10, borderWidth: 1, padding: 10 },
+  quickActionBtn: { flex: 1, minWidth: '45%', flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#0E0E0F', borderRadius: 10, borderWidth: 1, padding: 10 },
   quickActionDot: { width: 8, height: 8, borderRadius: 4 },
   quickActionLabel: { fontSize: 12, fontWeight: '600', flex: 1 },
 
   // Hourly pulse
-  pulseCard: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#2C2C2E' },
+  pulseCard: { backgroundColor: '#17171A', borderRadius: 12, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#1E1E22' },
   pulseBars: { flexDirection: 'row', alignItems: 'flex-end', height: 40, gap: 1 },
   pulseBarCol: { flex: 1, justifyContent: 'flex-end', height: 40 },
-  pulseBar: { width: '80%', borderRadius: 2, backgroundColor: '#2C2C2E' },
+  pulseBar: { width: '80%', borderRadius: 2, backgroundColor: '#1E1E22' },
   pulseLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
-  pulseLabel: { fontSize: 8, color: '#4B5563' },
-  pulseSub: { fontSize: 10, color: '#6B7280', marginTop: 4 },
+  pulseLabel: { fontSize: 8, color: '#2A2A2F' },
+  pulseSub: { fontSize: 10, color: '#A8A49C', marginTop: 4 },
 
   // Today vs Yesterday grid
   todayGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
-  todayCell: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#2C2C2E', minWidth: '18%', flex: 1, alignItems: 'center' },
-  todayCellLabel: { fontSize: 9, color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4, textAlign: 'center' },
+  todayCell: { backgroundColor: '#17171A', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#1E1E22', minWidth: '18%', flex: 1, alignItems: 'center' },
+  todayCellLabel: { fontSize: 9, color: '#A8A49C', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4, textAlign: 'center' },
   todayCellValue: { fontSize: 20, fontWeight: '800', marginBottom: 2 },
   todayCellDelta: { fontSize: 10, fontWeight: '700', marginBottom: 2 },
-  todayCellYest: { fontSize: 9, color: '#4B5563' },
+  todayCellYest: { fontSize: 9, color: '#2A2A2F' },
 
   row: { flexDirection: 'row', gap: 8, marginBottom: 8 },
-  statCard: { flex: 1, backgroundColor: '#1C1C1E', borderRadius: 12, padding: 14 },
-  statTitle: { fontSize: 11, color: '#6B7280', marginBottom: 6 },
-  statValue: { fontSize: 22, fontWeight: '700', color: '#6366F1' },
-  statSub: { fontSize: 11, color: '#4B5563', marginTop: 2 },
+  statCard: { flex: 1, backgroundColor: '#17171A', borderRadius: 12, padding: 14 },
+  statTitle: { fontSize: 11, color: '#A8A49C', marginBottom: 6 },
+  statValue: { fontSize: 22, fontWeight: '700', color: '#D4B07A' },
+  statSub: { fontSize: 11, color: '#2A2A2F', marginTop: 2 },
 
   // Alert banners
   alertBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 10, borderWidth: 1, padding: 10, marginBottom: 8 },
   alertText: { fontSize: 13, fontWeight: '600', flex: 1 },
 
   // Activity feed
-  feedCard: { backgroundColor: '#1C1C1E', borderRadius: 12, overflow: 'hidden', marginBottom: 8, borderWidth: 1, borderColor: '#2C2C2E' },
-  feedRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#2C2C2E' },
+  feedCard: { backgroundColor: '#17171A', borderRadius: 12, overflow: 'hidden', marginBottom: 8, borderWidth: 1, borderColor: '#1E1E22' },
+  feedRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#1E1E22' },
   feedIcon: { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  feedLabel: { flex: 1, fontSize: 12, color: '#D1D5DB' },
-  feedTime: { fontSize: 10, color: '#4B5563', flexShrink: 0 },
+  feedLabel: { flex: 1, fontSize: 12, color: '#F4F1EA' },
+  feedTime: { fontSize: 10, color: '#2A2A2F', flexShrink: 0 },
 
   // Sparkline card
-  sparkCard: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: '#2C2C2E' },
-  sparkTitle: { fontSize: 11, fontWeight: '700', color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 },
+  sparkCard: { backgroundColor: '#17171A', borderRadius: 12, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: '#1E1E22' },
+  sparkTitle: { fontSize: 11, fontWeight: '700', color: '#A8A49C', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 },
   sparkRow: { flexDirection: 'row', gap: 0 },
   sparkItem: { flex: 1, paddingRight: 12 },
-  sparkLabel: { fontSize: 11, color: '#9CA3AF', marginBottom: 6 },
+  sparkLabel: { fontSize: 11, color: '#A8A49C', marginBottom: 6 },
 
   // Revenue card
-  revenueCard: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 16, marginBottom: 8, borderWidth: 1, borderColor: '#2C2C2E' },
+  revenueCard: { backgroundColor: '#17171A', borderRadius: 12, padding: 16, marginBottom: 8, borderWidth: 1, borderColor: '#1E1E22' },
   revenueHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  revenueTitle: { fontSize: 13, color: '#9CA3AF', fontWeight: '600' },
-  revenueNote: { fontSize: 10, color: '#4B5563' },
-  revenueValue: { fontSize: 32, fontWeight: '800', color: '#10B981', marginBottom: 12 },
-  revenueUnit: { fontSize: 16, fontWeight: '400', color: '#6B7280' },
+  revenueTitle: { fontSize: 13, color: '#A8A49C', fontWeight: '600' },
+  revenueNote: { fontSize: 10, color: '#2A2A2F' },
+  revenueValue: { fontSize: 32, fontWeight: '800', color: '#9AC28C', marginBottom: 12 },
+  revenueUnit: { fontSize: 16, fontWeight: '400', color: '#A8A49C' },
   revenuePlanRow: { flexDirection: 'row', gap: 12, flexWrap: 'wrap', marginBottom: 4 },
-  revenuePlanItem: { backgroundColor: '#2C2C2E', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
+  revenuePlanItem: { backgroundColor: '#1E1E22', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
   revenuePlanName: { fontSize: 11, fontWeight: '700', color: '#FFFFFF' },
-  revenuePlanCount: { fontSize: 10, color: '#9CA3AF', marginTop: 1 },
-  revenueAlert: { backgroundColor: '#F59E0B12', borderRadius: 8, borderWidth: 1, borderColor: '#F59E0B40', padding: 8, marginTop: 8 },
-  revenueAlertText: { fontSize: 12, color: '#F59E0B', fontWeight: '600' },
+  revenuePlanCount: { fontSize: 10, color: '#A8A49C', marginTop: 1 },
+  revenueAlert: { backgroundColor: '#E8A36A12', borderRadius: 8, borderWidth: 1, borderColor: '#E8A36A40', padding: 8, marginTop: 8 },
+  revenueAlertText: { fontSize: 12, color: '#E8A36A', fontWeight: '600' },
 
   // Subscription split bar
-  splitCard: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 16, marginBottom: 8 },
-  splitTitle: { fontSize: 13, color: '#9CA3AF', fontWeight: '600', marginBottom: 12 },
-  splitBar: { flexDirection: 'row', height: 10, borderRadius: 5, overflow: 'hidden', backgroundColor: '#374151' },
-  splitFillPaid: { backgroundColor: '#8B5CF6' },
+  splitCard: { backgroundColor: '#17171A', borderRadius: 12, padding: 16, marginBottom: 8 },
+  splitTitle: { fontSize: 13, color: '#A8A49C', fontWeight: '600', marginBottom: 12 },
+  splitBar: { flexDirection: 'row', height: 10, borderRadius: 5, overflow: 'hidden', backgroundColor: '#2A2A2F' },
+  splitFillPaid: { backgroundColor: '#D4B07A' },
   splitFillFree: { backgroundColor: '#1F2937' },
   splitLegend: { flexDirection: 'row', gap: 20, marginTop: 10, flexWrap: 'wrap' },
   splitLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
-  splitLegendText: { fontSize: 13, color: '#9CA3AF' },
+  splitLegendText: { fontSize: 13, color: '#A8A49C' },
   splitLegendNum: { color: '#FFFFFF', fontWeight: '700' },
-  splitPct: { fontSize: 12, color: '#6B7280', marginTop: 8 },
+  splitPct: { fontSize: 12, color: '#A8A49C', marginTop: 8 },
 
-  rolesCard: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 14, marginBottom: 8 },
-  rolesTitle: { fontSize: 13, color: '#9CA3AF', fontWeight: '600', marginBottom: 12 },
-  roleRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: '#2C2C2E' },
-  roleLabel: { color: '#D1D5DB', fontSize: 14 },
-  roleCount: { color: '#6366F1', fontSize: 14, fontWeight: '700' },
+  rolesCard: { backgroundColor: '#17171A', borderRadius: 12, padding: 14, marginBottom: 8 },
+  rolesTitle: { fontSize: 13, color: '#A8A49C', fontWeight: '600', marginBottom: 12 },
+  roleRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: '#1E1E22' },
+  roleLabel: { color: '#F4F1EA', fontSize: 14 },
+  roleCount: { color: '#D4B07A', fontSize: 14, fontWeight: '700' },
 
   // Provider card
-  providerCard: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 16, marginBottom: 8 },
+  providerCard: { backgroundColor: '#17171A', borderRadius: 12, padding: 16, marginBottom: 8 },
   providerHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
-  providerDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#10B981' },
+  providerDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#9AC28C' },
   providerName: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
-  providerModel: { fontSize: 12, color: '#6B7280', marginBottom: 14 },
-  providerModelVal: { color: '#9CA3AF', fontWeight: '600' },
+  providerModel: { fontSize: 12, color: '#A8A49C', marginBottom: 14 },
+  providerModelVal: { color: '#A8A49C', fontWeight: '600' },
   providerStats: { flexDirection: 'row', gap: 0 },
-  providerStat: { flex: 1, alignItems: 'center', borderLeftWidth: 1, borderLeftColor: '#2C2C2E', paddingHorizontal: 4 },
-  providerStatLabel: { fontSize: 11, color: '#6B7280', marginBottom: 4, textAlign: 'center' },
+  providerStat: { flex: 1, alignItems: 'center', borderLeftWidth: 1, borderLeftColor: '#1E1E22', paddingHorizontal: 4 },
+  providerStatLabel: { fontSize: 11, color: '#A8A49C', marginBottom: 4, textAlign: 'center' },
   providerStatValue: { fontSize: 18, fontWeight: '700', color: '#FFFFFF' },
 
   // Memory / server
-  memCard: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 16, marginBottom: 8 },
-  memTitle: { fontSize: 12, color: '#9CA3AF', fontWeight: '600', marginBottom: 8 },
-  memBar: { height: 8, backgroundColor: '#2C2C2E', borderRadius: 4, overflow: 'hidden' },
+  memCard: { backgroundColor: '#17171A', borderRadius: 12, padding: 16, marginBottom: 8 },
+  memTitle: { fontSize: 12, color: '#A8A49C', fontWeight: '600', marginBottom: 8 },
+  memBar: { height: 8, backgroundColor: '#1E1E22', borderRadius: 4, overflow: 'hidden' },
   memFill: { height: '100%', borderRadius: 4 },
-  memLabel: { fontSize: 11, color: '#6B7280', marginTop: 5 },
+  memLabel: { fontSize: 11, color: '#A8A49C', marginTop: 5 },
   serverInfoRow: { flexDirection: 'row', gap: 12, marginTop: 12, flexWrap: 'wrap' },
-  serverInfoItem: { fontSize: 11, color: '#4B5563', backgroundColor: '#2C2C2E', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  serverInfoItem: { fontSize: 11, color: '#2A2A2F', backgroundColor: '#1E1E22', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
 
-  demoCard: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 16, marginBottom: 8, borderWidth: 1, borderColor: '#2C2C2E' },
-  demoSubtitle: { fontSize: 11, fontWeight: '700', color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
+  demoCard: { backgroundColor: '#17171A', borderRadius: 12, padding: 16, marginBottom: 8, borderWidth: 1, borderColor: '#1E1E22' },
+  demoSubtitle: { fontSize: 11, fontWeight: '700', color: '#A8A49C', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
   demoRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
-  demoLabel: { fontSize: 12, color: '#9CA3AF', width: 110 },
-  demoBarWrap: { flex: 1, height: 6, backgroundColor: '#2C2C2E', borderRadius: 3, overflow: 'hidden' },
-  demoBar: { height: '100%', backgroundColor: '#6366F1', borderRadius: 3 },
+  demoLabel: { fontSize: 12, color: '#A8A49C', width: 110 },
+  demoBarWrap: { flex: 1, height: 6, backgroundColor: '#1E1E22', borderRadius: 3, overflow: 'hidden' },
+  demoBar: { height: '100%', backgroundColor: '#D4B07A', borderRadius: 3 },
   demoCount: { fontSize: 12, fontWeight: '700', color: '#FFFFFF', width: 28, textAlign: 'right' },
-  genderChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#2C2C2E', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8 },
-  genderIcon: { fontSize: 16, color: '#9CA3AF' },
-  genderLabel: { fontSize: 12, color: '#9CA3AF' },
+  genderChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#1E1E22', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8 },
+  genderIcon: { fontSize: 16, color: '#A8A49C' },
+  genderLabel: { fontSize: 12, color: '#A8A49C' },
   genderCount: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
 });
