@@ -42,6 +42,8 @@ const ALLOWLIST = new Set([
   '__tests__/designPalette.test.ts',
   '__tests__/designColorTokenValidity.test.ts',
   '__tests__/designPaletteRegression.test.ts',
+  // Lists the banned hexes in order to assert the admin screens contain none.
+  '__tests__/adminPaletteIntegrity.test.ts',
 ]);
 
 /** Per-file caps (upper bound — new code can't push these higher).

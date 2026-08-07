@@ -299,9 +299,15 @@ export default function AdminSupportScreen() {
           {Object.entries(metrics.categoryBreakdown)
             .sort((a, b) => b[1] - a[1])
             .map(([cat, count]) => {
+              // Six categories need six distinguishable colours. The palette
+              // migration mapped the old indigo and purple both to gold, and
+              // the old red and orange both to terracotta, so four of these
+              // collapsed into two — the breakdown chips stopped telling
+              // categories apart. Deep gold is a Direction A shade, not a new
+              // hue, so the family still holds.
               const CAT_COLORS: Record<string, string> = {
-                billing: '#E8A36A', technical: '#E07A6B', feature_request: '#D4B07A',
-                account: '#D4B07A', bug: '#E07A6B', other: '#A8A49C',
+                billing: '#D4B07A', technical: '#E8A36A', bug: '#E07A6B',
+                feature_request: '#9AC28C', account: '#B8945F', other: '#A8A49C',
               };
               const color = CAT_COLORS[cat] ?? '#A8A49C';
               return (

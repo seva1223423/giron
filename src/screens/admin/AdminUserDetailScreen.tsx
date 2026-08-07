@@ -462,7 +462,7 @@ export default function AdminUserDetailScreen() {
           )}
           {/* Email verification badge + quick action */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
-            <Text style={{ fontSize: 11, color: user.emailVerified ? '#34C759' : '#E8A36A', fontWeight: '600' }}>
+            <Text style={{ fontSize: 11, color: user.emailVerified ? '#9AC28C' : '#E8A36A', fontWeight: '600' }}>
               {user.emailVerified ? '✓ Email подтверждён' : '⚠ Email не подтверждён'}
             </Text>
             {!user.emailVerified && (
@@ -476,9 +476,9 @@ export default function AdminUserDetailScreen() {
                   } catch { Alert.alert('Ошибка', 'Не удалось верифицировать email'); }
                   finally { setBusy(false); }
                 }}
-                style={{ paddingHorizontal: 7, paddingVertical: 2, borderRadius: 5, backgroundColor: '#34C75920', borderWidth: 1, borderColor: '#34C75960' }}
+                style={{ paddingHorizontal: 7, paddingVertical: 2, borderRadius: 5, backgroundColor: '#9AC28C20', borderWidth: 1, borderColor: '#9AC28C60' }}
               >
-                <Text style={{ fontSize: 10, color: '#34C759', fontWeight: '700' }}>Верифицировать</Text>
+                <Text style={{ fontSize: 10, color: '#9AC28C', fontWeight: '700' }}>Верифицировать</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -668,7 +668,9 @@ export default function AdminUserDetailScreen() {
         user.chatMessages?.forEach((m) => events.push({ date: m.createdAt, type: 'ai', label: m.content }));
         events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         const TYPE_ICON = { workout: '🏋️', ticket: '🎧', ai: '🤖' };
-        const TYPE_COLOR = { workout: '#E8A36A', ticket: '#D4B07A', ai: '#D4B07A' };
+        // ticket and ai were indigo and purple; the palette migration sent
+        // both to gold and the timeline legend stopped separating them.
+        const TYPE_COLOR = { workout: '#E8A36A', ticket: '#D4B07A', ai: '#9AC28C' };
         return (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Последняя активность</Text>
@@ -684,7 +686,7 @@ export default function AdminUserDetailScreen() {
                   <Text style={{ fontSize: 10 }}>{TYPE_ICON[e.type]}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.timelineLabel, e.type === 'ticket' && { color: '#A5B4FC' }]} numberOfLines={1}>{e.label}</Text>
+                  <Text style={[styles.timelineLabel, e.type === 'ticket' && { color: '#D4B07A' }]} numberOfLines={1}>{e.label}</Text>
                   {e.sub && <Text style={styles.timelineSub}>{e.sub}</Text>}
                 </View>
                 <Text style={styles.timelineDate}>
@@ -939,7 +941,7 @@ export default function AdminUserDetailScreen() {
               onPress={() => navigation.navigate('AdminTicketScreen', { ticketId: t.id })}
               activeOpacity={0.7}
             >
-              <Text style={[styles.listMain, { color: '#A5B4FC' }]} numberOfLines={1}>{t.subject}</Text>
+              <Text style={[styles.listMain, { color: '#D4B07A' }]} numberOfLines={1}>{t.subject}</Text>
               <Text style={styles.listMeta}>{t.status} · {new Date(t.createdAt).toLocaleDateString('ru-RU')} →</Text>
             </TouchableOpacity>
           ))}
@@ -1056,8 +1058,8 @@ export default function AdminUserDetailScreen() {
           habit: '#9AC28C',
           injury: '#E07A6B',
           allergy: '#E8A36A',
-          schedule: '#3B82F6',
-          personality: '#EC4899',
+          schedule: '#B8945F',
+          personality: '#6E6A63',
         };
         const grouped: Record<string, typeof user.aiMemories> = {};
         for (const m of user.aiMemories!) {
@@ -1169,8 +1171,8 @@ export default function AdminUserDetailScreen() {
           <Text style={{ fontSize: 12, color: '#A8A49C' }}>Нет активных сессий</Text>
         ) : (
           activeSessions.map((s) => (
-            <View key={s.id} style={{ paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' }}>
-              <Text style={{ fontSize: 13, fontWeight: '600', color: '#111827' }}>
+            <View key={s.id} style={{ paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#F4F1EA' }}>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: '#17171A' }}>
                 {s.userAgent ? (s.userAgent.includes('iPhone') ? 'iPhone' : s.userAgent.includes('Android') ? 'Android' : s.userAgent.slice(0, 30)) : 'Неизвестное устройство'}
               </Text>
               <Text style={{ fontSize: 11, color: '#A8A49C' }}>
@@ -1250,10 +1252,10 @@ export default function AdminUserDetailScreen() {
           }}
         >
           <View>
-            <Text style={[styles.cardTitle, { marginBottom: 2, color: '#FF9F0A' }]}>Отключить 2FA</Text>
+            <Text style={[styles.cardTitle, { marginBottom: 2, color: '#E8A36A' }]}>Отключить 2FA</Text>
             <Text style={{ fontSize: 12, color: '#A8A49C' }}>Для восстановления доступа пользователя</Text>
           </View>
-          <Text style={{ color: '#FF9F0A', fontSize: 20 }}>›</Text>
+          <Text style={{ color: '#E8A36A', fontSize: 20 }}>›</Text>
         </TouchableOpacity>
       )}
 
@@ -1400,7 +1402,7 @@ const styles = StyleSheet.create({
   editNoteBtnText: { fontSize: 11, color: '#A8A49C', fontWeight: '600' },
   noteInput: {
     backgroundColor: '#0E0E0F', borderRadius: 8, padding: 12,
-    fontSize: 14, color: '#FFFFFF', minHeight: 80, borderWidth: 1, borderColor: '#3C3C3E',
+    fontSize: 14, color: '#FFFFFF', minHeight: 80, borderWidth: 1, borderColor: '#2A2A2F',
   },
   noteText: { fontSize: 14, color: '#F4F1EA', lineHeight: 20, fontStyle: 'italic' },
   notePlaceholder: { fontSize: 13, color: '#2A2A2F', fontStyle: 'italic' },
@@ -1418,7 +1420,7 @@ const styles = StyleSheet.create({
     borderColor: '#E07A6B50', padding: 12, alignItems: 'center',
   },
   deleteBtnText: { color: '#E07A6B', fontSize: 14, fontWeight: '700' },
-  deleteBtnSub: { color: '#EF444060', fontSize: 11, marginTop: 2 },
+  deleteBtnSub: { color: '#E07A6B60', fontSize: 11, marginTop: 2 },
 
   historyRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#1E1E22', gap: 8 },
   historyDetails: { fontSize: 13, color: '#F4F1EA', marginBottom: 2 },
@@ -1429,7 +1431,7 @@ const styles = StyleSheet.create({
   heatmapCol: { flexDirection: 'column', gap: 3 },
   heatmapCell: { width: 14, height: 14, borderRadius: 3, backgroundColor: '#1E1E22' },
   heatmapCellActive: { backgroundColor: '#D4B07A' },
-  heatmapCellToday: { borderWidth: 1, borderColor: '#A5B4FC' },
+  heatmapCellToday: { borderWidth: 1, borderColor: '#D4B07A' },
   heatmapLegend: { fontSize: 11, color: '#A8A49C', marginTop: 4 },
 
   // Contextual alerts
@@ -1484,11 +1486,11 @@ const styles = StyleSheet.create({
   msgHint: { fontSize: 12, color: '#A8A49C', marginBottom: 12 },
   msgSubjectInput: {
     backgroundColor: '#1E1E22', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10,
-    fontSize: 14, color: '#FFFFFF', marginBottom: 10, borderWidth: 1, borderColor: '#3C3C3E',
+    fontSize: 14, color: '#FFFFFF', marginBottom: 10, borderWidth: 1, borderColor: '#2A2A2F',
   },
   msgBodyInput: {
     backgroundColor: '#1E1E22', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10,
-    fontSize: 14, color: '#FFFFFF', height: 120, marginBottom: 16, borderWidth: 1, borderColor: '#3C3C3E',
+    fontSize: 14, color: '#FFFFFF', height: 120, marginBottom: 16, borderWidth: 1, borderColor: '#2A2A2F',
   },
   msgSendBtn: { backgroundColor: '#D4B07A', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
   msgSendBtnText: { fontSize: 15, fontWeight: '700', color: '#17171A' },

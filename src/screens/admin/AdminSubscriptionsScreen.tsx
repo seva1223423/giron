@@ -438,7 +438,7 @@ const styles = StyleSheet.create({
   planBtnText: { fontSize: 13, fontWeight: '700', color: '#A8A49C' },
   toggleBtn: {
     paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, backgroundColor: '#1E1E22',
-    borderWidth: 1, borderColor: '#3C3C3E', marginBottom: 14, alignItems: 'center',
+    borderWidth: 1, borderColor: '#2A2A2F', marginBottom: 14, alignItems: 'center',
   },
   toggleBtnText: { fontSize: 14, color: '#A8A49C', fontWeight: '600' },
   broadcastBtn: { backgroundColor: '#D4B07A', borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 4 },

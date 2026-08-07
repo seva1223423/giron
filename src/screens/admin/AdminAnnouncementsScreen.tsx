@@ -375,7 +375,7 @@ const styles = StyleSheet.create({
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   modalTitle: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
   fieldLabel: { fontSize: 11, color: '#A8A49C', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, marginTop: 12 },
-  fieldInput: { backgroundColor: '#0E0E0F', borderRadius: 8, padding: 12, fontSize: 14, color: '#FFFFFF', borderWidth: 1, borderColor: '#3C3C3E' },
+  fieldInput: { backgroundColor: '#0E0E0F', borderRadius: 8, padding: 12, fontSize: 14, color: '#FFFFFF', borderWidth: 1, borderColor: '#2A2A2F' },
   typeRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
   typeBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 8, borderWidth: 1, borderColor: '#1E1E22', paddingHorizontal: 10, paddingVertical: 6, backgroundColor: '#0E0E0F' },
   typeBtnText: { fontSize: 12, color: '#A8A49C', fontWeight: '600' },

@@ -312,13 +312,13 @@ export default function AdminAnalyticsScreen() {
 
       <View style={styles.chartCard}>
         <Text style={styles.chartTitle}>ИИ-запросы</Text>
-        <MiniBarChart data={ai} color="#D4B07A" label="сообщений пользователей" />
+        <MiniBarChart data={ai} color="#9AC28C" label="сообщений пользователей" />
       </View>
 
       {cardio.some((v) => v > 0) && (
         <View style={styles.chartCard}>
           <Text style={styles.chartTitle}>Кардио-сессии</Text>
-          <MiniBarChart data={cardio} color="#9AC28C" label="сессий" />
+          <MiniBarChart data={cardio} color="#E07A6B" label="сессий" />
         </View>
       )}
 
@@ -569,7 +569,7 @@ export default function AdminAnalyticsScreen() {
             <Text style={[styles.chartSub, { color: '#9AC28C', fontWeight: '700' }]}>+{subTimeline.totalNew} за период</Text>
           </View>
           <Text style={styles.chartSub}>Ежедневные новые оплаченные подписки по планам</Text>
-          <MiniBarChart data={subTimeline.timeline.map((t) => t.total)} color="#9AC28C" label="всего новых" />
+          <MiniBarChart data={subTimeline.timeline.map((t) => t.total)} color="#B8945F" label="всего новых" />
           <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
             {(['pro', 'trainer', 'club'] as const).map((plan) => {
               const total = subTimeline.timeline.reduce((sum, t) => sum + t[plan], 0);

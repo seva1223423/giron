@@ -750,7 +750,7 @@ const styles = StyleSheet.create({
   arrow: { fontSize: 20, color: '#2A2A2F' },
   planBadge: { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
   planText: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase' },
-  rowBanned: { borderColor: '#E07A6B40', backgroundColor: '#1A0A0A' },
+  rowBanned: { borderColor: '#E07A6B40', backgroundColor: '#17171A' },
   rowChurn: { borderColor: '#E8A36A40' },
   bannedBadge: { backgroundColor: '#E07A6B22', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1, borderWidth: 1, borderColor: '#E07A6B50' },
   bannedText: { fontSize: 9, fontWeight: '800', color: '#E07A6B', letterSpacing: 0.5 },
@@ -781,7 +781,7 @@ const styles = StyleSheet.create({
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   modalTitle: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
   modalHint: { fontSize: 12, color: '#A8A49C', marginBottom: 12 },
-  modalInput: { backgroundColor: '#1E1E22', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: '#FFFFFF', marginBottom: 10, borderWidth: 1, borderColor: '#3C3C3E' },
+  modalInput: { backgroundColor: '#1E1E22', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: '#FFFFFF', marginBottom: 10, borderWidth: 1, borderColor: '#2A2A2F' },
   modalSendBtn: { backgroundColor: '#D4B07A', borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 4 },
   modalSendBtnText: { fontSize: 15, fontWeight: '700', color: '#17171A' },
 });

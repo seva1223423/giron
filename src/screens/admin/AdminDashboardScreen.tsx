@@ -877,10 +877,13 @@ export default function AdminDashboardScreen() {
           <View style={styles.feedCard}>
             {activityFeed.slice(0, 8).map((ev) => {
               const TYPE_META: Record<string, { icon: string; color: string }> = {
+                // signup and ai were gold and purple before the palette
+                // migration sent both to gold, which made the feed a single
+                // colour for two different kinds of event.
                 workout: { icon: '💪', color: '#E8A36A' },
                 signup:  { icon: '🆕', color: '#D4B07A' },
-                ai:      { icon: '🤖', color: '#D4B07A' },
-                cardio:  { icon: '🏃', color: '#9AC28C' },
+                ai:      { icon: '🤖', color: '#9AC28C' },
+                cardio:  { icon: '🏃', color: '#E07A6B' },
               };
               const meta = TYPE_META[ev.type] ?? { icon: '•', color: '#A8A49C' };
               const timeAgo = (() => {
@@ -937,9 +940,9 @@ export default function AdminDashboardScreen() {
               [
                 { label: 'Регистрации', d: stats.todayVsYesterday.signups, color: '#D4B07A' },
                 { label: 'Тренировки', d: stats.todayVsYesterday.workouts, color: '#E8A36A' },
-                { label: 'ИИ-сообщ.', d: stats.todayVsYesterday.ai, color: '#D4B07A' },
+                { label: 'ИИ-сообщ.', d: stats.todayVsYesterday.ai, color: '#E07A6B' },
                 { label: 'Питание', d: stats.todayVsYesterday.meals, color: '#9AC28C' },
-                { label: 'Кардио', d: stats.todayVsYesterday.cardio, color: '#06B6D4' },
+                { label: 'Кардио', d: stats.todayVsYesterday.cardio, color: '#B8945F' },
               ] as Array<{ label: string; d: { today: number; yesterday: number }; color: string }>
             ).map(({ label, d, color }) => {
               const delta = d.today - d.yesterday;
@@ -1371,7 +1374,7 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   headerTitle: { fontSize: 22, fontWeight: '800', color: '#FFFFFF', letterSpacing: -0.5 },
   headerSub: { fontSize: 10, color: '#2A2A2F' },
-  reportBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#1C1C2E', borderWidth: 1, borderColor: '#2D2D3A', alignItems: 'center', justifyContent: 'center' },
+  reportBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#17171A', borderWidth: 1, borderColor: '#2A2A2F', alignItems: 'center', justifyContent: 'center' },
   reportBtnText: { fontSize: 16 },
 
   searchModal: { flex: 1, backgroundColor: '#0E0E0F', paddingTop: 56 },
@@ -1404,7 +1407,7 @@ const styles = StyleSheet.create({
   recentTitle: { fontSize: 11, fontWeight: '700', color: '#A8A49C', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 },
   recentChip: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#17171A', borderRadius: 10, padding: 8, borderWidth: 1, borderColor: '#1E1E22', maxWidth: 160 },
   recentAvatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#D4B07A33', borderWidth: 1, borderColor: '#D4B07A', justifyContent: 'center', alignItems: 'center' },
-  recentAvatarText: { fontSize: 12, fontWeight: '700', color: '#A5B4FC' },
+  recentAvatarText: { fontSize: 12, fontWeight: '700', color: '#D4B07A' },
   recentName: { fontSize: 12, fontWeight: '600', color: '#FFFFFF', maxWidth: 110 },
   recentEmail: { fontSize: 10, color: '#A8A49C', maxWidth: 110 },
 
@@ -1447,17 +1450,17 @@ const styles = StyleSheet.create({
   meChipWarn: { backgroundColor: '#E8A36A15', borderColor: '#E8A36A40' },
   meChipBad: { backgroundColor: '#E07A6B15', borderColor: '#E07A6B40' },
   meChipNeutral: { backgroundColor: '#A8A49C15', borderColor: '#A8A49C40' },
-  meChipText: { fontSize: 11, fontWeight: '600', color: '#E5E7EB' },
+  meChipText: { fontSize: 11, fontWeight: '600', color: '#F4F1EA' },
   meStatRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 10 },
   meStat: { minWidth: '22%' },
   meStatLabel: { fontSize: 9, color: '#A8A49C', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
-  meStatValue: { fontSize: 14, color: '#E5E7EB', fontWeight: '700' },
+  meStatValue: { fontSize: 14, color: '#F4F1EA', fontWeight: '700' },
   meRow: { fontSize: 11, color: '#A8A49C', marginTop: 2 },
   meTestBtn: { marginTop: 12, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: '#D4B07A40', backgroundColor: '#D4B07A10', alignItems: 'center' },
   meTestBtnText: { fontSize: 12, fontWeight: '600', color: '#D4B07A' },
   cronRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 },
   cronDot: { width: 8, height: 8, borderRadius: 4 },
-  cronName: { flex: 1, fontSize: 12, color: '#E5E7EB', fontWeight: '600' },
+  cronName: { flex: 1, fontSize: 12, color: '#F4F1EA', fontWeight: '600' },
   cronAge: { fontSize: 11, color: '#A8A49C' },
   cronCounts: { fontSize: 10, color: '#A8A49C', minWidth: 60, textAlign: 'right' },
 
@@ -1529,7 +1532,7 @@ const styles = StyleSheet.create({
   splitTitle: { fontSize: 13, color: '#A8A49C', fontWeight: '600', marginBottom: 12 },
   splitBar: { flexDirection: 'row', height: 10, borderRadius: 5, overflow: 'hidden', backgroundColor: '#2A2A2F' },
   splitFillPaid: { backgroundColor: '#D4B07A' },
-  splitFillFree: { backgroundColor: '#1F2937' },
+  splitFillFree: { backgroundColor: '#17171A' },
   splitLegend: { flexDirection: 'row', gap: 20, marginTop: 10, flexWrap: 'wrap' },
   splitLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
