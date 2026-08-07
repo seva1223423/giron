@@ -24,10 +24,10 @@ const STATUS_TABS: { value: TicketStatus | ''; label: string }[] = [
 ];
 const PRIORITY_TABS: { value: TicketPriority | ''; label: string; color: string }[] = [
   { value: '', label: 'Все', color: '#A8A49C' },
-  { value: 'urgent', label: '🔴 Срочно', color: '#E07A6B' },
-  { value: 'high', label: '🟠 Высокий', color: '#E8A36A' },
-  { value: 'normal', label: '🔵 Норм', color: '#D4B07A' },
-  { value: 'low', label: '⚪ Низкий', color: '#A8A49C' },
+  { value: 'urgent', label: 'Срочно', color: '#E07A6B' },
+  { value: 'high', label: 'Высокий', color: '#E8A36A' },
+  { value: 'normal', label: 'Норм', color: '#D4B07A' },
+  { value: 'low', label: 'Низкий', color: '#A8A49C' },
 ];
 const STATUS_COLOR: Record<TicketStatus, string> = {
   open: '#E07A6B', in_progress: '#E8A36A', resolved: '#9AC28C', closed: '#A8A49C',
@@ -36,7 +36,7 @@ const PRIORITY_COLOR: Record<TicketPriority, string> = {
   urgent: '#E07A6B', high: '#E8A36A', normal: '#D4B07A', low: '#A8A49C',
 };
 const PRIORITY_LABEL: Record<TicketPriority, string> = {
-  urgent: '🔴 Срочно', high: '🟠 Высокий', normal: '🔵 Норм', low: '⚪ Низкий',
+  urgent: 'Срочно', high: 'Высокий', normal: 'Норм', low: 'Низкий',
 };
 
 function formatWait(dateStr: string): { label: string; color: string } {
@@ -83,7 +83,7 @@ function TicketRow({
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           {wait && (
             <View style={[styles.waitBadge, { backgroundColor: wait.color + '22' }]}>
-              <Text style={[styles.waitText, { color: wait.color }]}>⏱ {wait.label}</Text>
+              <Text style={[styles.waitText, { color: wait.color }]}>{wait.label}</Text>
             </View>
           )}
           <View style={[styles.statusBadge, { backgroundColor: STATUS_COLOR[ticket.status] + '22' }]}>
@@ -486,7 +486,7 @@ export default function AdminSupportScreen() {
                   });
                   if (!item.assignedToId || item.assignedToId !== myId) {
                     options.push({
-                      text: '👤 Назначить себе',
+                      text: 'Назначить себе',
                       onPress: async () => {
                         try {
                           await adminService.assignTicket(item.id, myId ?? null);
@@ -497,7 +497,7 @@ export default function AdminSupportScreen() {
                   }
                 }
                 options.push({
-                  text: '☑ Выбрать',
+                  text: 'Выбрать',
                   onPress: () => { setSelectMode(true); toggleSelect(item.id); },
                 });
                 options.push({ text: 'Отмена', style: 'cancel' });
@@ -531,7 +531,7 @@ export default function AdminSupportScreen() {
                 <Text style={[styles.bulkBtnText, { color: '#E07A6B' }]}>✕ Закрыть ({selected.size})</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.bulkBtn, { borderColor: '#E8A36A60' }]} onPress={() => bulkUpdate({ priority: 'urgent' })}>
-                <Text style={[styles.bulkBtnText, { color: '#E8A36A' }]}>🔴 Urgent</Text>
+                <Text style={[styles.bulkBtnText, { color: '#E8A36A' }]}>Urgent</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.bulkCancelBtn} onPress={exitSelectMode}>
                 <Text style={styles.bulkCancelText}>Отмена</Text>

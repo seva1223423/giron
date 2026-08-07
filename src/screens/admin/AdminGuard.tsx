@@ -17,6 +17,7 @@ import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert,
 } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
+import { Icon } from '../../components';
 import { useAuthStore } from '../../store';
 
 const ADMIN_PIN_KEY = 'giron_admin_pin';
@@ -94,7 +95,7 @@ export const AdminGuard: React.FC<Props> = ({ children, requireVerified = false 
   if (!isAllowed) {
     return (
       <View style={styles.center}>
-        <Text style={styles.deny}>⛔</Text>
+        <Icon name="lock" size={34} color="#E07A6B" />
         <Text style={styles.denyTitle}>Доступ запрещён</Text>
         <Text style={styles.denySub}>Эта область доступна только администраторам.</Text>
       </View>

@@ -7,22 +7,23 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Icon } from '../../components';
 import { adminService } from '../../services/adminService';
 import { useAuthStore } from '../../store/useAuthStore';
 import type { AdminLog } from '../../types';
 
-const ACTION_META: Record<string, { color: string; icon: string; label: string }> = {
-  CHANGE_ROLE:         { color: '#D4B07A', icon: '🎭', label: 'Роль' },
-  CHANGE_SUBSCRIPTION: { color: '#E8A36A', icon: '💳', label: 'Подписка' },
-  BAN_USER:            { color: '#E07A6B', icon: '⛔', label: 'Бан' },
-  UNBAN_USER:          { color: '#9AC28C', icon: '✅', label: 'Разбан' },
-  DELETE_USER:         { color: '#E07A6B', icon: '🗑', label: 'Удаление' },
-  UPDATE_NOTE:         { color: '#A8A49C', icon: '📝', label: 'Заметка' },
-  CLOSE_TICKET:        { color: '#A8A49C', icon: '🎫', label: 'Тикет' },
-  REPLY_TICKET:        { color: '#A8A49C', icon: '💬', label: 'Ответ' },
-  EXPORT_USERS:        { color: '#9AC28C', icon: '📤', label: 'Экспорт' },
-  ASSIGN_TICKET:       { color: '#D4B07A', icon: '👤', label: 'Назначение' },
-  SEND_MESSAGE:        { color: '#D4B07A', icon: '💬', label: 'Сообщение' },
+const ACTION_META: Record<string, { color: string; icon: import('../../components/Icon').IconName; label: string }> = {
+  CHANGE_ROLE:         { color: '#D4B07A', icon: 'user' as const, label: 'Роль' },
+  CHANGE_SUBSCRIPTION: { color: '#E8A36A', icon: 'rouble' as const, label: 'Подписка' },
+  BAN_USER:            { color: '#E07A6B', icon: 'lock' as const, label: 'Бан' },
+  UNBAN_USER:          { color: '#9AC28C', icon: 'check' as const, label: 'Разбан' },
+  DELETE_USER:         { color: '#E07A6B', icon: 'more' as const, label: 'Удаление' },
+  UPDATE_NOTE:         { color: '#A8A49C', icon: 'news' as const, label: 'Заметка' },
+  CLOSE_TICKET:        { color: '#A8A49C', icon: 'message' as const, label: 'Тикет' },
+  REPLY_TICKET:        { color: '#A8A49C', icon: 'message' as const, label: 'Ответ' },
+  EXPORT_USERS:        { color: '#9AC28C', icon: 'send' as const, label: 'Экспорт' },
+  ASSIGN_TICKET:       { color: '#D4B07A', icon: 'user' as const, label: 'Назначение' },
+  SEND_MESSAGE:        { color: '#D4B07A', icon: 'message' as const, label: 'Сообщение' },
 };
 
 const ACTION_FILTERS = ['', ...Object.keys(ACTION_META)];
@@ -61,7 +62,7 @@ function LogRow({ log, onUserPress }: { log: AdminLog; onUserPress: (id: string)
     <View style={styles.row}>
       <View style={styles.rowTop}>
         <View style={[styles.iconBadge, { backgroundColor: meta.color + '22' }]}>
-          <Text style={{ fontSize: 14 }}>{meta.icon}</Text>
+          <Icon name={meta.icon} size={14} color={meta.color} />
         </View>
         <View style={{ flex: 1 }}>
           <View style={[styles.actionBadge, { backgroundColor: meta.color + '22' }]}>
@@ -198,7 +199,7 @@ export default function AdminLogsScreen() {
               style={[styles.filterChip, isActive && { backgroundColor: (m?.color ?? '#D4B07A') }]}
               onPress={() => setActionFilter(a)}
             >
-              {m && <Text style={{ fontSize: 11, marginRight: 4 }}>{m.icon}</Text>}
+              {m && <Icon name={m.icon} size={11} color={m.color} />}
               <Text style={[styles.filterText, isActive && { color: '#FFFFFF' }]}>
                 {m?.label ?? 'Все'}
               </Text>

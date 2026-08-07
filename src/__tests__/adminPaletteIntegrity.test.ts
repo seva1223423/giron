@@ -104,3 +104,21 @@ describe('admin palette integrity', () => {
     expect(new Set(colours).size).toBe(6);
   });
 });
+
+describe('no emoji in admin UI', () => {
+  test('the pictograph sweep stays at zero', () => {
+    // CLAUDE.md: 39 SVG icons, no emoji. 163 had accumulated across these
+    // files — decorating labels that already said the thing, and serving as
+    // icon slots where the Icon set was sitting unused. Typographic marks
+    // (✓ ✕ ✗ → ·) are monochrome glyphs, inherit text colour, and stay.
+    const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{26FF}\u{2B50}\u{23F0}-\u{23FA}\u{2795}\u{2705}\u{2757}\u{2696}\u{FE0F}]/u;
+    const offenders: string[] = [];
+    for (const f of files) {
+      const src = fs.readFileSync(path.join(DIR, f), 'utf8');
+      src.split('\n').forEach((line, i) => {
+        if (EMOJI.test(line)) offenders.push(`${f}:${i + 1}`);
+      });
+    }
+    expect(offenders).toEqual([]);
+  });
+});

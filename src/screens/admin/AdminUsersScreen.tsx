@@ -248,7 +248,7 @@ function UserRow({
                     return (
                       <>
                         <Text style={styles.metaDot}>·</Text>
-                        <Text style={{ fontSize: 11, color: '#E8A36A', fontWeight: '600' }}>⏰ {daysLeft}д</Text>
+                        <Text style={{ fontSize: 11, color: '#E8A36A', fontWeight: '600' }}>{daysLeft}д</Text>
                       </>
                     );
                   }
@@ -480,7 +480,7 @@ export default function AdminUsersScreen() {
           onPress={() => setBannedOnly(!bannedOnly)}
         >
           <Text style={[styles.filterText, bannedOnly && styles.filterTextActive]}>
-            {bannedOnly ? '⛔ Заблокированные' : 'Заблокированные'}
+            {bannedOnly ? '✓ Заблокированные' : 'Заблокированные'}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -488,7 +488,7 @@ export default function AdminUsersScreen() {
           onPress={() => setLockedOnly(!lockedOnly)}
         >
           <Text style={[styles.filterText, lockedOnly && styles.filterTextActive]}>
-            {lockedOnly ? '🔒 Залочены входом' : 'Залочены входом'}
+            {lockedOnly ? '✓ Залочены входом' : 'Залочены входом'}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -496,7 +496,7 @@ export default function AdminUsersScreen() {
           onPress={() => setSubExpiringSoon(!subExpiringSoon)}
         >
           <Text style={[styles.filterText, subExpiringSoon && styles.filterTextActive]}>
-            {subExpiringSoon ? '⏰ Истекает ≤7д' : 'Истекает ≤7д'}
+            {subExpiringSoon ? '✓ Истекает ≤7д' : 'Истекает ≤7д'}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -504,7 +504,7 @@ export default function AdminUsersScreen() {
           onPress={() => setRecentlyActive(!recentlyActive)}
         >
           <Text style={[styles.filterText, recentlyActive && styles.filterTextActive]}>
-            {recentlyActive ? '✅ Активны 24ч' : 'Активны 24ч'}
+            {recentlyActive ? '✓ Активны 24ч' : 'Активны 24ч'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -597,10 +597,10 @@ export default function AdminUsersScreen() {
       {selectMode && selectedIds.size > 0 && (
         <View style={styles.bulkBar}>
           <TouchableOpacity style={styles.bulkBtn} onPress={() => setShowMassMsg(true)}>
-            <Text style={styles.bulkBtnText}>💬 Написать ({selectedIds.size})</Text>
+            <Text style={styles.bulkBtnText}>Написать ({selectedIds.size})</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.bulkBtn, { borderColor: '#E8A36A60', backgroundColor: '#E8A36A10' }]} onPress={() => setShowBulkSub(true)}>
-            <Text style={[styles.bulkBtnText, { color: '#E8A36A' }]}>💳 Подписка</Text>
+            <Text style={[styles.bulkBtnText, { color: '#E8A36A' }]}>Подписка</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.bulkBtn, { borderColor: '#A8A49C60' }]} onPress={exitSelectMode}>
             <Text style={[styles.bulkBtnText, { color: '#A8A49C' }]}>Отмена</Text>

@@ -3,14 +3,15 @@ import {
   View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity,
   RefreshControl, Alert, TextInput, Modal, ScrollView,
 } from 'react-native';
+import { Icon } from '../../components';
 import { adminService } from '../../services/adminService';
 import type { Announcement, AnnouncementType } from '../../types';
 
-const TYPE_META: Record<AnnouncementType, { color: string; icon: string; label: string }> = {
-  info:        { color: '#D4B07A', icon: 'ℹ️', label: 'Инфо' },
-  warning:     { color: '#E8A36A', icon: '⚠️', label: 'Предупреждение' },
-  maintenance: { color: '#E07A6B', icon: '🔧', label: 'Тех. работы' },
-  promo:       { color: '#9AC28C', icon: '🎁', label: 'Акция' },
+const TYPE_META: Record<AnnouncementType, { color: string; icon: import('../../components/Icon').IconName; label: string }> = {
+  info:        { color: '#D4B07A', icon: 'news' as const, label: 'Инфо' },
+  warning:     { color: '#E8A36A', icon: 'bell' as const, label: 'Предупреждение' },
+  maintenance: { color: '#E07A6B', icon: 'settings' as const, label: 'Тех. работы' },
+  promo:       { color: '#9AC28C', icon: 'spark' as const, label: 'Акция' },
 };
 
 const TYPES: AnnouncementType[] = ['info', 'warning', 'maintenance', 'promo'];
@@ -30,7 +31,7 @@ function AnnouncementCard({
     <View style={[styles.card, !item.isActive && styles.cardInactive, isExpired && styles.cardExpired]}>
       <View style={styles.cardHeader}>
         <View style={[styles.typeBadge, { backgroundColor: meta.color + '22' }]}>
-          <Text style={{ fontSize: 12 }}>{meta.icon}</Text>
+          <Icon name={meta.icon} size={12} color={meta.color} />
           <Text style={[styles.typeText, { color: meta.color }]}>{meta.label}</Text>
         </View>
         <View style={styles.cardActions}>
@@ -59,10 +60,10 @@ function AnnouncementCard({
             {item.author ? ` · ${item.author.firstName}` : ''}
           </Text>
           {(item.viewCount ?? 0) > 0 && (
-            <Text style={styles.cardMeta}>👁 {item.viewCount}</Text>
+            <Text style={styles.cardMeta}>{item.viewCount} просмотров</Text>
           )}
           {item.targetRole && (
-            <Text style={[styles.cardMeta, { color: '#E8A36A' }]}>🎯 {item.targetRole}</Text>
+            <Text style={[styles.cardMeta, { color: '#E8A36A' }]}>{item.targetRole}</Text>
           )}
         </View>
         {item.endsAt && (
@@ -247,7 +248,7 @@ export default function AdminAnnouncementsScreen() {
                       style={[styles.typeBtn, formType === t && { backgroundColor: m.color + '22', borderColor: m.color }]}
                       onPress={() => setFormType(t)}
                     >
-                      <Text style={{ fontSize: 14 }}>{m.icon}</Text>
+                      <Icon name={m.icon} size={14} color={m.color} />
                       <Text style={[styles.typeBtnText, formType === t && { color: m.color }]}>{m.label}</Text>
                     </TouchableOpacity>
                   );

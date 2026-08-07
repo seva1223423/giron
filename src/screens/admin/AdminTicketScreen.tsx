@@ -60,7 +60,7 @@ function MessageBubble({ msg, myId, colors }: { msg: SupportMessage; myId?: stri
   if (msg.isInternal) {
     return (
       <View style={[styles.noteBlock, { backgroundColor: colors.warning + '0E', borderColor: colors.warning + '30' }]}>
-        <Text style={[styles.noteAuthor, { color: colors.warning }]}>📌 Заметка · {msg.author.firstName}</Text>
+        <Text style={[styles.noteAuthor, { color: colors.warning }]}>Заметка · {msg.author.firstName}</Text>
         <Text style={[styles.noteText, { color: colors.text }]}>{msg.content}</Text>
         <Text style={[styles.noteTime, { color: colors.warning + '80' }]}>
           {new Date(msg.createdAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
@@ -77,7 +77,7 @@ function MessageBubble({ msg, myId, colors }: { msg: SupportMessage; myId?: stri
     ]}>
       {!isMe && (
         <Text style={[styles.bubbleAuthor, { color: colors.textSecondary }]}>
-          {msg.isStaff ? `🎧 ${msg.author.firstName}` : `👤 ${msg.author.firstName}`}
+          {msg.isStaff ? `Поддержка · ${msg.author.firstName}` : msg.author.firstName}
         </Text>
       )}
       <Text style={[styles.bubbleText, { color: isMe ? colors.textInverse : colors.text }]}>{msg.content}</Text>
@@ -347,7 +347,7 @@ export default function AdminTicketScreen() {
         <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
           <View style={[styles.modalSheet, { backgroundColor: colors.surface }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>🎁 Выдать подписку</Text>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Выдать подписку</Text>
               <TouchableOpacity onPress={() => setShowSubModal(false)}>
                 <Text style={{ color: colors.textSecondary, fontSize: 16 }}>✕</Text>
               </TouchableOpacity>
@@ -457,7 +457,7 @@ export default function AdminTicketScreen() {
       {/* Ticket meta */}
       <ScrollView style={[styles.meta, { backgroundColor: colors.surface, borderBottomColor: colors.border }]} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.metaContent}>
         <TouchableOpacity onPress={() => ticket.user && navigation.navigate('AdminUserDetailScreen', { userId: ticket.user.id })}>
-          <Text style={[styles.metaUser, { color: colors.textSecondary, textDecorationLine: 'underline' }]}>👤 {ticket.user?.firstName} {ticket.user?.lastName}</Text>
+          <Text style={[styles.metaUser, { color: colors.textSecondary, textDecorationLine: 'underline' }]}>{ticket.user?.firstName} {ticket.user?.lastName}</Text>
         </TouchableOpacity>
         <Text style={[styles.metaDot, { color: colors.border }]}>·</Text>
         {STATUS_OPTIONS.map((s) => {
@@ -544,10 +544,10 @@ export default function AdminTicketScreen() {
       {/* Action bar above input */}
       <View style={[styles.actionBar, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
         <TouchableOpacity style={[styles.actionBarBtn, { borderColor: colors.primary + '40' }]} onPress={() => setShowCanned(true)}>
-          <Text style={[styles.actionBarBtnText, { color: colors.primary }]}>💬 Шаблоны</Text>
+          <Text style={[styles.actionBarBtnText, { color: colors.primary }]}>Шаблоны</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.actionBarBtn, { borderColor: colors.success + '40' }]} onPress={() => setShowSubModal(true)}>
-          <Text style={[styles.actionBarBtnText, { color: colors.success }]}>🎁 Подписка</Text>
+          <Text style={[styles.actionBarBtnText, { color: colors.success }]}>Подписка</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[
@@ -571,7 +571,7 @@ export default function AdminTicketScreen() {
             style={[styles.actionBarBtn, { borderColor: colors.error + '40' }]}
             onPress={() => changePriority('urgent')}
           >
-            <Text style={[styles.actionBarBtnText, { color: colors.error }]}>🔴 Urgent</Text>
+            <Text style={[styles.actionBarBtnText, { color: colors.error }]}>Urgent</Text>
           </TouchableOpacity>
         )}
         {ticket.status !== 'resolved' && ticket.status !== 'closed' && (
@@ -598,7 +598,7 @@ export default function AdminTicketScreen() {
           ]}
           onPress={() => setIsNoteMode(!isNoteMode)}
         >
-          <Text style={[styles.noteModeBtnText, isNoteMode && { color: colors.warning }]}>📌</Text>
+          <Icon name="bookmark" size={16} color={isNoteMode ? colors.warning : colors.textSecondary} />
         </TouchableOpacity>
         <TextInput
           style={[

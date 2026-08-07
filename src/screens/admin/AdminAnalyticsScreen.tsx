@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
+import { Icon } from '../../components';
 import { adminService } from '../../services/adminService';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -180,26 +181,26 @@ export default function AdminAnalyticsScreen() {
   };
 
   // Auto-generated insights
-  const insights: Array<{ icon: string; text: string; color: string }> = [];
+  const insights: Array<{ icon: import('../../components/Icon').IconName; text: string; color: string }> = [];
   if (data.previous) {
     const wDiff = data.previous.workouts > 0 ? Math.round(((totalWorkoutsInPeriod - data.previous.workouts) / data.previous.workouts) * 100) : 0;
-    if (Math.abs(wDiff) >= 10) insights.push({ icon: wDiff > 0 ? '📈' : '📉', text: `Тренировки ${wDiff > 0 ? 'выросли' : 'упали'} на ${Math.abs(wDiff)}% vs предыдущий период`, color: wDiff > 0 ? '#9AC28C' : '#E07A6B' });
+    if (Math.abs(wDiff) >= 10) insights.push({ icon: 'chart' as const, text: `Тренировки ${wDiff > 0 ? 'выросли' : 'упали'} на ${Math.abs(wDiff)}% vs предыдущий период`, color: wDiff > 0 ? '#9AC28C' : '#E07A6B' });
     const sDiff = data.previous.signups > 0 ? Math.round(((totalSignups - data.previous.signups) / data.previous.signups) * 100) : 0;
-    if (Math.abs(sDiff) >= 15) insights.push({ icon: sDiff > 0 ? '🚀' : '⚠️', text: `Регистрации ${sDiff > 0 ? 'выросли' : 'упали'} на ${Math.abs(sDiff)}%`, color: sDiff > 0 ? '#9AC28C' : '#E8A36A' });
+    if (Math.abs(sDiff) >= 15) insights.push({ icon: sDiff > 0 ? 'bolt' as const : 'bell' as const, text: `Регистрации ${sDiff > 0 ? 'выросли' : 'упали'} на ${Math.abs(sDiff)}%`, color: sDiff > 0 ? '#9AC28C' : '#E8A36A' });
     const aiDiff = data.previous.ai > 0 ? Math.round(((totalAiInPeriod - data.previous.ai) / data.previous.ai) * 100) : 0;
-    if (Math.abs(aiDiff) >= 20) insights.push({ icon: aiDiff > 0 ? '🤖' : '💤', text: `ИИ-активность ${aiDiff > 0 ? 'выросла' : 'упала'} на ${Math.abs(aiDiff)}%`, color: aiDiff > 0 ? '#D4B07A' : '#A8A49C' });
+    if (Math.abs(aiDiff) >= 20) insights.push({ icon: aiDiff > 0 ? 'spark' as const : 'moon' as const, text: `ИИ-активность ${aiDiff > 0 ? 'выросла' : 'упала'} на ${Math.abs(aiDiff)}%`, color: aiDiff > 0 ? '#D4B07A' : '#A8A49C' });
   }
   // Peak day
   const peakWorkoutIdx = workouts.indexOf(Math.max(...workouts));
   if (Math.max(...workouts) > 0 && data.timeline[peakWorkoutIdx]) {
     const peakDate = new Date(String(data.timeline[peakWorkoutIdx].date).split('T')[0] + 'T00:00:00').toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short' });
-    insights.push({ icon: '🏆', text: `Пик тренировок: ${Math.max(...workouts)} за ${peakDate}`, color: '#E8A36A' });
+    insights.push({ icon: 'trophy' as const, text: `Пик тренировок: ${Math.max(...workouts)} за ${peakDate}`, color: '#E8A36A' });
   }
   // Zero workout days
   const zeroDays = workouts.filter((v) => v === 0).length;
-  if (zeroDays > data.period * 0.3) insights.push({ icon: '😴', text: `${zeroDays} дней без тренировок (${Math.round(zeroDays / data.period * 100)}% периода)`, color: '#A8A49C' });
-  if (data.funnel.conversionRate < 5) insights.push({ icon: '💰', text: `Конверсия в платных всего ${data.funnel.conversionRate}% — возможен рост`, color: '#E8A36A' });
-  if (data.funnel.retentionRate > 30) insights.push({ icon: '⭐', text: `Ретеншн ${data.funnel.retentionRate}% — хороший показатель`, color: '#9AC28C' });
+  if (zeroDays > data.period * 0.3) insights.push({ icon: 'moon' as const, text: `${zeroDays} дней без тренировок (${Math.round(zeroDays / data.period * 100)}% периода)`, color: '#A8A49C' });
+  if (data.funnel.conversionRate < 5) insights.push({ icon: 'rouble' as const, text: `Конверсия в платных всего ${data.funnel.conversionRate}% — возможен рост`, color: '#E8A36A' });
+  if (data.funnel.retentionRate > 30) insights.push({ icon: 'spark' as const, text: `Ретеншн ${data.funnel.retentionRate}% — хороший показатель`, color: '#9AC28C' });
 
   return (
     <ScrollView
@@ -234,7 +235,7 @@ export default function AdminAnalyticsScreen() {
           <Text style={styles.insightsTitle}>Ключевые наблюдения</Text>
           {insights.map((ins, i) => (
             <View key={i} style={styles.insightRow}>
-              <Text style={{ fontSize: 16 }}>{ins.icon}</Text>
+              <Icon name={ins.icon} size={15} color={ins.color} />
               <Text style={[styles.insightText, { color: ins.color }]}>{ins.text}</Text>
             </View>
           ))}
@@ -481,7 +482,7 @@ export default function AdminAnalyticsScreen() {
                   <Text style={{ fontSize: 11, fontWeight: '700', color: planColor }}>{u.plan.toUpperCase()}</Text>
                   <Text style={{ fontSize: 11, color: '#E07A6B' }}>
                     {u.daysSinceWorkout != null ? `${u.daysSinceWorkout}д` : '—'}
-                    {u.daysUntilExpiry != null && u.daysUntilExpiry < 30 ? ` · ⏰${u.daysUntilExpiry}д` : ''}
+                    {u.daysUntilExpiry != null && u.daysUntilExpiry < 30 ? ` · ${u.daysUntilExpiry}д` : ''}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -514,7 +515,7 @@ export default function AdminAnalyticsScreen() {
                 </View>
                 <Text style={[styles.tableCell, { color: planColor, fontWeight: '700', flex: 1 }]}>{u.plan.toUpperCase()}</Text>
                 <Text style={[styles.tableCell, { color: '#9AC28C', fontWeight: '700', flex: 0.8 }]}>${u.revenue}</Text>
-                <Text style={[styles.tableCell, { color: '#E8A36A', flex: 0.7 }]}>{u.workouts}🏋</Text>
+                <Text style={[styles.tableCell, { color: '#E8A36A', flex: 0.7 }]}>{u.workouts}</Text>
               </TouchableOpacity>
             );
           })}

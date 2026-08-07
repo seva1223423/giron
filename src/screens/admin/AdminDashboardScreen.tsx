@@ -9,6 +9,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { adminService, type AdminMe, type CronHealthResponse } from '../../services/adminService';
 import type { AdminStats, AdminAnalytics, AdminLog } from '../../types';
+import { Icon } from '../../components';
+import type { IconName } from '../../components/Icon';
 
 const RECENTLY_VIEWED_KEY = '@admin_recently_viewed_users';
 type RecentUser = { id: string; firstName: string; lastName?: string; email: string };
@@ -58,11 +60,11 @@ function StatCard({
 }
 
 /** System alert banner */
-function AlertBanner({ icon, message, color, onPress }: { icon: string; message: string; color: string; onPress?: () => void }) {
+function AlertBanner({ icon, message, color, onPress }: { icon: IconName; message: string; color: string; onPress?: () => void }) {
   const Wrap = onPress ? TouchableOpacity : View;
   return (
     <Wrap style={[styles.alertBanner, { borderColor: color + '50', backgroundColor: color + '10' }]} onPress={onPress} activeOpacity={0.7}>
-      <Text style={{ fontSize: 14 }}>{icon}</Text>
+      <Icon name={icon} size={14} color={color} />
       <Text style={[styles.alertText, { color }]}>{message}</Text>
       {onPress && <Text style={{ fontSize: 12, color, fontWeight: '700' }}>→</Text>}
     </Wrap>
@@ -117,7 +119,7 @@ function RevenueCard({ subscriptions, expiringSoon }: {
       </View>
       {(expiringSoon ?? 0) > 0 && (
         <View style={styles.revenueAlert}>
-          <Text style={styles.revenueAlertText}>⚠️ {expiringSoon} подписок истекает в ближайшие 7 дней</Text>
+          <Text style={styles.revenueAlertText}>{expiringSoon} подписок истекает в ближайшие 7 дней</Text>
         </View>
       )}
     </View>
@@ -372,7 +374,7 @@ export default function AdminDashboardScreen() {
                     style={styles.searchResultRow}
                     onPress={() => { setShowSearch(false); navigation.navigate('AdminTicketScreen', { ticketId: t.id }); }}
                   >
-                    <Text style={styles.searchResultType}>🎫 Тикет</Text>
+                    <Text style={styles.searchResultType}>Тикет</Text>
                     <Text style={styles.searchResultTitle} numberOfLines={1}>{t.subject}</Text>
                     <Text style={styles.searchResultMeta}>{t.user.firstName} · {t.user.email} · {t.status}</Text>
                   </TouchableOpacity>
@@ -384,7 +386,7 @@ export default function AdminDashboardScreen() {
                   style={styles.searchResultRow}
                   onPress={() => { setShowSearch(false); navigation.navigate('AdminUserDetailScreen', { userId: a.user.id }); }}
                 >
-                  <Text style={styles.searchResultType}>🤖 ИИ</Text>
+                  <Text style={styles.searchResultType}>ИИ</Text>
                   <Text style={styles.searchResultTitle} numberOfLines={2}>{a.snippet}</Text>
                   <Text style={styles.searchResultMeta}>{a.user.firstName} · {a.user.email}</Text>
                 </TouchableOpacity>
@@ -423,7 +425,7 @@ export default function AdminDashboardScreen() {
             onPress={() => setShowSearch(true)}
             activeOpacity={0.7}
           >
-            <Text style={styles.reportBtnText}>🔍</Text>
+            <Icon name="search" size={17} color="#17171A" />
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.reportBtn, sharingReport && { opacity: 0.5 }]}
@@ -431,7 +433,7 @@ export default function AdminDashboardScreen() {
             disabled={sharingReport}
             activeOpacity={0.7}
           >
-            <Text style={styles.reportBtnText}>{sharingReport ? '⏳' : '📤'}</Text>
+            <Icon name={sharingReport ? 'refresh' : 'send'} size={17} color="#17171A" />
           </TouchableOpacity>
           <View style={[styles.healthBadge, { borderColor: healthColor + '60', backgroundColor: healthColor + '15' }]}>
             <Text style={[styles.healthScore, { color: healthColor }]}>{healthScore}</Text>
@@ -442,28 +444,28 @@ export default function AdminDashboardScreen() {
 
       {/* System alerts */}
       {(stats.support.urgentTickets ?? 0) > 0 && (
-        <AlertBanner icon="🚨" color="#E07A6B" message={`${stats.support.urgentTickets} срочных тикетов требуют внимания`} />
+        <AlertBanner icon="bell" color="#E07A6B" message={`${stats.support.urgentTickets} срочных тикетов требуют внимания`} />
       )}
       {stats.support.openTickets > 5 && !((stats.support.urgentTickets ?? 0) > 0) && (
-        <AlertBanner icon="🎧" color="#E8A36A" message={`${stats.support.openTickets} открытых тикетов — нужна обработка`} />
+        <AlertBanner icon="message" color="#E8A36A" message={`${stats.support.openTickets} открытых тикетов — нужна обработка`} />
       )}
       {(stats.ai.errorsToday ?? 0) > 10 && (
-        <AlertBanner icon="⚠️" color="#E8A36A" message={`${stats.ai.errorsToday} ошибок ИИ сегодня — проверь провайдера`} />
+        <AlertBanner icon="bell" color="#E8A36A" message={`${stats.ai.errorsToday} ошибок ИИ сегодня — проверь провайдера`} />
       )}
       {stats.server.dbPingMs != null && stats.server.dbPingMs > 500 && (
-        <AlertBanner icon="🐘" color="#E07A6B" message={`DB ping ${stats.server.dbPingMs}мс — возможны проблемы с базой`} />
+        <AlertBanner icon="settings" color="#E07A6B" message={`DB ping ${stats.server.dbPingMs}мс — возможны проблемы с базой`} />
       )}
       {(stats.server.systemMemUsedPct ?? 0) > 90 && (
-        <AlertBanner icon="💾" color="#E07A6B" message={`Системная память ${stats.server.systemMemUsedPct}% — критический уровень`} />
+        <AlertBanner icon="settings" color="#E07A6B" message={`Системная память ${stats.server.systemMemUsedPct}% — критический уровень`} />
       )}
       {(stats.subsExpiringSoon ?? 0) > 0 && (
-        <AlertBanner icon="⏰" color="#E8A36A" message={`${stats.subsExpiringSoon} подписок истекают в ближайшие 7 дней`} onPress={() => navigation.navigate('AdminUsersScreen', { subExpiringSoon: true })} />
+        <AlertBanner icon="timer" color="#E8A36A" message={`${stats.subsExpiringSoon} подписок истекают в ближайшие 7 дней`} onPress={() => navigation.navigate('AdminUsersScreen', { subExpiringSoon: true })} />
       )}
       {(stats.support.overdueTickets ?? 0) > 0 && (
-        <AlertBanner icon="🕐" color="#E8A36A" message={`${stats.support.overdueTickets} тикетов без ответа более 24 часов`} onPress={() => navigation.navigate('AdminSupportScreen')} />
+        <AlertBanner icon="timer" color="#E8A36A" message={`${stats.support.overdueTickets} тикетов без ответа более 24 часов`} onPress={() => navigation.navigate('AdminSupportScreen')} />
       )}
       {(stats.churnRiskUsers ?? 0) > 0 && (
-        <AlertBanner icon="⚡" color="#D4B07A" message={`${stats.churnRiskUsers} платных пользователей не тренируются 14+ дней`} onPress={() => navigation.navigate('AdminUsersScreen', { dormant: true })} />
+        <AlertBanner icon="bolt" color="#D4B07A" message={`${stats.churnRiskUsers} платных пользователей не тренируются 14+ дней`} onPress={() => navigation.navigate('AdminUsersScreen', { dormant: true })} />
       )}
 
       {/* Quick nav. "5 ключевых чисел" placed first — it's the screen the
@@ -471,13 +473,13 @@ export default function AdminDashboardScreen() {
           are tactical (users, support, logs); this one is strategic. */}
       <View style={styles.navGrid}>
         {[
-          { label: '5 ключевых чисел', icon: '⭐', screen: 'AdminMetricsKeyScreen' },
-          { label: 'Пользователи', icon: '👥', screen: 'AdminUsersScreen' },
-          { label: 'Поддержка', icon: '🎧', screen: 'AdminSupportScreen' },
-          { label: 'Аналитика', icon: '📈', screen: 'AdminAnalyticsScreen' },
-          { label: 'Логи', icon: '📋', screen: 'AdminLogsScreen' },
-          { label: 'Объявления', icon: '📣', screen: 'AdminAnnouncementsScreen' },
-          { label: 'Подписки', icon: '💳', screen: 'AdminSubscriptionsScreen' },
+          { label: '5 ключевых чисел', icon: 'spark' as const, screen: 'AdminMetricsKeyScreen' },
+          { label: 'Пользователи', icon: 'user' as const, screen: 'AdminUsersScreen' },
+          { label: 'Поддержка', icon: 'message' as const, screen: 'AdminSupportScreen' },
+          { label: 'Аналитика', icon: 'chart' as const, screen: 'AdminAnalyticsScreen' },
+          { label: 'Логи', icon: 'news' as const, screen: 'AdminLogsScreen' },
+          { label: 'Объявления', icon: 'bell' as const, screen: 'AdminAnnouncementsScreen' },
+          { label: 'Подписки', icon: 'rouble' as const, screen: 'AdminSubscriptionsScreen' },
         ].map((b) => (
           <TouchableOpacity
             key={b.screen}
@@ -485,7 +487,7 @@ export default function AdminDashboardScreen() {
             onPress={() => navigation.navigate(b.screen)}
             activeOpacity={0.7}
           >
-            <Text style={styles.navBtnIcon}>{b.icon}</Text>
+            <Icon name={b.icon} size={18} color="#D4B07A" />
             <Text style={styles.navBtnText}>{b.label}</Text>
           </TouchableOpacity>
         ))}
@@ -611,23 +613,23 @@ export default function AdminDashboardScreen() {
                 {me.activation.activated
                   ? '✓ Активирован'
                   : me.activation.pushFired || me.activation.emailFired
-                    ? '⚠ Напоминание отправлено'
+                    ? 'Напоминание отправлено'
                     : '✗ Не активирован'}
               </Text>
             </View>
             <View style={[styles.meChip, me.pushTokens.count > 0 ? styles.meChipOk : styles.meChipWarn]}>
               <Text style={styles.meChipText}>
-                {me.pushTokens.count > 0 ? `🔔 ${me.pushTokens.count} push` : '🔕 Без push'}
+                {me.pushTokens.count > 0 ? `${me.pushTokens.count} push` : 'Без push'}
               </Text>
             </View>
             <View style={[styles.meChip, me.subscription.plan !== 'free' ? styles.meChipOk : styles.meChipNeutral]}>
               <Text style={styles.meChipText}>
-                💳 {me.subscription.plan.toUpperCase()}
+                {me.subscription.plan.toUpperCase()}
               </Text>
             </View>
             <View style={[styles.meChip, me.user.totpEnabled ? styles.meChipOk : styles.meChipWarn]}>
               <Text style={styles.meChipText}>
-                {me.user.totpEnabled ? '🔒 2FA' : '🔓 Без 2FA'}
+                {me.user.totpEnabled ? '2FA' : 'Без 2FA'}
               </Text>
             </View>
             {/* Onboarding completion status — null on legacy accounts.
@@ -709,7 +711,7 @@ export default function AdminDashboardScreen() {
             }}
             activeOpacity={0.7}
           >
-            <Text style={styles.meTestBtnText}>📤 Отправить тестовое уведомление</Text>
+            <Text style={styles.meTestBtnText}>Отправить тестовое уведомление</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -817,16 +819,11 @@ export default function AdminDashboardScreen() {
           </View>
           <View style={styles.activityCard}>
             {recentLogs.map((log, idx) => {
-              const ACTION_ICONS: Record<string, string> = {
-                CHANGE_ROLE: '🎭', CHANGE_SUBSCRIPTION: '💳', BAN_USER: '⛔',
-                UNBAN_USER: '✅', DELETE_USER: '🗑', UPDATE_NOTE: '📝',
-                CLOSE_TICKET: '🎫', REPLY_TICKET: '💬', EXPORT_USERS: '📤',
-              };
-              const icon = ACTION_ICONS[log.action] ?? '•';
+              // The emoji-per-action map is gone: the bold action label and
+              // the row itself carry the meaning; a picture repeated it.
               const isLast = idx === recentLogs.length - 1;
               return (
                 <View key={log.id} style={[styles.activityRow, !isLast && styles.activityRowBorder]}>
-                  <Text style={styles.activityIcon}>{icon}</Text>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.activityAction}>{log.action}</Text>
                     <Text style={styles.activityAdmin} numberOfLines={1}>
@@ -876,16 +873,16 @@ export default function AdminDashboardScreen() {
           <SectionTitle title="Лента активности" />
           <View style={styles.feedCard}>
             {activityFeed.slice(0, 8).map((ev) => {
-              const TYPE_META: Record<string, { icon: string; color: string }> = {
+              const TYPE_META: Record<string, { icon: IconName; color: string }> = {
                 // signup and ai were gold and purple before the palette
                 // migration sent both to gold, which made the feed a single
                 // colour for two different kinds of event.
-                workout: { icon: '💪', color: '#E8A36A' },
-                signup:  { icon: '🆕', color: '#D4B07A' },
-                ai:      { icon: '🤖', color: '#9AC28C' },
-                cardio:  { icon: '🏃', color: '#E07A6B' },
+                workout: { icon: 'dumbbell' as const, color: '#E8A36A' },
+                signup:  { icon: 'user' as const, color: '#D4B07A' },
+                ai:      { icon: 'spark' as const, color: '#9AC28C' },
+                cardio:  { icon: 'heart' as const, color: '#E07A6B' },
               };
-              const meta = TYPE_META[ev.type] ?? { icon: '•', color: '#A8A49C' };
+              const meta = TYPE_META[ev.type] ?? { icon: 'more' as const, color: '#A8A49C' };
               const timeAgo = (() => {
                 const ms = Date.now() - new Date(ev.date).getTime();
                 const m = Math.floor(ms / 60000);
@@ -903,7 +900,7 @@ export default function AdminDashboardScreen() {
                   activeOpacity={ev.userId ? 0.7 : 1}
                 >
                   <View style={[styles.feedIcon, { backgroundColor: meta.color + '20' }]}>
-                    <Text style={{ fontSize: 12 }}>{meta.icon}</Text>
+                    <Icon name={meta.icon} size={13} color={meta.color} />
                   </View>
                   <Text style={styles.feedLabel} numberOfLines={1}>{ev.label}</Text>
                   <Text style={styles.feedTime}>{timeAgo}</Text>
@@ -1342,7 +1339,7 @@ export default function AdminDashboardScreen() {
                       const male = g === 'male';
                       return (
                       <View key={gender} style={styles.genderChip}>
-                        <Text style={styles.genderIcon}>{male ? '♂' : '♀'}</Text>
+                        <Text style={styles.genderIcon}>{male ? 'М' : 'Ж'}</Text>
                         <Text style={styles.genderLabel}>{male ? 'Муж.' : 'Жен.'}</Text>
                         <Text style={styles.genderCount}>{count}</Text>
                       </View>

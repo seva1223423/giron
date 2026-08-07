@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Icon } from '../../components';
 import { adminService } from '../../services/adminService';
 import { useAdminStepUp, StepUpCancelledError } from './useAdminStepUp';
 
@@ -22,7 +23,7 @@ const STATUS_COLOR: Record<string, string> = { active: '#9AC28C', cancelled: '#E
 const FILTER_TABS = [
   { value: '', label: 'Все' },
   { value: 'active', label: 'Активные' },
-  { value: 'expiringSoon', label: '⏰ Скоро истекают' },
+  { value: 'expiringSoon', label: 'Скоро истекают' },
   { value: 'cancelled', label: 'Отменены' },
   { value: 'expired', label: 'Истекли' },
 ];
@@ -65,7 +66,7 @@ function SubRow({ sub, onPress, onLongPress }: { sub: Sub; onPress: () => void; 
         <View style={{ flex: 1 }}>
           <Text style={styles.userName} numberOfLines={1}>
             {sub.user.firstName} {sub.user.lastName ?? ''}
-            {sub.user.isBanned && <Text style={{ color: '#E07A6B' }}> 🔒</Text>}
+            {sub.user.isBanned && <Text style={{ color: '#E07A6B' }}> · бан</Text>}
           </Text>
           <Text style={styles.userEmail} numberOfLines={1}>{sub.user.email}</Text>
         </View>
@@ -211,8 +212,8 @@ export default function AdminSubscriptionsScreen() {
       `Статус: ${sub.status}\nИстекает: ${sub.endDate ? new Date(sub.endDate).toLocaleDateString('ru-RU') : 'нет'}`,
       [
         { text: 'Отмена', style: 'cancel' },
-        { text: '➕ +30 дней', onPress: () => extendSub(sub, 30) },
-        { text: '➕ +90 дней', onPress: () => extendSub(sub, 90) },
+        { text: '+30 дней', onPress: () => extendSub(sub, 30) },
+        { text: '+90 дней', onPress: () => extendSub(sub, 90) },
         {
           text: 'Перейти к пользователю',
           onPress: () => navigation.navigate('AdminUserDetailScreen', { userId: sub.user.id }),
@@ -230,7 +231,7 @@ export default function AdminSubscriptionsScreen() {
         <View style={styles.modalOverlay}>
           <ScrollView style={styles.modalSheet} keyboardShouldPersistTaps="handled">
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>📢 Рассылка по сегменту</Text>
+              <Text style={styles.modalTitle}>Рассылка по сегменту</Text>
               <TouchableOpacity onPress={() => setShowBroadcast(false)}>
                 <Text style={{ color: '#A8A49C', fontSize: 18 }}>✕</Text>
               </TouchableOpacity>
@@ -252,7 +253,7 @@ export default function AdminSubscriptionsScreen() {
               onPress={() => setBcExpiringOnly(!bcExpiringOnly)}
             >
               <Text style={[styles.toggleBtnText, bcExpiringOnly && { color: '#E8A36A' }]}>
-                {bcExpiringOnly ? '✓ Только истекающие (≤14 дн)' : '⏰ Только истекающие (≤14 дн)'}
+                {bcExpiringOnly ? '✓ Только истекающие (≤14 дн)' : 'Только истекающие (≤14 дн)'}
               </Text>
             </TouchableOpacity>
             <Text style={styles.modalLabel}>Тема</Text>
@@ -304,7 +305,7 @@ export default function AdminSubscriptionsScreen() {
         <View style={styles.summaryItem}>
           <TouchableOpacity onPress={() => setSort(sort === 'endDate' ? 'createdAt' : 'endDate')}>
             <Text style={styles.summaryValue}>
-              {sort === 'endDate' ? '📅 По сроку' : '🕐 По дате'}
+              {sort === 'endDate' ? 'По сроку' : 'По дате'}
             </Text>
           </TouchableOpacity>
           <Text style={styles.summaryLabel}>Сортировка</Text>
@@ -312,7 +313,7 @@ export default function AdminSubscriptionsScreen() {
         <View style={styles.summaryDivider} />
         <View style={styles.summaryItem}>
           <TouchableOpacity onPress={() => setShowBroadcast(true)}>
-            <Text style={styles.summaryValue}>📢</Text>
+            <Icon name="bell" size={16} color="#D4B07A" />
           </TouchableOpacity>
           <Text style={styles.summaryLabel}>Рассылка</Text>
         </View>

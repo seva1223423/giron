@@ -7,6 +7,7 @@ import { useRoute, useNavigation } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Icon } from '../../components';
 import { adminService } from '../../services/adminService';
 import type { AdminUserDetail, AdminLog, UserRole } from '../../types';
 import { useAdminStepUp, StepUpCancelledError } from './useAdminStepUp';
@@ -377,7 +378,7 @@ export default function AdminUserDetailScreen() {
       {/* Ban banner */}
       {user.isBanned && (
         <View style={styles.banBanner}>
-          <Text style={styles.banBannerTitle}>⛔ Заблокирован</Text>
+          <Text style={styles.banBannerTitle}>Заблокирован</Text>
           {user.banReason && <Text style={styles.banBannerReason}>{user.banReason}</Text>}
           {user.bannedAt && <Text style={styles.banBannerDate}>с {new Date(user.bannedAt).toLocaleDateString('ru-RU')}</Text>}
         </View>
@@ -386,7 +387,7 @@ export default function AdminUserDetailScreen() {
       {/* Lockout banner */}
       {!user.isBanned && user.lockedUntil && new Date(user.lockedUntil) > new Date() && (
         <View style={[styles.banBanner, { backgroundColor: '#E8A36A12', borderColor: '#E8A36A50' }]}>
-          <Text style={[styles.banBannerTitle, { color: '#E8A36A' }]}>🔒 Временная блокировка</Text>
+          <Text style={[styles.banBannerTitle, { color: '#E8A36A' }]}>Временная блокировка</Text>
           <Text style={[styles.banBannerReason, { color: '#E8A36AAA' }]}>
             Слишком много неверных паролей. До: {new Date(user.lockedUntil!).toLocaleString('ru-RU')}
           </Text>
@@ -409,7 +410,7 @@ export default function AdminUserDetailScreen() {
 
       {/* Contextual alerts */}
       {!user.isBanned && (() => {
-        const alerts: Array<{ icon: string; text: string; color: string; action?: { label: string; onPress: () => void } }> = [];
+        const alerts: Array<{ icon: import('../../components/Icon').IconName; text: string; color: string; action?: { label: string; onPress: () => void } }> = [];
         const sub = user.subscription;
         const lastWorkout = user.workouts?.[0]?.completedAt;
         const daysSince = lastWorkout ? Math.floor((Date.now() - new Date(lastWorkout).getTime()) / 86400000) : null;
@@ -417,23 +418,23 @@ export default function AdminUserDetailScreen() {
         const daysLeft = sub?.endDate ? Math.ceil((new Date(sub.endDate).getTime() - Date.now()) / 86400000) : null;
 
         if (isPaid && daysSince !== null && daysSince >= 14) {
-          alerts.push({ icon: '⚡', color: '#E07A6B', text: `Чурн-риск: нет тренировок ${daysSince} дней при активной подписке`, action: { label: '💬 Написать', onPress: () => setShowMsgModal(true) } });
+          alerts.push({ icon: 'bolt' as const, color: '#E07A6B', text: `Чурн-риск: нет тренировок ${daysSince} дней при активной подписке`, action: { label: 'Написать', onPress: () => setShowMsgModal(true) } });
         }
         if (daysLeft !== null && daysLeft <= 7 && daysLeft > 0) {
-          alerts.push({ icon: '⏰', color: '#E8A36A', text: `Подписка ${sub!.plan.toUpperCase()} истекает через ${daysLeft} дн.` });
+          alerts.push({ icon: 'timer' as const, color: '#E8A36A', text: `Подписка ${sub!.plan.toUpperCase()} истекает через ${daysLeft} дн.` });
         }
         if (!user.goal && user._count.workouts === 0) {
-          alerts.push({ icon: '🆕', color: '#D4B07A', text: 'Новый пользователь: цель не задана, тренировок нет' });
+          alerts.push({ icon: 'user' as const, color: '#D4B07A', text: 'Новый пользователь: цель не задана, тренировок нет' });
         }
         if (user._count.supportTickets > 5 && user.supportTickets?.some((t) => t.status === 'open')) {
-          alerts.push({ icon: '🎫', color: '#D4B07A', text: `${user._count.supportTickets} тикетов, есть открытые` });
+          alerts.push({ icon: 'message' as const, color: '#D4B07A', text: `${user._count.supportTickets} тикетов, есть открытые` });
         }
         if (alerts.length === 0) return null;
         return (
           <View style={{ marginBottom: 12, gap: 6 }}>
             {alerts.map((a, i) => (
               <View key={i} style={[styles.alertRow, { borderColor: a.color + '40', backgroundColor: a.color + '10' }]}>
-                <Text style={{ fontSize: 14 }}>{a.icon}</Text>
+                <Icon name={a.icon} size={14} color={a.color} />
                 <Text style={[styles.alertText, { color: a.color }]} numberOfLines={2}>{a.text}</Text>
                 {a.action && (
                   <TouchableOpacity onPress={a.action.onPress} style={[styles.alertActionBtn, { borderColor: a.color }]}>
@@ -463,7 +464,7 @@ export default function AdminUserDetailScreen() {
           {/* Email verification badge + quick action */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
             <Text style={{ fontSize: 11, color: user.emailVerified ? '#9AC28C' : '#E8A36A', fontWeight: '600' }}>
-              {user.emailVerified ? '✓ Email подтверждён' : '⚠ Email не подтверждён'}
+              {user.emailVerified ? 'Email подтверждён' : 'Email не подтверждён'}
             </Text>
             {!user.emailVerified && (
               <TouchableOpacity
@@ -563,7 +564,7 @@ export default function AdminUserDetailScreen() {
           <View style={styles.subEndRow}>
             <Text style={[styles.subMeta, { flex: 1 }]}>
               До: {new Date(sub.endDate).toLocaleDateString('ru-RU')}
-              {sub.status === 'active' && new Date(sub.endDate) > new Date() ? '' : '  ⚠️ истёк'}
+              {sub.status === 'active' && new Date(sub.endDate) > new Date() ? '' : ' — истёк'}
             </Text>
             {isActiveSub && (
               <View style={styles.extendRow}>
@@ -667,7 +668,7 @@ export default function AdminUserDetailScreen() {
         user.supportTickets?.forEach((t) => events.push({ date: t.createdAt, type: 'ticket', label: t.subject, sub: t.status, id: t.id }));
         user.chatMessages?.forEach((m) => events.push({ date: m.createdAt, type: 'ai', label: m.content }));
         events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        const TYPE_ICON = { workout: '🏋️', ticket: '🎧', ai: '🤖' };
+        const TYPE_ICON = { workout: 'dumbbell', ticket: 'message', ai: 'spark' } as const;
         // ticket and ai were indigo and purple; the palette migration sent
         // both to gold and the timeline legend stopped separating them.
         const TYPE_COLOR = { workout: '#E8A36A', ticket: '#D4B07A', ai: '#9AC28C' };
@@ -683,7 +684,7 @@ export default function AdminUserDetailScreen() {
                 activeOpacity={e.type === 'ticket' ? 0.7 : 1}
               >
                 <View style={[styles.timelineDot, { backgroundColor: TYPE_COLOR[e.type] + '33', borderColor: TYPE_COLOR[e.type] }]}>
-                  <Text style={{ fontSize: 10 }}>{TYPE_ICON[e.type]}</Text>
+                  <Icon name={TYPE_ICON[e.type]} size={11} color={TYPE_COLOR[e.type]} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.timelineLabel, e.type === 'ticket' && { color: '#D4B07A' }]} numberOfLines={1}>{e.label}</Text>
@@ -980,12 +981,12 @@ export default function AdminUserDetailScreen() {
 
       {/* Activity Timeline */}
       {(() => {
-        type TimelineEvent = { date: string; icon: string; label: string; color: string; id: string };
+        type TimelineEvent = { date: string; icon: import('../../components/Icon').IconName; label: string; color: string; id: string };
         const events: TimelineEvent[] = [];
         user.workouts?.forEach((w) => {
           if (w.completedAt) events.push({
             date: w.completedAt,
-            icon: '💪',
+            icon: 'dumbbell',
             label: `Тренировка: ${w.name}${w.totalVolume ? ` · ${Math.round(w.totalVolume)} кг` : ''}${w.durationMinutes ? ` · ${w.durationMinutes} мин` : ''}`,
             color: '#E8A36A',
             id: 'w_' + w.id,
@@ -993,28 +994,28 @@ export default function AdminUserDetailScreen() {
         });
         user.cardioSessions?.forEach((s) => events.push({
           date: s.createdAt,
-          icon: '🏃',
+          icon: 'heart',
           label: `Кардио: ${s.type} · ${s.durationMinutes} мин${s.distanceKm ? ` · ${s.distanceKm.toFixed(1)} км` : ''}`,
           color: '#9AC28C',
           id: 'c_' + s.id,
         }));
         user.chatMessages?.slice(0, 5).forEach((m) => events.push({
           date: m.createdAt,
-          icon: '🤖',
+          icon: 'spark',
           label: `ИИ: ${m.content.slice(0, 60)}${m.content.length > 60 ? '…' : ''}`,
           color: '#D4B07A',
           id: 'm_' + m.id,
         }));
         user.bodyWeights?.slice(0, 5).forEach((bw) => events.push({
           date: bw.date,
-          icon: '⚖️',
+          icon: 'chart',
           label: `Вес: ${bw.weightKg} кг`,
           color: '#D4B07A',
           id: 'bw_' + bw.id,
         }));
         user.supportTickets?.forEach((t) => events.push({
           date: t.createdAt,
-          icon: '🎫',
+          icon: 'message',
           label: `Тикет: ${t.subject} · ${t.status}`,
           color: '#A8A49C',
           id: 't_' + t.id,
@@ -1028,7 +1029,7 @@ export default function AdminUserDetailScreen() {
             {top.map((ev, i) => (
               <View key={ev.id} style={styles.evtRow}>
                 <View style={[styles.evtDot, { backgroundColor: ev.color + '30', borderColor: ev.color }]}>
-                  <Text style={{ fontSize: 11 }}>{ev.icon}</Text>
+                  <Icon name={ev.icon} size={12} color={ev.color} />
                 </View>
                 {i < top.length - 1 && <View style={styles.evtLine} />}
                 <View style={styles.evtContent}>
@@ -1146,7 +1147,7 @@ export default function AdminUserDetailScreen() {
 
       {/* Message user */}
       <TouchableOpacity style={styles.msgUserBtn} onPress={() => setShowMsgModal(true)}>
-        <Text style={styles.msgUserBtnText}>💬 Написать пользователю</Text>
+        <Text style={styles.msgUserBtnText}>Написать пользователю</Text>
         <Text style={styles.msgUserBtnSub}>Создаст тикет в поддержке</Text>
       </TouchableOpacity>
 
