@@ -17,6 +17,7 @@ import { foodVisionCache, aiUserContextCache, AI_USER_CONTEXT_TTL_MS } from '../
 import { overPerUserAiRate } from '../utils/perUserRate';
 import { parseFoodResponse, validateFoodItems, flagSanity, type FoodItem as FoodVisionItem } from '../utils/foodVision';
 import { sanitizeInput, sanitizeForPrompt } from '../utils/inputSanitizer';
+import { isPaidSubscription } from '../utils/subscriptionCheck';
 import { detectInjection } from '../utils/promptInjectionDetector';
 import { reportError } from '../utils/errorReporter';
 import { chat, chatWithoutTools, chatStream, analyzeImage, generate, DeepSeekTool, DeepSeekMessage, estimateTokens, trimHistory, summarizeHistory, validateResponse, cleanResponse, MODEL_CONTEXT_TOKENS, TOOL_SCHEMA_RESERVE_TOKENS } from '../services/deepseekAI';
@@ -8045,7 +8046,7 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
       prisma.subscription.findUnique({ where: { userId }, select: { plan: true, status: true, endDate: true } }),
       prisma.chatMessage.count({ where: { userId, role: 'user', createdAt: { gte: quotaDayFloor } } }),
     ]);
-    const isPaidSub = userSub && (userSub.status === 'active' || userSub.status === 'cancelled') && userSub.plan !== 'free' && (!userSub.endDate || userSub.endDate >= new Date());
+    const isPaidSub = isPaidSubscription(userSub);
     // Fast early exit (non-atomic) — the atomic check+save happens below at message persist time
     if (!isPaidSub && todayCountPre >= AI_FREE_DAILY_LIMIT) {
       return res.status(402).json({ error: 'Достигнут дневной лимит сообщений для бесплатного плана. Оформите подписку для неограниченного доступа.', code: 'DAILY_LIMIT_EXCEEDED' });
@@ -19201,7 +19202,7 @@ router.post('/analyze-food', authenticate, async (req: AuthRequest, res: Respons
         select: { name: true, totalCalories: true, ingredients: true },
       }),
     ]);
-    const isPaidSub = userSub && (userSub.status === 'active' || userSub.status === 'cancelled') && userSub.plan !== 'free' && (!userSub.endDate || userSub.endDate >= new Date());
+    const isPaidSub = isPaidSubscription(userSub);
     if (!isPaidSub && scanTodayCount >= FOOD_SCAN_FREE_DAILY_LIMIT) {
       return res.status(402).json({ error: 'Достигнут дневной лимит сканирования еды (5/день) для бесплатного плана. Оформите подписку для неограниченного доступа.', code: 'SCAN_DAILY_LIMIT_EXCEEDED' });
     }
@@ -19723,7 +19724,7 @@ router.post('/analyze-food-text', authenticate, async (req: AuthRequest, res: Re
         select: { name: true, totalCalories: true, ingredients: true },
       }),
     ]);
-    const isPaidSub = userSub && (userSub.status === 'active' || userSub.status === 'cancelled') && userSub.plan !== 'free' && (!userSub.endDate || userSub.endDate >= new Date());
+    const isPaidSub = isPaidSubscription(userSub);
     if (!isPaidSub && scanTodayCount >= FOOD_SCAN_FREE_DAILY_LIMIT) {
       return res.status(402).json({
         error: 'Достигнут дневной лимит анализа еды (5/день) для бесплатного плана. Оформите подписку для неограниченного доступа.',
@@ -20125,11 +20126,7 @@ router.post('/voice', authenticate, async (req: AuthRequest, res: Response) => {
         where: { userId },
         select: { plan: true, status: true, endDate: true },
       });
-      const isPaid =
-        sub != null &&
-        ['pro', 'trainer', 'club'].includes(sub.plan) &&
-        (sub.status === 'active' || sub.status === 'cancelled') &&
-        (sub.endDate == null || sub.endDate >= new Date());
+      const isPaid = isPaidSubscription(sub);
       if (!isPaid) {
         return res.status(402).json({
           error: 'Голосовой ввод доступен только в Pro подписке',
