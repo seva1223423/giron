@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Админка — что сейчас и что по дизайн-системе</title>
+<style>
+  :root{
+    /* Direction A */
+    --bg:#0E0E0F; --surface:#17171A; --elev:#1E1E22; --border:#2A2A2F;
+    --text:#F4F1EA; --t2:#A8A49C; --t3:#6E6A63;
+    --gold:#D4B07A; --sage:#9AC28C; --amber:#E8A36A; --terra:#E07A6B;
+    /* Что реально в коде админки */
+    --old-bg:#0F0F0F; --old-card:#1C1C1E; --old-card2:#2C2C2E;
+    --old-t2:#6B7280; --old-t3:#9CA3AF; --old-accent:#6366F1;
+    --old-green:#10B981; --old-amber:#F59E0B; --old-red:#EF4444;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#08080A;color:var(--text);
+       font-family:-apple-system,'Segoe UI',Roboto,sans-serif;
+       padding:24px 14px 60px;display:flex;flex-direction:column;align-items:center;gap:6px}
+  h1{font-size:20px;font-weight:800;letter-spacing:-.4px;text-align:center}
+  .sub{color:var(--t2);font-size:13px;text-align:center;max-width:720px;line-height:1.6;margin-bottom:14px}
+  .mock{display:inline-block;background:rgba(232,163,106,.14);border:1px solid rgba(232,163,106,.45);
+        color:var(--amber);font-size:10.5px;font-weight:700;letter-spacing:.7px;
+        padding:4px 10px;border-radius:999px;margin-bottom:10px}
+  .stage{display:flex;gap:18px;flex-wrap:wrap;justify-content:center;align-items:flex-start}
+  .col{width:330px}
+  .colhd{display:flex;align-items:baseline;gap:8px;margin-bottom:9px;padding:0 2px}
+  .colhd b{font-size:14px;font-weight:700}
+  .colhd span{font-size:11px;color:var(--t3)}
+  .phone{width:330px;border-radius:26px;border:1px solid #26262B;overflow:hidden;
+         box-shadow:0 20px 50px rgba(0,0,0,.55)}
+  .scr{padding:14px 14px 20px}
+
+  /* ── current admin ───────────────────────────── */
+  .old{background:var(--old-bg)}
+  .old .title{font-size:19px;font-weight:700;color:#FFFFFF;margin-bottom:12px}
+  .old .card{background:var(--old-card);border-radius:12px;padding:13px;margin-bottom:9px}
+  .old .lbl{font-size:11px;color:var(--old-t2)}
+  .old .val{font-size:22px;font-weight:700;color:#FFFFFF;margin-top:3px}
+  .old .row{display:flex;gap:9px;margin-bottom:9px}
+  .old .row .card{flex:1;margin:0}
+  .old .sect{font-size:13px;font-weight:600;color:#FFFFFF;margin:14px 0 8px}
+  .old .btn{background:var(--old-accent);color:#FFFFFF;border-radius:10px;padding:12px;
+            text-align:center;font-size:14px;font-weight:600}
+  .old .link{color:var(--old-accent);font-size:12px}
+  .old .item{background:var(--old-card);border-radius:10px;padding:11px 13px;margin-bottom:7px;
+             display:flex;align-items:center;gap:9px}
+  .old .item .em{font-size:15px}
+  .old .item .tx{flex:1;font-size:12.5px;color:var(--old-t3)}
+  .old .pill{background:var(--old-card2);color:var(--old-t2);font-size:10.5px;
+             padding:3px 8px;border-radius:6px}
+
+  /* ── direction A ─────────────────────────────── */
+  .new{background:var(--bg)}
+  .new .title{font-size:19px;font-weight:800;letter-spacing:-.4px;color:var(--text);margin-bottom:12px}
+  .new .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:13px;margin-bottom:9px}
+  .new .lbl{font-size:10px;font-weight:700;letter-spacing:.9px;color:var(--t2);text-transform:uppercase}
+  .new .val{font-size:22px;font-weight:800;letter-spacing:-.5px;color:var(--text);margin-top:4px}
+  .new .row{display:flex;gap:9px;margin-bottom:9px}
+  .new .row .card{flex:1;margin:0}
+  .new .sect{font-size:10px;font-weight:800;letter-spacing:1.1px;color:var(--t2);
+             text-transform:uppercase;margin:15px 0 8px}
+  .new .btn{background:var(--gold);color:#17171A;border-radius:12px;padding:13px;
+            text-align:center;font-size:14.5px;font-weight:700}
+  .new .link{color:var(--gold);font-size:12px;font-weight:600}
+  .new .item{background:var(--surface);border:1px solid var(--border);border-radius:12px;
+             padding:11px 13px;margin-bottom:7px;display:flex;align-items:center;gap:10px}
+  .new .item .ic{width:26px;height:26px;border-radius:8px;flex:none;
+                 background:rgba(212,176,122,.1);border:1px solid rgba(212,176,122,.3);
+                 display:flex;align-items:center;justify-content:center}
+  .new .item .tx{flex:1;font-size:12.5px;color:var(--t2)}
+  .new .pill{background:var(--elev);border:1px solid var(--border);color:var(--t2);
+             font-size:10.5px;padding:3px 8px;border-radius:7px}
+  .up{color:var(--sage)} .dn{color:var(--terra)}
+  .old .up{color:var(--old-green)} .old .dn{color:var(--old-red)}
+
+  .cap{width:330px;font-size:11.5px;line-height:1.6;color:var(--t3);margin-top:10px}
+  .cap b{color:var(--terra)} .cap i{color:var(--sage);font-style:normal}
+
+  table{border-collapse:collapse;max-width:700px;width:100%;font-size:12.5px;margin-top:26px}
+  th,td{border:1px solid var(--border);padding:7px 10px;text-align:left}
+  th{background:var(--surface);color:var(--t2);font-size:10.5px;
+     letter-spacing:.8px;text-transform:uppercase;font-weight:800}
+  td.n{font-variant-numeric:tabular-nums;white-space:nowrap}
+  .fail{color:var(--terra);font-weight:700}
+  .pass{color:var(--sage);font-weight:700}
+</style>
+</head>
+<body>
+
+<h1>Админка живёт мимо дизайн-системы</h1>
+<div class="sub">11 из 13 файлов в <code>src/screens/admin/</code> не обращаются к теме ни разу — цвета вшиты прямо в стили, больше тысячи значений. Слева то, что в коде сейчас. Справа те же элементы на Direction A.</div>
+<div class="mock">МАКЕТ · сравнение, не готовый экран</div>
+
+<div class="stage">
+
+  <div class="col">
+    <div class="colhd"><b>Сейчас</b><span>вшитые цвета iOS-серый + индиго</span></div>
+    <div class="phone old"><div class="scr">
+      <div class="title">Панель администратора</div>
+      <div class="row">
+        <div class="card"><div class="lbl">Новые сегодня</div><div class="val">12</div></div>
+        <div class="card"><div class="lbl">Сессий</div><div class="val">3</div></div>
+      </div>
+      <div class="card">
+        <div class="lbl">Оценка выручки</div>
+        <div class="val">48 200 ₽ <span class="up" style="font-size:13px">+18%</span></div>
+      </div>
+      <div class="sect">Быстрые действия</div>
+      <div class="btn">Открыть пользователей</div>
+      <div class="sect">Последние действия <span class="link">Все →</span></div>
+      <div class="item"><span class="em">📈</span><span class="tx">Тренировки выросли на 24%</span><span class="pill">2 ч</span></div>
+      <div class="item"><span class="em">🚀</span><span class="tx">Регистрации выросли на 31%</span><span class="pill">5 ч</span></div>
+      <div class="item"><span class="em">🤖</span><span class="tx">ИИ-активность упала на 12%</span><span class="pill">1 д</span></div>
+    </div></div>
+    <div class="cap">
+      Фон <b>#0F0F0F</b>, карточки <b>#1C1C1E</b> — холодный системный серый iOS.<br>
+      Акцент <b>#6366F1</b> — индиго из чёрного списка, 57 мест.<br>
+      Подписи <b>#6B7280</b> на карточке: <b>3.52:1</b> при норме 4.5.<br>
+      Эмодзи вместо иконок — в системе 39 SVG.
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="colhd"><b>Direction A</b><span>те же данные, токены темы</span></div>
+    <div class="phone new"><div class="scr">
+      <div class="title">Панель администратора</div>
+      <div class="row">
+        <div class="card"><div class="lbl">Новые сегодня</div><div class="val">12</div></div>
+        <div class="card"><div class="lbl">Сессий</div><div class="val">3</div></div>
+      </div>
+      <div class="card">
+        <div class="lbl">Оценка выручки</div>
+        <div class="val">48 200 ₽ <span class="up" style="font-size:13px">+18%</span></div>
+      </div>
+      <div class="sect">Быстрые действия</div>
+      <div class="btn">Открыть пользователей</div>
+      <div class="sect">Последние действия <span class="link">Все →</span></div>
+      <div class="item"><span class="ic"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#D4B07A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></span><span class="tx">Тренировки выросли на 24%</span><span class="pill">2 ч</span></div>
+      <div class="item"><span class="ic"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#D4B07A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg></span><span class="tx">Регистрации выросли на 31%</span><span class="pill">5 ч</span></div>
+      <div class="item"><span class="ic"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#D4B07A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12l7 7 7-7"/></svg></span><span class="tx">ИИ-активность упала на 12%</span><span class="pill">1 д</span></div>
+    </div></div>
+    <div class="cap">
+      Фон <i>#0E0E0F</i>, карточки <i>#17171A</i> с рамкой — тёплый графит, как везде в приложении.<br>
+      Акцент <i>#D4B07A</i> — золото бренда.<br>
+      Подписи <i>#A8A49C</i>: <i>7.20:1</i>.<br>
+      Иконки из <code>Icon</code>, светлая тема работает сама.
+    </div>
+  </div>
+
+</div>
+
+<table>
+  <tr><th>Роль</th><th>Сейчас</th><th class="n">Контраст</th><th>Direction A</th><th class="n">Контраст</th></tr>
+  <tr><td>Подпись на карточке <span style="color:var(--t3)">(106 мест)</span></td>
+      <td class="n">#6B7280 / #1C1C1E</td><td class="n fail">3.52:1</td>
+      <td class="n">#A8A49C / #17171A</td><td class="n pass">7.20:1</td></tr>
+  <tr><td>Подпись на фоне</td>
+      <td class="n">#6B7280 / #0F0F0F</td><td class="n fail">3.96:1</td>
+      <td class="n">#F4F1EA / #0E0E0F</td><td class="n pass">17.11:1</td></tr>
+  <tr><td>Акцентный текст <span style="color:var(--t3)">(38 мест)</span></td>
+      <td class="n">#6366F1 / #1C1C1E</td><td class="n fail">3.81:1</td>
+      <td class="n">#D4B07A / #17171A</td><td class="n pass">8.77:1</td></tr>
+  <tr><td>Текст на кнопке <span style="color:var(--t3)">(19 мест)</span></td>
+      <td class="n">#FFFFFF / #6366F1</td><td class="n fail">4.47:1</td>
+      <td class="n">#17171A / #D4B07A</td><td class="n pass">8.77:1</td></tr>
+</table>
+
+<div class="cap" style="width:700px;max-width:100%;margin-top:18px">
+  Норма WCAG AA для основного текста — 4.5:1. Тест <code>designColorContrast.test.ts</code> требует её от обеих тем, но проверяет <b>токены темы</b> — а админка к теме не обращается, поэтому проверка её не видит.
+</div>
+
+</body>
+</html>
