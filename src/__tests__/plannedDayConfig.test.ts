@@ -124,3 +124,76 @@ describe('startPlannedDay', () => {
     expect(mockStart).not.toHaveBeenCalled();
   });
 });
+
+describe('a day the coach planned by name', () => {
+  // set_weekly_plan stores exercise NAMES ("Жим лёжа"), deliberately, so the
+  // AI context reads well. Manual flows store ids ("bench-press"). Resolution
+  // matched only ids, so every AI-created day collapsed to zero exercises and
+  // the person tapping "Начать тренировку" got "Упражнения не найдены —
+  // план ссылается на удалённые упражнения". The coach's whole
+  // build-a-programme flow died at the moment of truth.
+  test('starts by exact name', () => {
+    const r = startPlannedDay(
+      { name: 'Грудь', emoji: '◎', exercises: ['Жим лёжа'] } as any,
+      EXERCISES,
+      {},
+    );
+    expect(r.status).toBe('started');
+    expect(started().exercises[0].exercise.id).toBe('bench-press');
+  });
+
+  test('name matching ignores case', () => {
+    startPlannedDay(
+      { name: 'Грудь', emoji: '◎', exercises: ['жим лёжа'] } as any,
+      EXERCISES,
+      {},
+    );
+    expect(started().exercises[0].exercise.id).toBe('bench-press');
+  });
+
+  test('an exact name beats a substring of another exercise', () => {
+    const catalogue = [
+      { id: 'bench-press-incline', name: 'Жим лёжа на наклонной' },
+      { id: 'bench-press', name: 'Жим лёжа' },
+    ] as any;
+    startPlannedDay(
+      { name: 'Грудь', emoji: '◎', exercises: ['Жим лёжа'] } as any,
+      catalogue,
+      {},
+    );
+    expect(started().exercises[0].exercise.id).toBe('bench-press');
+  });
+
+  test('ids keep working — the manual flows are untouched', () => {
+    const r = startPlannedDay(
+      { name: 'Ноги', emoji: '◎', exercises: ['squat'] } as any,
+      EXERCISES,
+      {},
+    );
+    expect(r.status).toBe('started');
+    expect(started().exercises[0].exercise.id).toBe('squat');
+  });
+
+  test('per-exercise config is honoured when keyed by name too', () => {
+    startPlannedDay(
+      {
+        name: 'Грудь', emoji: '◎', exercises: ['Жим лёжа'],
+        plan: [{ exerciseId: 'Жим лёжа', sets: 5, reps: 5, restSeconds: 180 }],
+      } as any,
+      EXERCISES,
+      {},
+    );
+    const ex = started().exercises[0];
+    expect(ex.sets).toHaveLength(5);
+    expect(ex.restSeconds).toBe(180);
+  });
+
+  test('a name that resolves to nothing still reports missing', () => {
+    const r = startPlannedDay(
+      { name: 'Грудь', emoji: '◎', exercises: ['Несуществующее упражнение'] } as any,
+      EXERCISES,
+      {},
+    );
+    expect(r.status).toBe('missing');
+  });
+});

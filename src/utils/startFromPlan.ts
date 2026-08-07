@@ -11,15 +11,21 @@ import type { WeekPlanEntry } from '../store/useWorkoutStore';
 import type { Exercise, Workout, WorkoutExercise, WorkoutSet } from '../types';
 import { startWorkoutSafe } from './startWorkoutSafe';
 
-/** Fresh ids for a set of exercises — a repeated workout must not reuse them. */
+/**
+ * Fresh sets for a new session. Built field by field rather than spread —
+ * spreading a completed set carried its rpe, notes and isPR flag into the
+ * repeat, so a set nobody had done yet could wear last week's PR badge.
+ * Planned duration/distance survive: they are intent, not results.
+ */
 function freshSets(sets: Partial<WorkoutSet>[], exIndex: number, stamp: number): WorkoutSet[] {
   return sets.map((s, i) => ({
-    ...s,
     id: `set-${stamp}-${exIndex}-${i}`,
     setNumber: i + 1,
     type: s.type ?? 'normal',
     reps: s.reps ?? 10,
     weight: s.weight ?? 0,
+    ...(s.duration !== undefined ? { duration: s.duration } : {}),
+    ...(s.distance !== undefined ? { distance: s.distance } : {}),
     completed: false,
   })) as WorkoutSet[];
 }
@@ -28,7 +34,29 @@ export type PlanStartResult =
   | { status: 'started' }
   | { status: 'routine' }        // caller must await startWorkoutFromRoutine
   | { status: 'empty' }          // nothing planned, or the plan has no exercises
-  | { status: 'missing' };       // planned exercise ids no longer resolve
+  | { status: 'missing' };       // planned exercise refs no longer resolve
+
+/**
+ * A plan entry may reference an exercise by id ("bench-press") or by name
+ * ("Жим лёжа"). Manual flows store ids; the coach's set_weekly_plan stores
+ * names — deliberately, so the AI context reads as words rather than UUIDs.
+ * Resolution used to match ids only, so every AI-created day collapsed to
+ * zero exercises and starting it reported "план ссылается на удалённые
+ * упражнения". Exact name beats substring so «Жим лёжа» never lands on
+ * «Жим лёжа на наклонной».
+ */
+function resolveExercise(allExercises: Exercise[], ref: string): Exercise | undefined {
+  const byId = allExercises.find((e) => e.id === ref);
+  if (byId) return byId;
+  const needle = ref.toLowerCase().trim();
+  if (!needle) return undefined;
+  const exact = allExercises.find((e) => e.name.toLowerCase() === needle);
+  if (exact) return exact;
+  return allExercises.find((e) => {
+    const name = e.name.toLowerCase();
+    return name.includes(needle) || needle.includes(name);
+  });
+}
 
 /**
  * Start the day described by `entry`. Returns `routine` without doing anything
@@ -50,7 +78,7 @@ export function startPlannedDay(
   const cfg = new Map((entry.plan ?? []).map((p) => [p.exerciseId, p]));
   const workoutExercises: WorkoutExercise[] = entry.exercises
     .map((exId, index) => {
-      const ex = allExercises.find((e) => e.id === exId);
+      const ex = resolveExercise(allExercises, exId);
       if (!ex) return null;
       const p = cfg.get(exId);
       const setCount = p?.sets ?? 4;

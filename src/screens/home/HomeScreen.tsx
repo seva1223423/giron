@@ -3,7 +3,7 @@ import { ScrollView, View, TouchableOpacity, StyleSheet, Alert } from 'react-nat
 import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeColors, useAuthStore, useWorkoutStore, useNutritionStore } from '../../store';
 import { exercises as localExercises } from '../../data/exercises';
-import { Workout, WorkoutExercise, WorkoutSet } from '../../types';
+import { Workout } from '../../types';
 import { FadeIn, Button, Card, Icon, Spinner } from '../../components';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { scheduleInactivityReminder, scheduleWeeklySummaryNotification, showTodayPlanNotification } from '../../services/notificationService';
@@ -37,7 +37,7 @@ const SPLITS: Array<{ name: string; muscles: string[]; iconName: IconName }> = [
 ];
 
 import { todayDateStr, computeStreak } from '../../utils/date';
-import { startWorkoutSafe } from '../../utils/startWorkoutSafe';
+import { startPlannedDay, repeatWorkout } from '../../utils/startFromPlan';
 import {
   buildWeekDotsFromHistory,
   findHeaviestPR,
@@ -267,44 +267,29 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       }
       return;
     }
-    const allExercises = [...customExercises, ...localExercises];
-    const workoutExercises: WorkoutExercise[] = todayPlan.exercises
-      .map((exId: string, index: number) => {
-        const ex = allExercises.find((e) => e.id === exId);
-        if (!ex) return null;
-        const sets: WorkoutSet[] = Array.from({ length: 4 }, (_, i) => ({
-          id: `set-${Date.now()}-${index}-${i}`,
-          setNumber: i + 1, type: 'normal' as const, reps: 10, weight: 0, completed: false,
-        }));
-        return { id: `we-${Date.now()}-${index}`, exerciseId: ex.id, exercise: ex, order: index, sets, restSeconds: 0 };
-      })
-      .filter(Boolean) as WorkoutExercise[];
-    if (workoutExercises.length === 0) {
-      Alert.alert('Ошибка', 'Упражнения из плана не найдены');
-      return;
-    }
-    startWorkoutSafe(
-      { id: `workout-${Date.now()}`, name: todayPlan.name, exercises: workoutExercises },
+    // This used to be an inline copy of the plan-start logic — id-only
+    // resolution and a hardcoded 4×10. It predated startPlannedDay and never
+    // got folded in, so the Home CTA had every bug the shared path had fixed:
+    // a coach-built plan (which stores exercise NAMES) resolved to nothing
+    // and alerted "Упражнения из плана не найдены", and per-exercise config
+    // (5×5, rest 180s) was silently ignored.
+    const result = startPlannedDay(
+      todayPlan,
+      [...customExercises, ...localExercises],
       navigation,
       { tab: 'WorkoutsTab' },
     );
+    if (result.status === 'missing') {
+      Alert.alert('Ошибка', 'Упражнения из плана не найдены');
+    }
   }, [todayPlan, customExercises, navigation, haptic, startWorkoutFromRoutine]);
 
   const handleRepeatWorkout = useCallback(() => {
     if (!lastWorkout) return;
     haptic.medium();
-    const workoutExercises: WorkoutExercise[] = (lastWorkout.exercises ?? []).map((we, index) => {
-      const sets: WorkoutSet[] = (we.sets ?? []).map((s, i) => ({
-        id: `set-${Date.now()}-${index}-${i}`,
-        setNumber: i + 1, type: s.type, reps: s.reps, weight: s.weight, completed: false,
-      }));
-      return { ...we, id: `we-${Date.now()}-${index}`, sets };
-    });
-    startWorkoutSafe(
-      { id: `workout-${Date.now()}`, name: lastWorkout.name, exercises: workoutExercises },
-      navigation,
-      { tab: 'WorkoutsTab' },
-    );
+    // Second inline copy of a shared util (see handleStartPlannedWorkout
+    // above) — the Workouts screen already repeats through repeatWorkout.
+    repeatWorkout(lastWorkout, navigation, { tab: 'WorkoutsTab' });
   }, [lastWorkout, navigation, haptic]);
 
   // ─── Memoized JSX-section computations ────────────────────────────────

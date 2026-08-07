@@ -48,9 +48,13 @@ export const SessionsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
   const loadSessions = useCallback(async () => {
     setLoading(true);
     try {
+      // Sessions are the security-critical half of this screen — "am I signed
+      // in somewhere I don't recognise". Trusted devices failing must not hide
+      // them, so only that call degrades to empty; a sessions failure still
+      // surfaces through the outer catch.
       const [sessionData, deviceData] = await Promise.all([
         userService.getSessions(),
-        userService.getTrustedDevices(),
+        userService.getTrustedDevices().catch(() => [] as Session[]),
       ]);
       setSessions(sessionData);
       setTrustedDevices(deviceData);

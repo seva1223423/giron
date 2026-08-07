@@ -84,3 +84,19 @@ describe('admin screens survive a partial failure', () => {
     expect(support).toContain('exitSelectMode');
   });
 });
+
+describe('the same shape outside admin', () => {
+  test('sessions stay visible when trusted devices fail to load', () => {
+    // Sessions answer "am I signed in somewhere I don't recognise" — the one
+    // list on this screen someone worried about their account actually needs.
+    // Unguarded, a failing trusted-devices call took sessions down with it.
+    const src = fs.readFileSync(
+      path.join(__dirname, '../screens/profile/SessionsScreen.tsx'),
+      'utf8',
+    );
+    expect(src).toMatch(/getTrustedDevices\(\)\.catch\(/);
+    // The security-critical call must NOT be silently swallowed — its failure
+    // goes through the outer catch and shows the error alert.
+    expect(src).not.toMatch(/getSessions\(\)\.catch\(/);
+  });
+});
