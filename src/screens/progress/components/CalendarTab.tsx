@@ -163,7 +163,7 @@ export const CalendarTab: React.FC<CalendarTabProps> = ({ colors, workoutHistory
 };
 
 const styles = StyleSheet.create({
-  monthNavBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  monthNavBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   calendarHeader: { flexDirection: 'row', marginBottom: spacing.sm },
   calendarGrid: { flexDirection: 'row', flexWrap: 'wrap' },
   calendarCell: {

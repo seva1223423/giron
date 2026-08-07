@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
   closeBtn: { borderRadius: borderRadius.md, paddingVertical: 12, alignItems: 'center', borderWidth: 1 },
   videoCloseBtn: {
     position: 'absolute', top: 12, right: 12,
-    width: 36, height: 36, borderRadius: 18,
+    width: 44, height: 44, borderRadius: 22,
     backgroundColor: 'rgba(0,0,0,0.55)',
     alignItems: 'center', justifyContent: 'center',
   },

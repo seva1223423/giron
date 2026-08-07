@@ -177,7 +177,13 @@ export const WorkoutCalendarScreen: React.FC<{ navigation: any }> = ({ navigatio
                         {w.durationMinutes ? ` · ${formatDuration(w.durationMinutes)}` : ''}
                       </Text>
                     </View>
-                    <TouchableOpacity onPress={() => { setSelectedDayStr(dateStr); setShowModal(true); }} style={[styles.viewBtn, { borderColor: colors.border }]}>
+                    <TouchableOpacity
+                      onPress={() => { setSelectedDayStr(dateStr); setShowModal(true); }}
+                      // A 28pt chevron at the end of a list row: growing it
+                      // would push the row's text, so widen the hit area.
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      style={[styles.viewBtn, { borderColor: colors.border }]}
+                    >
                       <Text style={[typography.captionMedium, { color: colors.primary }]}>›</Text>
                     </TouchableOpacity>
                   </View>

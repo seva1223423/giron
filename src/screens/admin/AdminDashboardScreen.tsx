@@ -1374,7 +1374,7 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   headerTitle: { fontSize: 22, fontWeight: '800', color: '#FFFFFF', letterSpacing: -0.5 },
   headerSub: { fontSize: 10, color: '#2A2A2F' },
-  reportBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#17171A', borderWidth: 1, borderColor: '#2A2A2F', alignItems: 'center', justifyContent: 'center' },
+  reportBtn: { width: 44, height: 44, borderRadius: 10, backgroundColor: '#17171A', borderWidth: 1, borderColor: '#2A2A2F', alignItems: 'center', justifyContent: 'center' },
   reportBtnText: { fontSize: 16 },
 
   searchModal: { flex: 1, backgroundColor: '#0E0E0F', paddingTop: 56 },

@@ -140,6 +140,9 @@ export const NotificationsSection: React.FC = () => {
                   <TouchableOpacity
                     key={h}
                     onPress={() => handleWaterIntervalChange(h)}
+                    // A row of interval chips — making each one 44pt wide
+                    // would overflow the row, so the hit area grows instead.
+                    hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
                     style={[styles.intervalBtn, { backgroundColor: waterReminderInterval === h ? colors.info : colors.surface, borderColor: waterReminderInterval === h ? colors.info : colors.border }]}
                   >
                     <Text style={[typography.caption, { color: waterReminderInterval === h ? '#fff' : colors.text, fontWeight: '700' }]}>{h}ч</Text>

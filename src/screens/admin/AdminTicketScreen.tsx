@@ -652,7 +652,7 @@ const styles = StyleSheet.create({
     flex: 1, borderRadius: 20,
     paddingHorizontal: 16, paddingVertical: 10, fontSize: 15, maxHeight: 100,
   },
-  sendBtn: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
+  sendBtn: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
   sendBtnDisabled: { opacity: 0.5 },
 
   actionBar: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingVertical: 6, borderTopWidth: 1 },
@@ -675,7 +675,7 @@ const styles = StyleSheet.create({
   noteAuthor: { fontSize: 11, fontWeight: '700', marginBottom: 4 },
   noteText: { fontSize: 14, lineHeight: 20 },
   noteTime: { fontSize: 10, textAlign: 'right', marginTop: 4 },
-  noteModeBtn: { width: 40, height: 40, borderRadius: 10, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
+  noteModeBtn: { width: 44, height: 44, borderRadius: 10, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
   noteModeBtnText: { fontSize: 18 },
   otherTicketsBtn: { fontSize: 11, fontWeight: '600' },
   otherTicketsList: { marginTop: 6, borderTopWidth: 1, paddingTop: 6 },

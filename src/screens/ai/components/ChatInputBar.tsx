@@ -195,9 +195,9 @@ export const ChatInputBar: React.FC<Props> = ({ value, onChange, isStreaming, is
 const styles = StyleSheet.create({
   bar: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderTopWidth: 1, paddingBottom: Platform.OS === 'ios' ? 34 : spacing.md, gap: spacing.sm },
   input: { flex: 1, minHeight: 40, maxHeight: 120, borderRadius: borderRadius.xl, borderWidth: 1, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
-  sendBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  sideBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  micBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  sendBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  sideBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  micBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   stopSquare: { width: 12, height: 12, borderRadius: 2 },
   recordBubble: { flex: 1, minHeight: 40, borderRadius: borderRadius.xl, borderWidth: 1, paddingHorizontal: spacing.lg, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: spacing.sm },
   recordDot: { width: 8, height: 8, borderRadius: 4 },
