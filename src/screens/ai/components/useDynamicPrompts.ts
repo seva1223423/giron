@@ -1,60 +1,45 @@
 import { useMemo } from 'react';
-import { useWorkoutStore } from '../../../store';
-import type { IconName } from '../../../components';
+import { useWorkoutStore, useNutritionStore, useSleepStore } from '../../../store';
+import { localDateStr } from '../../../utils/date';
+import { buildDynamicPrompts, type DynamicPrompt } from './buildDynamicPrompts';
 
-export interface DynamicPrompt {
-  iconName: IconName;
-  text: string;
-}
+export type { DynamicPrompt } from './buildDynamicPrompts';
 
+/**
+ * Thin store adapter over buildDynamicPrompts — the logic lives in the pure
+ * builder where tests can reach it without rendering a hook. The old version
+ * read only the workout store, so the chips could suggest analysing a workout
+ * but never noticed protein 40 grams behind at eight in the evening.
+ */
 export function useDynamicPrompts(): DynamicPrompt[] {
   const { workoutHistory, programs } = useWorkoutStore();
+  const dailyLog = useNutritionStore((s) => s.dailyLog);
+  const sleepEntries = useSleepStore((s) => s.entries);
 
   return useMemo(() => {
-    const prompts: DynamicPrompt[] = [];
-    const activeProgram = programs.find((p) => p.isActive);
+    const now = new Date();
+    const today = localDateStr(now);
+    const day = dailyLog[today];
 
-    if (activeProgram?.workouts?.length) {
-      const firstWorkout = activeProgram.workouts[0];
-      prompts.push({ iconName: 'dumbbell', text: `Сделай тренировку "${firstWorkout.name}" немного легче` });
-      prompts.push({ iconName: 'dumbbell', text: `Убери одно упражнение из "${firstWorkout.name}" — устала спина` });
-    }
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const lastNight = sleepEntries.find(
+      (e) => e.date === today || e.date === localDateStr(yesterday),
+    );
 
-    if (workoutHistory.length > 0) {
-      const last = workoutHistory[0];
-      prompts.push({ iconName: 'chart', text: `Разбери мою последнюю тренировку: ${last.name}` });
-
-      const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-      const weekWorkouts = workoutHistory.filter((w) => new Date(w.completedAt || w.startedAt || '').getTime() > weekAgo);
-      if (weekWorkouts.length >= 2) {
-        const totalVol = weekWorkouts.reduce((s, w) => s + (w.totalVolume || 0), 0);
-        prompts.push({ iconName: 'chart', text: `Анализ моей недели: ${weekWorkouts.length} тренировок, объём ${Math.round(totalVol / 1000 * 10) / 10} т` });
-      }
-
-      const sortedDates = workoutHistory
-        .map((w) => new Date(w.completedAt || w.startedAt || '').toDateString())
-        .filter((v, i, a) => a.indexOf(v) === i);
-      let consecutive = 0;
-      const today = new Date();
-      for (let i = 0; i < 4; i++) {
-        const d = new Date(today);
-        d.setDate(d.getDate() - i);
-        if (sortedDates.includes(d.toDateString())) consecutive++;
-        else break;
-      }
-      if (consecutive >= 3) {
-        prompts.push({ iconName: 'moon', text: `Тренируюсь ${consecutive} дня подряд — стоит ли взять день отдыха?` });
-      }
-    }
-
-    if (activeProgram?.workouts && activeProgram.workouts.length > 1 && workoutHistory.length < 3) {
-      prompts.push({ iconName: 'target', text: `Расставь тренировки программы "${activeProgram.name}" по дням недели` });
-    }
-
-    if (!activeProgram) {
-      prompts.push({ iconName: 'target', text: 'Составь мне программу тренировок Толчок-Тяга-Ноги на 3 дня в неделю' });
-    }
-
-    return prompts;
-  }, [workoutHistory, programs]);
+    return buildDynamicPrompts({
+      workoutHistory,
+      activeProgram: programs.find((p) => p.isActive) ?? null,
+      todayNutrition: day
+        ? {
+            proteinEaten: day.meals.reduce((s, m) => s + (m.totalProtein || 0), 0),
+            proteinTarget: day.targetProtein ?? 0,
+            mealsCount: day.meals.length,
+          }
+        : null,
+      lastSleepHours: lastNight?.durationHours ?? null,
+      hour: now.getHours(),
+      now,
+    });
+  }, [workoutHistory, programs, dailyLog, sleepEntries]);
 }
