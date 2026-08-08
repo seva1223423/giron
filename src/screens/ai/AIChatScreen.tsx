@@ -713,7 +713,16 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       // messages. On Render's free tier the first call after idle often times
       // out, which could burn several messages without a single reply
       // (audit R16). Food scans already refund the same way.
-      refundAiMessage();
+      //
+      // EXCEPT when the server itself said "дневной лимит": refunding then
+      // makes the local counter optimistic again, so the person can keep
+      // re-sending into the same 402 forever. The server is the authority on
+      // the quota — show the paywall, the same one the local counter opens.
+      if (apiError.code === 'DAILY_LIMIT_EXCEEDED') {
+        setShowPaywall(true);
+      } else {
+        refundAiMessage();
+      }
       haptic.error();
       setMessages((prev) => [...prev, { id: `error-${Date.now()}`, role: 'assistant', createdAt: new Date().toISOString(), content: apiError.message }]);
     } finally {
