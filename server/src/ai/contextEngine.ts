@@ -90,6 +90,19 @@ export interface ChatContextData {
   }>;
 
   /**
+   * Daily food totals for the last week. weekMeals was fetched on every chat
+   * and used only for weekly averages — no per-day view ever reached the
+   * prompt, so "а вчера?" about food was unanswerable even after the intent
+   * started inheriting correctly: every nutrition block reads todayMeals.
+   */
+  weekMealDays?: Array<{
+    date: string;      // YYYY-MM-DD
+    calories: number;
+    protein: number;
+    count: number;     // meals logged that day
+  }>;
+
+  /**
    * Cardio from the last 14 days, newest first. Strength history has half a
    * dozen blocks built on it; cardio had none — the only query that read
    * CardioSession sat inside the watch-data block, which never runs for
@@ -183,6 +196,11 @@ export async function buildDynamicContext(data: ChatContextData): Promise<string
   // пробежал" back into a question the coach cannot answer.
   const cardio = buildCardioBlock(data);
   if (cardio) blocks.push(cardio);
+
+  // Same rule for food-by-day: seven short lines, quiet when empty, and the
+  // reason "а вчера?" about food is a lookup instead of a shrug.
+  const mealsByDay = buildMealsByDayBlock(data);
+  if (mealsByDay) blocks.push(mealsByDay);
 
   // Start memory + watch-data fetches early — both run in parallel with the
   // intent-specific switch. Watch data is broadly relevant (sleep,
@@ -342,6 +360,34 @@ function buildLiveWorkoutBlock(data: ChatContextData): string {
     ...lines,
     'Отвечая про "сегодня", "сейчас", "сколько сделал" — бери числа отсюда, а не из истории.',
   ].join('\n');
+}
+
+/**
+ * Food by day, last week.
+ *
+ * "а вчера?" after a nutrition question inherits the intent now — but every
+ * nutrition block reads todayMeals, so the data to answer with still was not
+ * there. Seven compact lines close that: the model answers day questions by
+ * lookup instead of needing an extra tool round-trip a small model rarely
+ * makes.
+ */
+function buildMealsByDayBlock(data: ChatContextData): string {
+  const days = data.weekMealDays ?? [];
+  if (days.length === 0) return '';
+
+  const sorted = [...days].sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 7);
+  const yesterday = (() => {
+    const d = new Date(`${data.todayDate}T12:00:00.000Z`);
+    d.setUTCDate(d.getUTCDate() - 1);
+    return d.toISOString().split('T')[0];
+  })();
+
+  const lines = sorted.map((d) => {
+    const label = d.date === data.todayDate ? ' (сегодня)' : d.date === yesterday ? ' (вчера)' : '';
+    return `- ${d.date}${label}: ${Math.round(d.calories)} ккал · белок ${Math.round(d.protein)} г · приёмов: ${d.count}`;
+  });
+
+  return ['## ПИТАНИЕ ПО ДНЯМ (последние 7 дн)', ...lines].join('\n');
 }
 
 /** running → бег. The model answers in Russian; the column stores English. */

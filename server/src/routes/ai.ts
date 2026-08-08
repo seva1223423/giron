@@ -8927,6 +8927,23 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         todayMeals: todayMeals as any,
         bodyWeightHistory: bodyWeightHistory as any,
         recentCardio: recentCardio as any,
+        // Daily totals from the weekMeals rows already fetched above — no new
+        // query. Meal.date is the client-local YYYY-MM-DD string, so grouping
+        // by it is timezone-correct by construction.
+        weekMealDays: (() => {
+          const byDay = new Map<string, { calories: number; protein: number; count: number }>();
+          for (const m of weekMeals as Array<{ date?: string | null; createdAt: Date; totalCalories: number; totalProtein: number }>) {
+            const day = m.date && /^\d{4}-\d{2}-\d{2}$/.test(m.date)
+              ? m.date
+              : new Date(m.createdAt).toISOString().split('T')[0];
+            const cur = byDay.get(day) ?? { calories: 0, protein: 0, count: 0 };
+            cur.calories += m.totalCalories || 0;
+            cur.protein += m.totalProtein || 0;
+            cur.count += 1;
+            byDay.set(day, cur);
+          }
+          return [...byDay.entries()].map(([date, v]) => ({ date, ...v }));
+        })(),
         nutritionTargets: nutritionTargets ?? null,
         sleepEntries: recentSleepEntries,
         clientHour: clientHour ?? undefined,

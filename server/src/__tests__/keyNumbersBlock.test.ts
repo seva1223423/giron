@@ -113,3 +113,35 @@ describe('КЛЮЧЕВЫЕ ЧИСЛА', () => {
     expect(profile).toBeGreaterThan(key);
   });
 });
+
+describe('ПИТАНИЕ ПО ДНЯМ', () => {
+  const days = [
+    { date: '2026-08-07', calories: 1400, protein: 90, count: 2 },
+    { date: '2026-08-06', calories: 2210.4, protein: 148.6, count: 4 },
+    { date: '2026-08-03', calories: 1800, protein: 120, count: 3 },
+  ];
+
+  test('yesterday is labelled and answerable by lookup', async () => {
+    const ctx = await buildDynamicContext({ ...base, weekMealDays: days } as any);
+    expect(ctx).toContain('ПИТАНИЕ ПО ДНЯМ');
+    expect(ctx).toContain('- 2026-08-06 (вчера): 2210 ккал · белок 149 г · приёмов: 4');
+    expect(ctx).toContain('- 2026-08-07 (сегодня): 1400 ккал');
+  });
+
+  test('days come newest first', async () => {
+    const ctx = await buildDynamicContext({ ...base, weekMealDays: days } as any);
+    const block = ctx.split('ПИТАНИЕ ПО ДНЯМ')[1].split('\n##')[0];
+    const dates = [...block.matchAll(/- (\d{4}-\d{2}-\d{2})/g)].map((m) => m[1]);
+    expect(dates).toEqual(['2026-08-07', '2026-08-06', '2026-08-03']);
+  });
+
+  test('absent data keeps the block silent', async () => {
+    const ctx = await buildDynamicContext({ ...base } as any);
+    expect(ctx).not.toContain('ПИТАНИЕ ПО ДНЯМ');
+  });
+
+  test('not gated by intent — a misroute must not hide the data', async () => {
+    const ctx = await buildDynamicContext({ ...base, intent: 'technique_question', weekMealDays: days } as any);
+    expect(ctx).toContain('ПИТАНИЕ ПО ДНЯМ');
+  });
+});
