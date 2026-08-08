@@ -181,8 +181,10 @@ export async function buildDynamicContext(data: ChatContextData): Promise<string
 
   // Cross-signal findings go right after the numbers they are built from.
   // Greeting is the one intent where opening with "твой вес идёт против цели"
-  // would be a scolding, not coaching.
-  if (data.intent !== 'greeting') {
+  // would be a scolding, not coaching. And mid-workout they are noise: the
+  // live block above demands short answers between sets, and a weight-trend
+  // lecture to someone holding a barbell is the opposite of that.
+  if (data.intent !== 'greeting' && !data.liveWorkout) {
     const insights = buildInsightsBlock(data);
     if (insights) blocks.push(insights);
   }

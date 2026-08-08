@@ -204,3 +204,23 @@ describe('рамки блока', () => {
     expect(bullets.length).toBeGreaterThanOrEqual(3); // this fixture trips four rules
   });
 });
+
+describe('мид-воркаут', () => {
+  test('during a live session the findings stay out of the prompt', async () => {
+    // The live block demands short answers between sets; a weight-trend
+    // lecture to someone holding a barbell is the opposite of coaching.
+    const ctx = await buildDynamicContext({
+      ...base,
+      bodyWeightHistory: [
+        { weightKg: 93, date: daysAgo(0) },
+        { weightKg: 91.5, date: daysAgo(35) },
+      ],
+      liveWorkout: {
+        name: 'Грудь', startedAt: new Date(),
+        exercises: [{ exercise: { name: 'Жим' }, sets: [{ completed: true, weight: 100, reps: 8 }] }],
+      },
+    } as any);
+    expect(ctx).toContain('СЕЙЧАС ИДЁТ ТРЕНИРОВКА');
+    expect(ctx).not.toContain('СВЯЗКИ');
+  });
+});
