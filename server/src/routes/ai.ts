@@ -3564,6 +3564,10 @@ const INTENT_PATTERNS: Array<[UserIntent, RegExp[]]> = [
   ]],
   ['nutrition_query', [
     /(?:сколько\s*(?:белк|калори|жир|углевод|есть|пить|нужно\s*(?:есть|белк|калори)))/i,
+    // Diary questions with the verb after the subject: "сколько я съел
+    // белка?", "сколько воды я выпил?". The question guard keeps these out of
+    // data_logging; without this line they then fell through to general.
+    /сколько\s+[а-яё\s]{0,20}?(?:съел|выпил|поел)/i,
     /(?:рассчитай|посчитай|расчёт)\s*(?:кбжу|калори|tdee|бжу|норм)/i,
     /(?:что\s*(?:есть|кушать|поесть|приготовить))/i,
     /(?:меню|рацион|диет[аеу])\s/i,
@@ -3629,9 +3633,30 @@ const INTENT_PATTERNS: Array<[UserIntent, RegExp[]]> = [
  */
 // Exported for unit testing in __tests__/classifyIntent.test.ts. Not used
 // directly by external consumers; the route imports it locally.
+/**
+ * "сколько калорий я съел сегодня?" is a question about the diary, not a food
+ * log — but "съел" matched data_logging, which is checked first, so questions
+ * about food classified as entries. A logging match on a question-shaped
+ * message is skipped and the loop continues to the query intents, which
+ * already have patterns for it ("сколько калори…" → nutrition_query).
+ *
+ * An explicit command verb beats the question shape: "запиши, сколько я съел:
+ * 200г курицы?" is still a log. Cyrillic-safe lookahead instead of \b — JS
+ * word boundaries do not fire next to Cyrillic.
+ */
+const INTERROGATIVE_START_RE = /^\s*(?:а\s+|и\s+|ну\s+)?(?:сколько|какой|какая|какие|каков|что|чем|когда|почему|зачем|как)(?![а-яё])/i;
+const LOG_COMMAND_RE = /(?:запиши|записать|добавь|добавить|внеси|зафиксируй|залогируй|логируй|удали|убери|запомни|отметь)(?![а-яё])/i;
+
+function isQuestionAboutData(message: string): boolean {
+  const t = message.trim();
+  if (LOG_COMMAND_RE.test(t)) return false;
+  return INTERROGATIVE_START_RE.test(t) || t.endsWith('?');
+}
+
 export function classifyIntent(message: string): UserIntent {
   for (const [intent, patterns] of INTENT_PATTERNS) {
     if (patterns.some((p) => p.test(message))) {
+      if (intent === 'data_logging' && isQuestionAboutData(message)) continue;
       return intent;
     }
   }

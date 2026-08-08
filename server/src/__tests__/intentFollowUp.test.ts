@@ -42,11 +42,12 @@ describe('follow-ups inherit the topic', () => {
     expect(r).toEqual({ intent: 'nutrition_query', inherited: true });
   });
 
-  test('KNOWN MISROUTE, documented: a question containing "съел" reads as logging', () => {
-    // Not fixed here — reordering INTENT_PATTERNS would ripple through a
-    // hundred pinned classifications. Recorded so the next person knows this
-    // is a known limitation, not an accident.
-    expect(classifyIntent('сколько калорий я съел сегодня?')).toBe('data_logging');
+  test('FIXED: a question containing "съел" is a nutrition question, not a log', () => {
+    // Was pinned here as a KNOWN MISROUTE: "съел" matched data_logging, which
+    // is checked first, so a question about the diary classified as a food
+    // entry. The question guard skips the logging match on question-shaped
+    // messages and the loop reaches nutrition_query's own "сколько калори…".
+    expect(classifyIntent('сколько калорий я съел сегодня?')).toBe('nutrition_query');
   });
 
   test('"а почему?" after a technique question stays technique', () => {

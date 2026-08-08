@@ -11,6 +11,18 @@
  * these numbers outrank the history blocks below it.
  */
 
+// The memory and watch-data blocks run for every intent and query the
+// database; unmocked they reach for a real connection and hang under load —
+// this suite was the recurring timeout in every busy full run. Same proxy
+// mock as keyNumbersBlock / insightsBlock: every model answers "nothing".
+jest.mock('../db', () => {
+  const model = new Proxy({}, {
+    get: (_t, method: string) =>
+      jest.fn(() => Promise.resolve(method === 'findMany' ? [] : null)),
+  });
+  return { prisma: new Proxy({}, { get: () => model }) };
+});
+
 import { buildDynamicContext } from '../ai/contextEngine';
 
 const base = {

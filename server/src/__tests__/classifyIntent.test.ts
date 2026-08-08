@@ -242,3 +242,29 @@ describe('classifyIntent — boundary properties', () => {
     expect(classifyIntent('запомни что я не могу делать жим')).toBe('data_logging');
   });
 });
+
+describe('questions about data are not logging', () => {
+  // "съел" matched data_logging, which is checked first, so any QUESTION
+  // containing it — "сколько калорий я съел сегодня?" — classified as a food
+  // entry. The guard skips a logging match on question-shaped messages; the
+  // loop then reaches the query intents' own patterns.
+
+  test.each([
+    ['сколько калорий я съел сегодня?', 'nutrition_query'],
+    ['сколько я съел белка?', 'nutrition_query'],
+    ['сколько воды я выпил сегодня?', 'nutrition_query'],
+  ])('%s → %s', (msg, expected) => {
+    expect(classifyIntent(msg)).toBe(expected);
+  });
+
+  test('an explicit command stays a log even with a question mark', () => {
+    expect(classifyIntent('запиши: съел 200г курицы?')).toBe('data_logging');
+    expect(classifyIntent('удали завтрак')).toBe('data_logging');
+  });
+
+  test('statements keep logging exactly as before', () => {
+    for (const msg of ['вешу 80', 'съел 200г курицы', 'выпил стакан воды', 'спал 7 часов']) {
+      expect(classifyIntent(msg)).toBe('data_logging');
+    }
+  });
+});
