@@ -252,9 +252,14 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     const quotaLine = isPremium
       ? ''
       : `\n\n💬 На бесплатном тарифе — ${remaining} сообщений сегодня (обновляется каждый день в полночь).`;
+    // The capability chips render right below this bubble — an eight-bullet
+    // list restating them was the "подпись, пересказывающая соседние
+    // элементы" anti-pattern, plus a science brag nobody asked for. What
+    // stays: the greeting, the quota (so the paywall on message 11 is never
+    // a surprise), and the medical disclaimer, which is legal, not décor.
     return [{
       id: 'welcome', role: 'assistant', createdAt: new Date().toISOString(),
-      content: `Привет${user?.firstName ? `, ${user.firstName}` : ''}! Я Iron Coach — твой персональный ИИ-тренер.${quotaLine}\n\nМоя база знаний основана на 50+ научных исследованиях и работах лучших экспертов мира (Schoenfeld, Helms, Israetel, Nuckols, Aragon и др.).\n\nЯ могу помочь с:\n\n- Программы тренировок (зал, дом, любой уровень)\n- Питание и КБЖУ — расчёт и составление рациона\n- Техника — детальный разбор любого упражнения\n- Наука — физиология мышц, гормоны, биомеханика\n- Кардио — HIIT, LISS, совмещение с силовыми\n- Восстановление — сон, стресс, профилактика травм\n- Добавки — что работает, а что маркетинг\n- Мотивация — привычки, цели, преодоление плато\n\n⚠️ Важно: мои рекомендации носят информационный характер и не заменяют консультацию врача. При болях, травмах, хронических заболеваниях и перед началом программы — проконсультируйтесь со специалистом.\n\nВыбери вопрос ниже или спроси своё!`,
+      content: `Привет${user?.firstName ? `, ${user.firstName}` : ''}! Я Iron Coach — твой ИИ-тренер: программы, питание, техника, восстановление.${quotaLine}\n\n⚠️ Мои рекомендации носят информационный характер и не заменяют консультацию врача. При болях, травмах и хронических заболеваниях — сначала к специалисту.`,
     }];
   });
   const [input, setInput] = useState('');
