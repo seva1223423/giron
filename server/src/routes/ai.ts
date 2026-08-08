@@ -1987,6 +1987,7 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, элитный персональн�
 - **Не выдумывай цифры.** Если не уверен в проценте, граммах, килограммах — скажи "точно не скажу" / "зависит от" / "попробуй и засеки результат". Лучше "обычно 0.3-0.5 кг/нед" чем выдуманное "0.42 кг/нед".
 - **Не придумывай авторов и годы исследований.** Используй "по данным научной литературы" или "по практическому опыту атлетов" вместо "Schoenfeld 2017 показал что...". Если фамилия попадается в базе знаний — цитируй БЕЗ года, если год там не указан.
 - **Цифры пользователя — из его данных.** Когда говоришь "у тебя X" — это X должен быть из контекста (профиль, история, рекордов). Не выдумывай "у тебя жим 80 кг" если в данных нет.
+- **После инструмента подтверждай ТЕМИ ЖЕ числами, что вернул инструмент.** Результат инструмента — единственная правда о том, что записалось: если он говорит «Записано 620 ккал», не пересказывай как «примерно 600». Пересчитанное подтверждение = ложь о том, что сохранено.
 - **Если данных недостаточно — попроси.** "Не вижу твоего веса за последнюю неделю — взвесься, тогда посчитаю точно." Лучше попросить чем угадать.
 - **При действии через инструмент — подтверди фактами.** После log_meal не пиши "отлично записал!", пиши "Записал: куриная грудка 200г = 330 ккал, 62г белка". Юзер должен видеть что именно зафиксировано.
 - **Когда юзер противоречит данным — мягко переспроси, не игнорируй.** Если юзер говорит "я ем 200г белка/день" но в ## ПИТАНИЕ СЕГОДНЯ показано 80г — не молчи и не подыгрывай. Скажи: "Сейчас в дневнике сегодня 80г белка. Что-то не записал? Или речь о среднем за неделю?". То же самое если юзер говорит "вешу 75" но последняя запись 84 кг — переспроси, потом log_body_weight новое значение. Это профессиональная позиция тренера, не грубость.
@@ -3672,13 +3673,22 @@ const INHERITABLE: ReadonlySet<UserIntent> = new Set([
  * answer under the inherited intent would serve one topic's answer to
  * another's question.
  */
+/** A follow-up only continues a CONVERSATION. After this long, "а вчера?" is
+ *  a fresh opener, not a continuation of something said days ago. */
+const FOLLOW_UP_WINDOW_MS = 30 * 60 * 1000;
+
 export function classifyIntentWithContext(
   message: string,
   prevUserMessage?: string | null,
+  prevMessageAt?: Date | null,
+  now: Date = new Date(),
 ): { intent: UserIntent; inherited: boolean } {
   const own = classifyIntent(message);
   if (own !== 'general') return { intent: own, inherited: false };
   if (!prevUserMessage || !isShortFollowUp(message)) return { intent: own, inherited: false };
+  if (prevMessageAt && now.getTime() - prevMessageAt.getTime() > FOLLOW_UP_WINDOW_MS) {
+    return { intent: own, inherited: false };
+  }
   const prev = classifyIntent(prevUserMessage);
   if (INHERITABLE.has(prev)) return { intent: prev, inherited: true };
   return { intent: own, inherited: false };
@@ -8681,16 +8691,18 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     // synchronously, and follow-up awareness must never be able to take the
     // chat down — it degrades to per-message classification.
     let prevUserContent: string | null = null;
+    let prevUserAt: Date | null = null;
     try {
       const prevUserRow = await prisma.chatMessage.findFirst({
         where: { userId, role: 'user' },
         orderBy: { createdAt: 'desc' },
-        select: { content: true },
+        select: { content: true, createdAt: true },
       });
       prevUserContent = prevUserRow?.content ?? null;
+      prevUserAt = prevUserRow?.createdAt ?? null;
     } catch { /* degrade: classify this message on its own */ }
     const { intent, inherited: intentInherited } =
-      classifyIntentWithContext(message, prevUserContent);
+      classifyIntentWithContext(message, prevUserContent, prevUserAt);
     const intentConfig = INTENT_CONFIGS[intent];
 
     // ─── Block 28: Check cache for technique/general questions ──────
@@ -15123,8 +15135,14 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
           result = { content: textOnly, toolCalls: [], hasToolCalls: false };
         }
       } else {
-        // Intent is info-only (technique_question, analytics, greeting, motivation)
-        // Skip tools entirely — faster response, lower cost
+        // DORMANT BRANCH. Every intent currently has toolsEnabled: true —
+        // read-tools (search_exercises, get_pr_history…) earned their keep on
+        // the info intents too, which killed per-token streaming as a side
+        // effect: SSE clients get the answer as one chunk at the end instead.
+        // That is a deliberate trade (tools > typing effect). Do NOT "fix"
+        // streaming by flipping an intent's toolsEnabled to false — that
+        // silently takes its tools away. The branch stays for the day
+        // tool-calling and streaming can be combined.
         if (streamMode) {
           // Stream response chunk by chunk via SSE
           let fullContent = '';

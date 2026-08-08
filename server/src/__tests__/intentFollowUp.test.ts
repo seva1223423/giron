@@ -113,3 +113,33 @@ describe('isShortFollowUp', () => {
     expect(isShortFollowUp(m)).toBe(false);
   });
 });
+
+describe('freshness window', () => {
+  const NOW = new Date('2026-08-08T12:00:00Z');
+  const prev = 'сколько белка в твороге?';
+
+  test('a follow-up five minutes later continues the topic', () => {
+    const r = classifyIntentWithContext('а вчера?', prev, new Date('2026-08-08T11:55:00Z'), NOW);
+    expect(r.inherited).toBe(true);
+  });
+
+  test('the same words three days later are a fresh opener', () => {
+    // "а вчера?" as the first message after days is not a continuation of
+    // anything — inheriting a stale topic would answer a question that was
+    // never asked.
+    const r = classifyIntentWithContext('а вчера?', prev, new Date('2026-08-05T11:00:00Z'), NOW);
+    expect(r).toEqual({ intent: 'general', inherited: false });
+  });
+
+  test('exactly at the boundary still counts as the same conversation', () => {
+    const r = classifyIntentWithContext('а вчера?', prev, new Date('2026-08-08T11:30:00Z'), NOW);
+    expect(r.inherited).toBe(true);
+  });
+
+  test('no timestamp available — behave as before, inherit', () => {
+    // Older rows or a degraded fetch: absence of evidence about staleness
+    // must not disable the feature.
+    const r = classifyIntentWithContext('а вчера?', prev, null, NOW);
+    expect(r.inherited).toBe(true);
+  });
+});
