@@ -699,15 +699,23 @@ export function buildSubstitutionMap(
   };
 
   const lines: string[] = [];
+  const seen = new Set<string>();
 
   for (const restriction of healthRestrictions) {
     const bodyPart = restriction.bodyPart.toLowerCase();
-    const subs = substitutions[bodyPart];
+    // Substring match: real bodyPart rows are free-form («правое колено»,
+    // «коленный сустав»), so an exact dictionary lookup missed most of them.
+    // Stem-compare in both directions so «колено» finds the «колено» key and
+    // «коленный сустав» does too.
+    const subs = Object.entries(substitutions).find(([key]) =>
+      bodyPart.includes(key) || bodyPart.includes(key.slice(0, Math.max(4, key.length - 2))),
+    )?.[1];
     if (!subs) continue;
 
     const count = restriction.severity === 'severe' ? subs.length : Math.min(2, subs.length);
     for (const sub of subs.slice(0, count)) {
-      lines.push(`${sub.from} → ${sub.to} (${sub.reason})`);
+      const line = `${sub.from} → ${sub.to} (${sub.reason})`;
+      if (!seen.has(line)) { seen.add(line); lines.push(line); }
     }
   }
 
@@ -1220,7 +1228,7 @@ export function checkGoalAlignment(
     if (avgRepsPerSet > 15) issues.push('Слишком много повторов. Для массы: 8-12 повторов с умеренным весом.');
   } else if (userGoal === 'WEIGHT_LOSS') {
     if (cardioMinutes < 10) issues.push('Мало кардио для жиросжигания. Добавь 20-30 мин кардио 3-4 раза в неделю.');
-    if (avgRestSeconds > 120) issues.push('Длинный отдых. Для жиросжигания: 30-60 сек между подходами, суперсеты.');
+    if (avgRestSeconds > 120) issues.push('Длинный отдых. Уплотни тренировку суперсетами, но отдых держи 60-90 сек — короче 60 сек портит качество подходов, а жир решает дефицит калорий, не потливость между сетами.');
   } else if (userGoal === 'ENDURANCE') {
     if (avgRepsPerSet < 12) issues.push('Для выносливости нужно 15-20+ повторов с лёгким весом.');
   }
@@ -10861,7 +10869,7 @@ export function getImmersionTherapyGuide(message: string): string {
 Протокол:
 - Температура: 10-15°C (не ниже 8°C — риск)
 - Продолжительность: 10-15 минут (не дольше)
-- Время: сразу после тренировки или через 30-60 мин
+- Время: в день отдыха или через 4-6+ часов после силовой (мета-анализ 2024: холод сразу после силовой режет гипертрофию); «сразу после» — только когда цель быстрое восстановление к старту, а не рост
 - Погружение: по грудь (руки снаружи)
 
 Эффекты (доказанные):

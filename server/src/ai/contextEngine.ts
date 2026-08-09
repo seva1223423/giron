@@ -552,6 +552,99 @@ function buildInsightsBlock(data: ChatContextData): string {
     }
   }
 
+  // Logged deficit but flat weight: the numbers don't add up, and the usual
+  // culprit is unlogged food, not a broken metabolism. Needs 5+ logged days
+  // to accuse the log rather than the person.
+  if (data.user?.goal === 'WEIGHT_LOSS' && data.nutritionTargets && weights.length >= 2) {
+    const now = weights[0];
+    const threeWeeksCutoff = new Date(new Date(now.date).getTime() - 21 * 86_400_000);
+    const old = weights.find((w) => new Date(w.date) <= threeWeeksCutoff);
+    const loggedDays = (data.weekMealDays ?? []).filter((d) => d.count > 0);
+    if (old && Math.abs(now.weightKg - old.weightKg) < 0.3 && loggedDays.length >= 5) {
+      const avgCal = loggedDays.reduce((s, d) => s + d.calories, 0) / loggedDays.length;
+      if (avgCal < data.nutritionTargets.calories * 0.8) {
+        findings.push({
+          priority: 9,
+          text: `Числа не сходятся: по дневнику в среднем ${Math.round(avgCal)} ккал (заметно ниже цели ${data.nutritionTargets.calories}), а вес стоит 3+ недели. Почти всегда это незаписанная еда — масла, соусы, перекусы, напитки. Не обвиняй — предложи 3 дня взвешивать и записывать ВСЁ.`,
+        });
+      }
+    }
+  }
+
+  // Fat-loss goal with zero logged cardio in two weeks: the cheapest lever
+  // (NEAT / walking) is sitting unused while the deficit fights alone.
+  if (data.user?.goal === 'WEIGHT_LOSS' && (data.recentCardio ?? []).length === 0 && workouts7d >= 2) {
+    findings.push({
+      priority: 6,
+      text: `За 2 недели ни одной кардио-сессии при цели похудеть. Силовые есть — отлично, но дефициту сильно помогает обычная ходьба: предложи 8-10 тыс шагов в день как лёгкую привычку, без фанатизма.`,
+    });
+  }
+
+  // Six-plus consecutive training days: discipline reads as a virtue right up
+  // until it becomes the reason progress stalls.
+  {
+    const days = Array.from(new Set(
+      data.recentWorkouts
+        .filter((w) => w.completedAt)
+        .map((w) => new Date(w.completedAt as Date).toISOString().split('T')[0]),
+    )).sort().reverse();
+    if (days.length >= 6) {
+      let streak = 1;
+      for (let i = 0; i + 1 < days.length; i++) {
+        const gap = (new Date(days[i]).getTime() - new Date(days[i + 1]).getTime()) / 86_400_000;
+        if (gap === 1) streak++; else break;
+      }
+      const endsRecently = days[0] >= new Date(Date.now() - 2 * 86_400_000).toISOString().split('T')[0];
+      if (streak >= 6 && endsRecently) {
+        findings.push({
+          priority: 7,
+          text: `${streak} тренировочных дней ПОДРЯД без дня отдыха. Похвали дисциплину, но предложи плановый день отдыха — рост происходит между тренировками, и день отдыха это часть программы, а не слабость.`,
+        });
+      }
+    }
+  }
+
+  // One badly short night while the weekly average looks fine — rule #2 stays
+  // silent, but today's session still deserves an autopilot variant.
+  if (avgSleep !== null && avgSleep >= 6.5 && sleep.length > 0 && sleep[0].durationHours < 5.5 && workouts7d >= 2) {
+    findings.push({
+      priority: 8,
+      text: `Прошлая ночь — всего ${sleep[0].durationHours.toFixed(1)} ч сна (при нормальной неделе). Если сегодня тяжёлая тренировка — предложи «автопилот»: те же упражнения, −20% объёма, без рекордов. Один слабый день ничего не решает, травма — решает.`,
+    });
+  }
+
+  // Working weights flat across a month on the main lift while training is
+  // regular: a plateau the person may not have noticed yet.
+  if (workouts7d >= 2 && (data.allCompletedExerciseSets ?? []).length > 0) {
+    const nowMs = Date.now();
+    const byExercise = new Map<string, { recentMax: number; prevMax: number; recentSets: number; prevSets: number }>();
+    for (const row of data.allCompletedExerciseSets) {
+      const at = row.workout.completedAt ? new Date(row.workout.completedAt).getTime() : 0;
+      if (!at) continue;
+      const ageDays = (nowMs - at) / 86_400_000;
+      if (ageDays > 84) continue;
+      const entry = byExercise.get(row.exercise.name) ?? { recentMax: 0, prevMax: 0, recentSets: 0, prevSets: 0 };
+      for (const s of row.sets) {
+        if (s.completed === false || !s.weight || !s.reps) continue;
+        if (ageDays <= 28) { entry.recentSets++; entry.recentMax = Math.max(entry.recentMax, s.weight); }
+        else { entry.prevSets++; entry.prevMax = Math.max(entry.prevMax, s.weight); }
+      }
+      byExercise.set(row.exercise.name, entry);
+    }
+    let top: { name: string; recentMax: number; prevMax: number } | null = null;
+    for (const [name, e] of byExercise) {
+      if (e.recentSets >= 3 && e.prevSets >= 3 && e.prevMax >= 20 && e.recentMax <= e.prevMax) {
+        if (!top || e.prevMax > top.prevMax) top = { name, recentMax: e.recentMax, prevMax: e.prevMax };
+      }
+    }
+    if (top) {
+      findings.push({
+        priority: 5,
+        text: `${top.name}: лучший вес за последний месяц ${top.recentMax} кг, а месяц-два назад было ${top.prevMax} кг — рабочие веса не растут. Это плато: предложи сменить диапазон повторений, добавить подход или проверить сон/калории, а не просто «старайся сильнее».`,
+      });
+    }
+  }
+
   if (findings.length === 0) return '';
   const top = findings.sort((a, b) => b.priority - a.priority).slice(0, 3);
   return [
@@ -1163,9 +1256,13 @@ function buildInjuryZoneBlock(data: ChatContextData): string {
       label: 'поясница',
       subs: ['Становая → гиперэкстензия / Romanian DL', 'Тяга штанги в наклоне → тяга в тренажёре сидя', 'Приседания → жим ногами / гакк-присед'],
     },
-    запястьях: {
+    запясть: {
       label: 'запястье',
       subs: ['Жим штанги → гантели нейтральный хват', 'Отжимания → на кулаках или рукоятях'],
+    },
+    грыж: {
+      label: 'грыжа (поясница)',
+      subs: ['Становая/присед со штангой → жим ногами, тяга в тренажёре с упором', 'Осевые нагрузки → только после допуска врача'],
     },
     локт: {
       label: 'локоть',

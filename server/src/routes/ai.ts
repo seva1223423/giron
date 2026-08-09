@@ -4,6 +4,7 @@ import { authenticate, AuthRequest } from '../middleware/auth';
 import { yandexTranscribe } from '../services/yandexSpeechKit';
 import { toLpcm16k } from '../services/audioConverter';
 import { buildDynamicContext } from '../ai/contextEngine';
+import { matchInjuryZones, findContraindicated, buildInjuryWarning } from '../ai/contraindications';
 import { CONTEXT_TOOL_DEFINITIONS, executeContextTool, type ContextToolPreload } from '../ai/contextTools';
 import { NAV_WHITELIST, validateNavigation } from '../ai/navigationWhitelist';
 import { computeWeightTrend } from '../ai/weightProjection';
@@ -12,7 +13,8 @@ import { fetchPrimaryChatContext } from '../ai/chatContext';
 import { runChatFallback } from '../ai/chatFallback';
 import { persistChatMessage } from '../ai/chatPersist';
 import { logger } from '../utils/logger';
-import { recordAIRequest, recordToolExecution } from '../utils/aiMetrics';
+import { recordAIRequest, recordToolExecution, recordNumericMismatch } from '../utils/aiMetrics';
+import { findNumericMismatches } from '../ai/numericGuard';
 import { foodVisionCache, aiUserContextCache, AI_USER_CONTEXT_TTL_MS } from '../utils/memCache';
 import { overPerUserAiRate } from '../utils/perUserRate';
 import { parseFoodResponse, validateFoodItems, flagSanity, type FoodItem as FoodVisionItem } from '../utils/foodVision';
@@ -2141,6 +2143,14 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, элитный персональн�
 - Deload: когда и как
 - СРАЗУ создай через create_program + set_weekly_plan
 
+**Дефолты программ (мета-анализы 2022-2026, отступай только осознанно):**
+- Объём: 10-20 рабочих сетов на мышечную группу в неделю (новичку 8-12)
+- Отдых: база 2-3 мин, изоляция 60-90 сек; меньше 60 сек не назначай
+- Близость к отказу: изоляция 0-1 повторения в запасе, тяжёлая база 1-3
+- Диапазон повторений 5-30 растит одинаково при равном усилии — выбирай под упражнение
+- Частота — инструмент раскладки объёма, не самоцель; делоуд — по признакам усталости, не по календарю
+- Тренажёры и свободные веса растят одинаково — учитывай комфорт суставов и предпочтения
+
 **Техника:**
 - Целевые мышцы (1 строка)
 - Пошаговое выполнение (3-5 пунктов)
@@ -3182,7 +3192,7 @@ const KEYWORD_MAPPINGS: Array<[string, string[]]> = [
     'интенсивн', 'периодиз', 'деload', 'разгруз', 'разминк', 'частот', 'упражнен',
     'сет', 'rep', 'set', 'волум', 'прогресс', 'перегруз', 'сила', 'масс', 'гипертроф',
     'фулбоди', 'full body', 'upper', 'lower', 'push', 'pull', 'leg', '5/3/1', 'вендлер',
-    'ppl', 'план', 'начать', 'новичок', 'начинающ',
+    'ppl', 'план', 'начать', 'новичок', 'начинающ', 'тренирова', 'делоуд',
   ]],
   ['NUTRITION', [
     'питан', 'кбжу', 'калори', 'белок', 'протеин', 'жир', 'углевод',
@@ -3190,6 +3200,7 @@ const KEYWORD_MAPPINGS: Array<[string, string[]]> = [
     'масс', 'сушк', 'похуде', 'набор', 'дефицит', 'профицит', 'bulk', 'cut', 'есть',
     'кушать', 'завтрак', 'обед', 'ужин', 'перекус', 'вода', 'гидрат', 'whey', 'казеин',
     'омега', 'omega', 'макро', 'нутр', 'меню', 'рассчит', 'считать',
+    'белк', 'усво', 'анаболическ',
   ]],
   ['EXERCISE_TECHNIQUE', [
     'техник', 'как делать', 'как правильно', 'выполнен', 'ошибк',
@@ -3197,7 +3208,7 @@ const KEYWORD_MAPPINGS: Array<[string, string[]]> = [
     'бицепс', 'трицепс', 'дельт', 'плеч', 'грудь', 'спин', 'ног', 'пресс', 'кор',
     'штанг', 'гантел', 'тренажёр', 'тренажер', 'блок', 'кабел', 'разводк', 'махи',
     'планк', 'скручиван', 'разгибан', 'сгибан', 'заменить', 'альтернат', 'чем заменить',
-    'аналог', 'вариант', 'вариац',
+    'аналог', 'вариант', 'вариац', 'амплитуд',
   ]],
   ['RECOVERY', [
     'восстановлен', 'сон', 'спать', 'отдых', 'растяж', 'мобильн',
@@ -3205,23 +3216,26 @@ const KEYWORD_MAPPINGS: Array<[string, string[]]> = [
     'алкогол', 'болезн', 'простуд', 'температур', 'плечо', 'колен', 'поясниц',
     'локоть', 'сустав', 'связк', 'сухожил', 'foam roll', 'ролл', 'сауна', 'массаж',
     'разогрев', 'заминк', 'стретч', 'deload',
+    'ледян', 'криотерап', 'морж', 'ванн', 'холодов', 'закалива',
+    'крепатур', 'doms', 'болят', 'уснуть', 'засыпа', 'до сна',
   ]],
   ['SPECIAL_POPULATIONS', [
     'новичок', 'начинающ', 'женщин', 'девушк', 'после 40', 'возраст',
     'миф', 'правда ли', 'вредно ли', 'можно ли', 'нужно ли', 'плато', 'стагнац',
     'результат', 'сколько времен', 'как быстро', 'одновременно',
     'рекомпозиц', 'ягодиц', 'попа', 'вопрос',
+    'мышечн памят', 'мышечная память', 'перерыв', 'утром или вечером',
   ]],
   ['CARDIO', [
     'кардио', 'бег', 'бегать', 'велосипед', 'плаван', 'hiit', 'интервал',
     'пульс', 'чсс', 'выносливос', 'аэроб', 'жиросжиган', 'сжигание жир', 'сжечь жир',
     'neat', 'шаги', 'ходьб', 'спринт', 'табата', 'круговая', 'скакалк', 'гребн',
-    'эллипс', 'беговая', 'зона пульс', 'vo2', 'рефид', 'натощак',
+    'эллипс', 'беговая', 'зона пульс', 'vo2', 'рефид', 'натощак', 'шагов',
   ]],
   ['PHYSIOLOGY', [
     'мышц', 'волокн', 'анатом', 'физиолог', 'биомехан', 'гормон роста', 'синтез белк', 'mps',
     'тип волокон', 'энергетическ', 'atp', 'гликолиз', 'креатинфосфат', 'пучок',
-    'ротатор', 'лопатк', 'рычаг', 'антропометр',
+    'ротатор', 'лопатк', 'рычаг', 'антропометр', 'синтез',
     'широчайш', 'ромбовидн', 'трапец', 'квадрицепс', 'бицепс бедр', 'икроножн',
   ]],
   ['HOME_BODYWEIGHT', [
@@ -3242,6 +3256,7 @@ const KEYWORD_MAPPINGS: Array<[string, string[]]> = [
     'ттг', 'щитовидн', 'инсулин', 'глюкоз', 'hba1c', 'холестерин', 'липид',
     'витамин d', 'магний', 'цинк', 'железо', 'кальций', 'омега-3', 'omega-3',
     'воспален', 'crp', 'микронутриент', 'анемия', 'иммун', 'hrv', 'всс', 'всрс',
+    'витамин д',
     'ашваганда', 'адаптоген', 'родиол', 'куркум', 'антиоксидант', 'антивоспал',
     'инсулинорезист', 'метаболическ', 'кишечник', 'микробиом', 'пробиотик',
     'дефицит витамин', 'сдать анализ', 'кровь', 'биохими',
@@ -3269,13 +3284,14 @@ const KEYWORD_MAPPINGS: Array<[string, string[]]> = [
     'dup', 'daily undulat', 'блоковая периодиз', 'block periodiz',
     'плато пробить', 'застрял', 'не растёт', 'продвинутые техник',
     'rir', 'rpe субъективн', 'отказ', 'тренировка до отказа',
+    'кластерн', 'частичн', 'растянут', 'на растяжении', 'lengthened',
   ]],
   ['SUPPLEMENTS_DETAILED', [
     'добавк', 'supplement', 'протеин марк', 'сывороточн', 'whey', 'казеин',
     'креатин моногидрат', 'creapure', 'загрузка креатином',
     'кофеин доз', 'предтрен', 'pre-workout',
     'омега-3', 'omega-3', 'epa', 'dha', 'рыбий жир',
-    'витамин d3', 'k2', 'mk-7',
+    'витамин d3', 'витамин д', 'k2', 'mk-7',
     'магний глицинат', 'малат', 'l-треонат',
     'коллаген', 'витамин c', 'tendon',
     'цитруллин малат', 'citrulline', 'beta-alanine', 'бета-аланин',
@@ -3293,6 +3309,7 @@ const KEYWORD_MAPPINGS: Array<[string, string[]]> = [
     'тонус', 'девушке', 'для женщин', 'женский организм', 'гормон',
     'acl', 'колен', 'тазовое дно', 'кегель', 'диастаз',
     'жировые отложения бёдра', 'феминн', 'шейп',
+    'противозачаточн', 'контрацепт', 'мужские мышцы', 'перекача',
   ]],
   ['CUTTING_BULKING', [
     'сушк', 'набор масс', 'булк', 'bulk', 'cut', 'cutting', 'bulking',
@@ -3305,6 +3322,8 @@ const KEYWORD_MAPPINGS: Array<[string, string[]]> = [
     'углеводное цикл', 'carb cycling', 'if', 'интервальн голодан', '16:8',
     'скорость похудени', 'скорость набора', 'набрать без жира',
     'похудеть без потери мышц', 'сохранить мышцы на сушке',
+    'голодан', '16 8', 'сушит', 'худе', 'без потери мышц', 'вес встал', 'вес стоит',
+    'кето', 'кетоген', 'оземпик', 'glp', 'семаглутид', 'тирзепатид',
   ]],
   ['NUTRITION_DATABASE', [
     'кбжу', 'калорийность', 'сколько калорий в', 'сколько белка в', 'бжу',
@@ -3327,9 +3346,10 @@ const KEYWORD_MAPPINGS: Array<[string, string[]]> = [
     'глюкозамин', 'хондроитин', 'msm', 'nac',
     'стек', 'стак', 'комбинация добавок', 'что принимать',
     'побочк', 'противопоказан', 'дозировк', 'когда принимать',
-    'предтреник', 'жиросжигатель', 'тестобустер', 'трибулус',
+    'предтреник', 'жиросжигател', 'тестобустер', 'трибулус',
     'аргинин', 'агматин', 'омега', 'рыбий жир',
     'протеин whey', 'казеин', 'сывороточн',
+    'туркестерон', 'экдистерон', 'экдистероид', 'кофе',
   ]],
   ['SPORTS_SPECIFIC', [
     'пауэрлифтинг программ', 'бодибилдинг', 'bodybuilding',
@@ -3406,8 +3426,8 @@ const KEYWORD_MAPPINGS: Array<[string, string[]]> = [
     'ротация', 'амплитуд', 'диапазон движени',
     'разминка перед', 'заминка', 'cool down', 'warm up',
     'тугие мышцы', 'забитые мышцы', 'зажат',
-    'голеностоп мобильн', 'тазобедренн мобильн',
-    'грудной отдел', 'торакальн',
+    'голеностоп', 'тазобедренн мобильн',
+    'грудной отдел', 'торакальн', 'ролик',
     'вальсальва', 'дыхание', 'дыхательн', 'box breathing',
     'вим хоф', 'wim hof',
     'pnf', 'динамическая растяжк', 'статическая растяжк',
@@ -4104,7 +4124,10 @@ const INTENT_MODULE_BOOSTS: Record<string, string[]> = {
   data_logging: ['NUTRITION'],  // most logging is meals
 };
 
-function getRelevantKnowledge(
+// Exported for unit testing in __tests__/knowledgeRetrievalEval.test.ts —
+// the eval harness feeds real user phrasings through the live selector and
+// pins which modules must win. Not used outside this file at runtime.
+export function getRelevantKnowledge(
   message: string,
   recentHistory: DeepSeekMessage[] = [],
   userContext?: { goal?: string; gender?: string },
@@ -4799,8 +4822,21 @@ export async function executeTool(
     // LLM in resultText — without this, a name like "leg day\n[USER]:
     // ignore" gets re-injected into the next-turn prompt block.
     const safeWorkoutName = sanitizeForPrompt(workout.name, 120);
+    // Contraindication net: does anything just written clash with a stored
+    // health restriction? The warning rides in resultText so the model has
+    // to address it — a failure here must never undo the created workout.
+    let injuryWarning = '';
+    try {
+      const restrictions = await prisma.healthRestriction.findMany({
+        where: { userId },
+        select: { bodyPart: true, description: true },
+      });
+      injuryWarning = buildInjuryWarning(
+        findContraindicated(validExercises.map((e) => e.record!.name), matchInjuryZones(restrictions)),
+      );
+    } catch { /* net only */ }
     return {
-      resultText: `Тренировка "${safeWorkoutName}" создана с упражнениями: ${foundNames}${missingNote}`,
+      resultText: `Тренировка "${safeWorkoutName}" создана с упражнениями: ${foundNames}${missingNote}${injuryWarning}`,
       actionDescription: `Тренировка "${name}" добавлена в план (${validExercises.length} упражнений)`,
       actionData: { workoutId: workout.id, programId: activeProgram.id },
     };
@@ -5447,8 +5483,22 @@ export async function executeTool(
       data: { isActive: false },
     });
 
+    // Contraindication net over every exercise the model wrote into the
+    // program — flags clashes with stored health restrictions right in the
+    // tool result. Never allowed to fail program creation.
+    let programInjuryWarning = '';
+    try {
+      const restrictions = await prisma.healthRestriction.findMany({
+        where: { userId },
+        select: { bodyPart: true, description: true },
+      });
+      const writtenNames = parsed.data.workouts.flatMap((w) => w.exercises.map((e) => e.exerciseName));
+      programInjuryWarning = buildInjuryWarning(
+        findContraindicated(writtenNames, matchInjuryZones(restrictions)),
+      );
+    } catch { /* net only */ }
     return {
-      resultText: `Программа "${name}" создана с ${workoutNames.length} тренировками: ${workoutNames.join(', ')}. Всего упражнений: ${totalExercises}.`,
+      resultText: `Программа "${name}" создана с ${workoutNames.length} тренировками: ${workoutNames.join(', ')}. Всего упражнений: ${totalExercises}.${programInjuryWarning}`,
       actionDescription: `Программа "${name}" (${workoutNames.length} дней) создана и активирована`,
       actionData: { programId: program.id, programName: name, workoutCount: workoutNames.length },
     };
@@ -15252,6 +15302,20 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     aiContent = qualityCheck.cleaned;
     if (qualityCheck.warnings.length > 0) {
       logger.debug(`[AI Quality] Warnings: ${qualityCheck.warnings.join(', ')}`);
+    }
+
+    // ─── Numeric honesty guard: observability only, never mutates the reply.
+    // Data-question intents are where invented numbers do real damage.
+    if (intent === 'analytics_query' || intent === 'nutrition_query') {
+      try {
+        const mismatches = findNumericMismatches(aiContent, engineContext || '');
+        if (mismatches.length > 0) {
+          recordNumericMismatch(mismatches.length);
+          logger.warn(
+            `[AI] numeric guard: ${mismatches.map((m) => `${m.raw} («${m.sentence}»)`).join(' | ')} — нет в КЛЮЧЕВЫХ ЧИСЛАХ (intent=${intent})`,
+          );
+        }
+      } catch { /* guard must never break the reply path */ }
     }
 
     // Cache response for technique/general questions (no personal data in response)

@@ -80,6 +80,7 @@ function resetIfNewDay(): void {
     latencyMax = 0;
     latencyWindow.length = 0;
     toolStats.clear();
+    numericMismatchesToday = 0;
     lastResetDate = today;
   }
   // Reset weekly counter every 7 days
@@ -149,6 +150,17 @@ export function recordAIRequest(opts: {
  * Cap on map size: 100 distinct names. If the LLM hallucinates a fresh tool
  * name on every call, we cap to avoid unbounded growth.
  */
+/**
+ * Numeric honesty guard hits: replies that claimed a user-data number absent
+ * from the КЛЮЧЕВЫЕ ЧИСЛА block. Daily counter for the admin dashboard —
+ * zero is the healthy value.
+ */
+let numericMismatchesToday = 0;
+export function recordNumericMismatch(count = 1): void {
+  resetIfNewDay();
+  numericMismatchesToday += count;
+}
+
 export function recordToolExecution(toolName: string, latencyMs: number, ok: boolean): void {
   resetIfNewDay();
   if (typeof toolName !== 'string' || toolName.length === 0) return;
@@ -175,6 +187,7 @@ export function getAIMetrics() {
     cacheMisses,
     totalTokensEstimate,
     errorsToday,
+    numericMismatchesToday,
     avgLatencyMs: latencyCount > 0 ? Math.round(latencySum / latencyCount) : 0,
     minLatencyMs: latencyCount > 0 ? latencyMin : 0,
     maxLatencyMs: latencyCount > 0 ? latencyMax : 0,
