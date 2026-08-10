@@ -135,7 +135,8 @@ const styles = StyleSheet.create({
     zIndex: 9999,
   },
   toast: {
-    width: 320,
+    width: '92%',
+    maxWidth: 320,
     height: 56,
     borderRadius: 18,
     backgroundColor: T.surfaceHi,
