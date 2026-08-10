@@ -785,7 +785,13 @@ const server = process.env.NODE_ENV !== 'test' ? app.listen(PORT, () => {
     // failure (real outage / misconfig) still reports — and a real outage is
     // already loudly visible via failing requests elsewhere.
     void (async () => {
-      const MAX_ATTEMPTS = 3;
+      // Telegram history (10.06–09.08): four «Can't reach database» pages, all
+      // from this block, all self-healed — 3×(2s,4s) was shorter than a slow
+      // Neon resume after a platform restart. Five attempts over ~37s ride out
+      // any realistic cold start; a DB still down after that is a real outage
+      // and deserves the page.
+      const RETRY_DELAYS_MS = [2000, 5000, 10000, 20000];
+      const MAX_ATTEMPTS = RETRY_DELAYS_MS.length + 1;
       for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
         try {
           const r = await prisma.user.updateMany({
@@ -805,7 +811,7 @@ const server = process.env.NODE_ENV !== 'test' ? app.listen(PORT, () => {
             reportError(err as Error, { tags: { origin: 'admin-bootstrap' } });
           } else {
             logger.warn(`[AdminBootstrap] DB not ready (attempt ${attempt}/${MAX_ATTEMPTS}), retrying…`);
-            await new Promise((resolve) => setTimeout(resolve, attempt * 2000));
+            await new Promise((resolve) => setTimeout(resolve, RETRY_DELAYS_MS[attempt - 1]));
           }
         }
       }
